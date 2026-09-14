@@ -1,0 +1,12 @@
+Options -Indexes
+DirectoryIndex index.php
+
+RewriteEngine On
+
+# Citlivé adresáře a soubory nesmí být dostupné přímo z webu.
+RewriteRule ^(?:src|sql|data)(?:/|$) - [F,L,NC]
+RewriteRule ^(?:\.env(?:\..*)?|README\.md)$ - [F,L,NC]
+
+# WEDOS/shared hosting: interně obsluhuj aplikaci z public/.
+# Negativní podmínka zabraňuje opakovanému přepisování.
+RewriteRule ^(?!public(?:/|$))(.*)$ public/$1 [L]

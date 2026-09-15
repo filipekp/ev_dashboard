@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App;
 
 use App\Csv\CsvExporter;
-use App\Csv\CsvImporter;
 use App\Csv\CsvPluginLoader;
 use App\Csv\CsvPluginRegistry;
+use App\Import\Plugin\CsvVehicleImportPlugin;
+use App\Import\Plugin\KiaConnectXlsxPlugin;
+use App\Import\TripFileImporter;
 use App\Repository\TripRepository;
 use App\Repository\VehicleOperationRepository;
 use App\Repository\VehicleRepository;
@@ -131,9 +133,16 @@ final class Application
         return $this->vehicleOperations;
     }
 
-    public function importer(): CsvImporter
+    public function importer(): TripFileImporter
     {
-        return new CsvImporter($this->pdo(), $this->csvPlugins(), $this->trips());
+        return new TripFileImporter(
+            $this->pdo(),
+            $this->trips(),
+            [
+                new KiaConnectXlsxPlugin(),
+                new CsvVehicleImportPlugin($this->csvPlugins()),
+            ]
+        );
     }
 
     public function exporter(): CsvExporter

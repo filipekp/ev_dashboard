@@ -26,7 +26,7 @@
     class="toplink" href="users.php">👥 Uživatelé</a><?php endif; ?><?php if ($app->auth()->isAdmin($user)): ?><a class="toplink" href="update.php">🔄
     Aktualizace</a><?php endif; ?>
   <form action="upload.php" method="post" enctype="multipart/form-data" class="upload"><input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>"><input
-      type="hidden" name="vehicle_id" value="<?= $vehicle['id'] ?>"><label>⬆ Nahrát CSV<input type="file" name="csv" accept=".csv,text/csv"
+      type="hidden" name="vehicle_id" value="<?= $vehicle['id'] ?>"><label>⬆ Nahrát data<input type="file" name="csv" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                                                                                               onchange="this.form.submit()"></label></form>
   <a class="toplink" href="profile.php">👤 Profil</a><span class="user-chip"><?= h($user['name']) ?></span><a class="toplink" href="logout.php">Odhlásit</a>
   <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Otevřít menu" aria-controls="mobileMenuOverlay"
@@ -48,7 +48,7 @@
     <form action="upload.php" method="post" enctype="multipart/form-data" class="mobile-menu-upload">
       <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
       <input type="hidden" name="vehicle_id" value="<?= $vehicle['id'] ?>">
-      <label>⬆ <span>Nahrát CSV</span><input type="file" name="csv" accept=".csv,text/csv" onchange="this.form.submit()"></label>
+      <label>⬆ <span>Nahrát data</span><input type="file" name="csv" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="this.form.submit()"></label>
     </form>
     <a href="profile.php">👤 <span>Profil</span></a>
     <a href="logout.php" class="mobile-menu-logout">↪ <span>Odhlásit</span></a>
@@ -66,7 +66,7 @@
             <h2 id="newVehicleTitle">🚙 Doplňte údaje o vozidle</h2></div>
           <button type="button" class="modal-close" onclick="document.getElementById('newVehicleModal').remove()" aria-label="Zavřít">×</button>
         </div>
-        <p>VIN <b><?= h($newVehicleModal['vin']) ?></b> byl nalezen v názvu CSV. Vozidlo už bylo založeno, přiřazeno vašemu účtu a data byla
+        <p>VIN <b><?= h($newVehicleModal['vin']) ?></b> byl nalezen v názvu importovaného souboru. Vozidlo už bylo založeno, přiřazeno vašemu účtu a data byla
           importována. Zkontrolujte předvyplněné hodnoty.</p>
         <form method="post" class="modal-form">
           <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>"><input type="hidden" name="action" value="complete_new_vehicle"><input
@@ -185,7 +185,7 @@
                   délka: <?= cz($r['km'] / $r['count'], 1) ?> km</small></div>
             <?php } ?></div>
       <?php else: ?><p><b>Trasy nejsou v tomto CSV k dispozici.</b>
-        Citigo iV export neobsahuje adresy začátku a konce jízdy.</p><?php endif; ?>
+        Export neobsahuje adresy začátku a konce jízdy.</p><?php endif; ?>
       <div class="battery">🛡️ <b>Šetrné nabíjení
           baterie</b><span><?php if ($minSoc !== NULL): ?>Nejnižší zaznamenané SoC: <?= cz($minSoc, 0) ?> %.<?php else: ?>SoC není v tomto CSV k dispozici.<?php endif; ?></span>
         <mark>Stav: informativní</mark>
@@ -203,7 +203,7 @@
                 <mark><?= cz($c, 1) ?> kWh</mark>
                 <small><?= $r['count'] ?>× jízda</small></div>
             <?php } ?></div>
-      <?php else: ?><p><b>Trasy nejsou dostupné.</b> Export Citigo iV neobsahuje GPS
+      <?php else: ?><p><b>Trasy nejsou dostupné.</b> Export neobsahuje GPS
         ani adresy.</p><?php endif; ?></div>
   </section>
   <section class="card table-card"><h2>🗺 Cesty &gt; 80 km <span class="pill"><?= $longTripCount ?> tras</span></h2>

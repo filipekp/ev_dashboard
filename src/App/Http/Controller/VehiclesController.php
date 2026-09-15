@@ -101,11 +101,12 @@ final class VehiclesController
         $id = (int)($_POST['id'] ?? 0);
         $name = trim((string)($_POST['name'] ?? ''));
         $vin = strtoupper(trim((string)($_POST['vin'] ?? '')));
+        $manufacturer = strtoupper(trim((string)($_POST['manufacturer'] ?? '')));
         $powertrain = strtoupper(trim((string)($_POST['powertrain_type'] ?? 'BEV')));
         $allowedPowertrains = ['BEV', 'PHEV', 'HEV', 'PETROL', 'DIESEL', 'LPG', 'CNG'];
 
-        if ($name === '' || $vin === '') {
-            throw new RuntimeException('Vyplňte název a VIN vozidla.');
+        if ($name === '' || $vin === '' || $manufacturer === '') {
+            throw new RuntimeException('Vyplňte název, výrobce a VIN vozidla.');
         }
         if (!in_array($powertrain, $allowedPowertrains, true)) {
             throw new RuntimeException('Neplatný typ pohonu.');
@@ -133,6 +134,7 @@ final class VehiclesController
         $values = [
             $name,
             $vin,
+            $manufacturer,
             $powertrain,
             $battery ?: 0,
             $nominal ?: ($battery ?: null),
@@ -151,10 +153,10 @@ final class VehiclesController
         if ($action === 'create') {
             $query = $this->app->pdo()->prepare(
                 'INSERT INTO vehicles
-                    (name, vin, powertrain_type, battery_kwh, battery_nominal_kwh, fuel_tank_l,
+                    (name, vin, manufacturer, powertrain_type, battery_kwh, battery_nominal_kwh, fuel_tank_l,
                      registration_plate, first_registration_date, acquisition_date, acquisition_price, current_value,
                      odometer_km, soh_manual_pct, soh_manual_at, home_label)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, IF(? IS NULL, NULL, NOW()), ?)'
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, IF(? IS NULL, NULL, NOW()), ?)'
             );
             $query->execute($values);
             $this->app->session()->flash('Vozidlo bylo přidáno.');
@@ -167,7 +169,7 @@ final class VehiclesController
         $values[] = $id;
         $query = $this->app->pdo()->prepare(
             'UPDATE vehicles
-             SET name=?, vin=?, powertrain_type=?, battery_kwh=?, battery_nominal_kwh=?, fuel_tank_l=?,
+             SET name=?, vin=?, manufacturer=?, powertrain_type=?, battery_kwh=?, battery_nominal_kwh=?, fuel_tank_l=?,
                  registration_plate=?, first_registration_date=?, acquisition_date=?, acquisition_price=?, current_value=?,
                  odometer_km=?, soh_manual_pct=?, soh_manual_at=IF(? IS NULL, NULL, NOW()), home_label=?
              WHERE id=?'

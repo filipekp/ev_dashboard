@@ -48,12 +48,13 @@ final class VehicleRepository
     {
         $query = $this->pdo->prepare(
             'INSERT INTO vehicles
-                (name, vin, powertrain_type, battery_kwh, battery_nominal_kwh)
-             VALUES (?, ?, ?, ?, ?)'
+                (name, vin, manufacturer, powertrain_type, battery_kwh, battery_nominal_kwh)
+             VALUES (?, ?, ?, ?, ?, ?)'
         );
         $query->execute([
             (string)$meta['suggested_name'],
             $vin,
+            strtoupper((string)($meta['manufacturer'] ?? '')),
             (string)($meta['powertrain_type'] ?? 'BEV'),
             (float)$meta['battery_kwh'],
             (float)$meta['battery_nominal_kwh'],

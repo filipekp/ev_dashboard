@@ -40,6 +40,7 @@
             }
             
             return [
+                'manufacturer'        => 'SKODA',
                 'suggested_name'      => $name,
                 'battery_kwh'         => 77.0,
                 'battery_nominal_kwh' => 77.0,

@@ -36,6 +36,7 @@
         
         public function inspect(?string $vin): array {
             return [
+                'manufacturer'        => 'SKODA',
                 'suggested_name'      => 'Škoda Citigo iV',
                 'battery_kwh'         => 32.3,
                 'battery_nominal_kwh' => 32.3

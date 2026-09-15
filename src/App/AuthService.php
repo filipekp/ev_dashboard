@@ -127,6 +127,24 @@ final class AuthService
         return (bool)$q->fetchColumn();
     }
 
+    /**
+     * Ověří explicitní přiřazení vozidla konkrétnímu uživateli.
+     *
+     * Na rozdíl od canAccessVehicle() zde neexistuje výjimka pro administrátora
+     * ani managera. Import je zapisující operace a musí být vždy svázán s
+     * konkrétním uživatelem, aby nebylo možné omylem importovat data do vozidla
+     * jiného uživatele.
+     */
+    public function isVehicleAssignedToUser(int $userId, int $vehicleId): bool
+    {
+        $query = $this->pdo->prepare(
+            'SELECT 1 FROM user_vehicles WHERE user_id=? AND vehicle_id=? LIMIT 1'
+        );
+        $query->execute([$userId, $vehicleId]);
+
+        return (bool)$query->fetchColumn();
+    }
+
     /** @param array<string,mixed> $user @return array<string,mixed>|null */
     public function selectVehicle(array $user): ?array
     {

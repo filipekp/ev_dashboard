@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(120) NOT NULL,
     vin VARCHAR(32) NOT NULL UNIQUE,
+    manufacturer VARCHAR(80) NULL,
     battery_kwh DECIMAL(7,2) NOT NULL DEFAULT 77.00,
     battery_nominal_kwh DECIMAL(7,2) NULL,
     soh_manual_pct DECIMAL(5,2) NULL,

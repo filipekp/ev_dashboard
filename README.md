@@ -161,24 +161,6 @@ sql/migrate_v5.sql
 
 U nové instalace je změna již součástí `sql/schema.sql`.
 
-## Architektura po refaktoringu
-
-Aplikační logika je přesunuta do tříd v `src/App/` a veřejné PHP soubory v `public/` fungují jako tenké entrypointy / view controllery.
-
-Hlavní třídy:
-
-- `Application` – sestavení aplikace a přístup ke službám,
-- `Config` – objektová konfigurace,
-- `Database` – PDO připojení,
-- `Session` – session, flash zprávy a CSRF,
-- `AuthService` – autentizace, role a přístup k vozidlům,
-- `CsvImporter` – detekce a import MyŠkoda CSV,
-- `MigrationManager` – verzované DB migrace a tabulka `schema_migrations`,
-- `GitHubUpdater` – bezpečné stažení releasu z GitHubu, lokální záloha, migrace a nasazení,
-- `View` / `Http` – prezentační a HTTP utility.
-
-`src/bootstrap.php` obsahuje autoloader a sestavení `Application`. Kvůli minimalizaci rizika regresí ve stávajících HTML šablonách obsahuje také malou kompatibilní vrstvu pro prezentační helpery (`h()`, `cz()`, `flash()` apod.); doménová logika už v těchto funkcích není.
-
 ## Aktualizace z GitHubu
 
 Administrátor může otevřít `update.php`. Aktualizátor používá repozitář:
@@ -200,7 +182,7 @@ Při aktualizaci aplikace:
 2. zkontroluje strukturu balíčku,
 3. vytvoří zálohu spravovaných souborů do `.updates/`,
 4. spustí dosud neprovedené `sql/migrate_*.sql`,
-5. synchronizuje adresáře `public/`, `src/` a `sql/` a vybrané kořenové soubory,
+5. synchronizuje adresáře `public/`, `src/`, `sql/` a `templates/` a vybrané kořenové soubory,
 6. **nikdy nepřepisuje `.env`**.
 
 Adresář `.updates/` je blokovaný přes `.htaccess` a je v `.gitignore`.
@@ -208,3 +190,85 @@ Adresář `.updates/` je blokovaný přes `.htaccess` a je v `.gitignore`.
 Migrace jsou evidované v tabulce `schema_migrations` včetně SHA-256 checksumu. Již jednou provedenou migraci proto neupravujte; vždy vytvořte nový soubor, např. `sql/migrate_v6.sql`, `sql/migrate_v7.sql` atd. Aktualizátor odmítne pokračovat, pokud zjistí, že již aplikovaná migrace byla zpětně změněna.
 
 Pro aktualizaci musí PHP umět HTTPS spojení na GitHub (cURL nebo `allow_url_fopen`) a mít rozšíření `ZipArchive`. PHP proces také musí mít právo zapisovat do adresáře aplikace.
+
+## Architektura po refaktoringu
+
+Projekt je rozdělen do vrstev:
+
+- `public/` – pouze HTTP vstupní body. Dashboard, import a export delegují do controllerů.
+- `src/App/Http/Controller/` – zpracování HTTP požadavků a přesměrování.
+- `src/App/Service/` – aplikační logika (`DashboardService`, `ImportService`).
+- `src/App/Repository/` – persistence nad databází (`TripRepository`, `VehicleRepository`).
+- `src/App/Csv/` – obecná import/export infrastruktura bez znalosti konkrétní značky.
+- `src/App/Csv/Plugin/` – samostatné pluginy jednotlivých CSV formátů/vozidel.
+- `templates/` – prezentační šablony dashboardu.
+
+### CSV pluginy
+
+Každý plugin implementuje `App\Csv\Plugin\CsvVehiclePluginInterface` a zajišťuje celý životní cyklus svého formátu:
+
+1. `supports()` – rozpoznání exportu podle hlavičky CSV.
+2. `inspect()` – návrh názvu auta a kapacity baterie při automatickém založení vozidla.
+3. `parse()` – převod jednoho řádku CSV na jednotný interní model tabulky `trips`.
+4. `exportHeaders()` – hlavička CSV při exportu.
+5. `exportRow()` – zpětný převod interní jízdy do formátu pluginu.
+
+Pluginy se registrují automaticky. `CsvPluginLoader` načte všechny konkrétní třídy `*Plugin.php` v `src/App/Csv/Plugin/`, které implementují `CsvVehiclePluginInterface`. Při přidání Kia, Audi, Tesla apod. proto není potřeba měnit centrální importer/exporter ani `Application`.
+
+Aktuálně jsou součástí projektu:
+
+- `SkodaMySkodaPlugin` – MyŠkoda export novějších vozidel,
+- `SkodaCitigoIvPlugin` – export Škoda Citigo iV.
+
+### Přidání nového auta / CSV formátu
+
+Vytvořte například `src/App/Csv/Plugin/TeslaTripsPlugin.php`:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Csv\Plugin;
+
+final class TeslaTripsPlugin extends AbstractCsvVehiclePlugin
+{
+    public function id(): string { return 'tesla_trips'; }
+    public function label(): string { return 'Tesla'; }
+
+    public function supports(array $header): bool
+    {
+        return $this->hasColumns($header, ['Start Date', 'End Date', 'Distance']);
+    }
+
+    public function inspect(?string $vin): array
+    {
+        return [
+            'suggested_name' => 'Tesla',
+            'battery_kwh' => 75.0,
+            'battery_nominal_kwh' => 75.0,
+        ];
+    }
+
+    public function parse(array $row): ?array
+    {
+        // převést řádek na jednotný model trips
+    }
+
+    public function exportHeaders(): array
+    {
+        return ['Start Date', 'End Date', 'Distance'];
+    }
+
+    public function exportRow(array $trip): array
+    {
+        // převést interní jízdu zpět do Tesla CSV
+    }
+}
+```
+
+Soubor je po nasazení automaticky objeven loaderem. ID pluginu se ukládá do `trips.source_format`, takže export vybere plugin podle formátu, ze kterého pochází většina jízd v exportovaném období.
+
+### Důležitý princip
+
+Databázová tabulka `trips` zůstává společným normalizovaným modelem. Značkově specifické názvy sloupců, datumové formáty a zvláštnosti exportů nesmí být v controllerech, repository ani dashboardu; patří pouze do příslušného CSV pluginu.

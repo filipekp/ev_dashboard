@@ -8,7 +8,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
-<?php $powertrain = (string)($vehicle['powertrain_type'] ?? 'BEV'); $electricDrive = in_array($powertrain, ['BEV', 'PHEV'], TRUE); ?>
 <header class="topbar">
   <div class="brand">⚡</div>
   <form class="vehicle-switch" method="get"><select name="vehicle_id" onchange="this.form.submit()"
@@ -18,9 +17,9 @@
           · <?= h($v['vin']) ?></option>
       <?php endforeach; ?></select></form>
   <div class="vehicle">
-    <b><?= h($vehicle['name']) ?></b><span><?= h($powertrain) ?><?php if ($electricDrive && (float)$vehicle['battery_kwh'] > 0): ?> · <?= cz((float)$vehicle['battery_kwh'], 0) ?> kWh<?php elseif ((float)($vehicle['fuel_tank_l'] ?? 0) > 0): ?> · <?= cz((float)$vehicle['fuel_tank_l'], 0) ?> l<?php endif; ?></span><small>VIN: <?= h($vehicle['vin']) ?></small></div>
+    <b><?= h($vehicle['name']) ?></b><span><?= cz((float)$vehicle['battery_kwh'], 0) ?> kWh</span><small>VIN: <?= h($vehicle['vin']) ?></small></div>
   <div class="spacer"></div>
-  <a class="toplink" href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">🧾 Provoz</a><?php if ($app->auth()->canManageVehicles($user)): ?><a class="toplink" href="vehicles.php">🚙
+  <?php if ($app->auth()->canManageVehicles($user)): ?><a class="toplink" href="vehicles.php">🚙
     Vozidla</a><?php endif; ?><?php if ($app->auth()->isAdmin($user)): ?><a
     class="toplink" href="users.php">👥 Uživatelé</a><?php endif; ?><?php if ($app->auth()->isAdmin($user)): ?><a class="toplink" href="update.php">🔄
     Aktualizace</a><?php endif; ?>
@@ -39,7 +38,6 @@
   </div>
   <div class="mobile-menu-account">Přihlášen: <strong><?= h($user['name']) ?></strong></div>
   <nav class="mobile-menu-links" aria-label="Mobilní navigace">
-    <a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">🧾 <span>Provoz</span></a>
     <?php if ($app->auth()->canManageVehicles($user)): ?><a href="vehicles.php">🚙 <span>Vozidla</span></a><?php endif; ?>
     <?php if ($app->auth()->isAdmin($user)): ?><a href="users.php">👥 <span>Uživatelé</span></a><a href="update.php">🔄
       <span>Aktualizace</span></a><?php endif; ?>
@@ -117,24 +115,18 @@
   <section class="kpis">
     <div class="card kpi"><small>CELKOVÝ NÁJEZD</small><strong><?= cz($totalKm, 0) ?>
         <em>km</em></strong><span>Tachometr: <?= cz($odoMin, 0) ?> → <?= cz($odoMax, 0) ?> km</span></div>
-    <?php if ($electricDrive): ?>
-      <div class="card kpi"><small>PRŮM. SPOTŘEBA</small><strong class="green"><?= cz($avgCons, 2) ?> <em>kWh/100 km</em></strong><span>Spotřebováno: <?= cz($totalKwh, 1) ?> kWh</span></div>
-      <div class="card kpi"><small>ODHAD DOJEZDU</small><strong>~<?= cz($range, 0) ?> <em>km</em></strong><span>na 100 % baterie</span></div>
-    <?php else: ?>
-      <div class="card kpi"><small>ENERGIE / PALIVO</small><strong class="green"><?= cz((float)$operationSummary['energy_cost'], 0) ?> <em>Kč</em></strong><span>evidované tankování</span></div>
-      <div class="card kpi"><small>PROVOZNÍ NÁKLADY</small><strong><?= cz((float)$operationSummary['cost_per_km'], 2) ?> <em>Kč/km</em></strong><span>servis + palivo + ostatní</span></div>
-    <?php endif; ?>
+    <div class="card kpi"><small>PRŮM. SPOTŘEBA</small><strong class="green"><?= cz($avgCons, 2) ?> <em>kWh/100
+          km</em></strong><span>Spotřebováno: <?= cz($totalKwh, 1) ?> kWh</span></div>
+    <div class="card kpi"><small>ODHAD DOJEZDU</small><strong>~<?= cz($range, 0) ?> <em>km</em></strong><span>na 100 % baterie</span></div>
     <div class="card kpi"><small>DOBA JÍZDY</small><strong><?= cz($driveMin / 60, 1) ?> <em>hod</em></strong><span>Průměr: <?= cz($avgSpeed, 1) ?> km/h</span>
     </div>
     <div class="card kpi"><small>POMALÉ / DC</small><?php if ($chargeDataAvailable): ?><strong><?= cz($homePct, 0) ?>% <em>/ <?= cz($publicPct, 0) ?>
         %</em></strong><span>Veřejné DC: <?= cz($publicStops, 0) ?>× · <?= cz($publicKwh, 1) ?> kWh*</span><?php else: ?><strong>—</strong><span>CSV neobsahuje SoC ani nabíjení</span><?php endif; ?>
     </div>
     <div class="card kpi"><small>JÍZDY CELKEM</small><strong><?= $tripCount ?></strong><span>Z toho krátkých: <?= $shortTrips ?></span></div>
-    <?php if ($electricDrive): ?>
-      <div class="card kpi soh-kpi"><small>🔋 STATE OF HEALTH</small><?php if ($soh !== NULL): ?><strong class="<?= $sohClass ?>"><?= cz($soh, 1) ?> <em>%</em></strong><span><?= $sohSource ?><?= count($sohSamples) ? ' · ' . count($sohSamples) . ' vzorků' : '' ?></span><?php else: ?><strong>—</strong><span>Nedostatek dat pro spolehlivý odhad</span><?php endif; ?></div>
-    <?php else: ?>
-      <div class="card kpi"><small>CELKOVÉ NÁKLADY</small><strong><?= cz((float)$operationSummary['total_cost'], 0) ?> <em>Kč</em></strong><span><a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">otevřít provozní evidenci</a></span></div>
-    <?php endif; ?>
+    <div class="card kpi soh-kpi"><small>🔋 STATE OF HEALTH</small><?php if ($soh !== NULL): ?><strong class="<?= $sohClass ?>"><?= cz($soh, 1) ?> <em>%</em>
+        </strong><span><?= $sohSource ?><?= count($sohSamples) ? ' · ' . count($sohSamples) . ' vzorků' : '' ?></span><?php else: ?><strong>—</strong>
+        <span>Nedostatek dat pro spolehlivý odhad</span><?php endif; ?></div>
   </section>
   <section class="grid2">
     <div class="card chart-card"><h2>📈 Měsíční nájezd a průměrná spotřeba</h2>

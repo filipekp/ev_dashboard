@@ -1500,24 +1500,3 @@ html, body {
     white-space: normal
   }
 }
-
-/* v7 - univerzální vozidla a provozní evidence */
-.operations-page { padding-bottom: 48px; }
-.operations-head { display:flex; align-items:center; gap:24px; justify-content:space-between; margin-bottom:18px; }
-.operations-head h1 { margin:4px 0; }
-.operations-head p { margin:0; opacity:.72; }
-.operations-kpis { margin-bottom:18px; }
-.operations-forms { align-items:start; }
-.operations-section { margin-top:18px; }
-.form-grid-2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-.table-scroll { width:100%; overflow-x:auto; }
-.data-table { width:100%; border-collapse:collapse; min-width:720px; }
-.data-table th, .data-table td { padding:10px 12px; border-bottom:1px solid rgba(127,127,127,.18); text-align:left; vertical-align:top; }
-.data-table th { font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; opacity:.7; }
-.data-table input, .data-table select { min-width:120px; }
-.muted-row { opacity:.55; }
-.vehicle-meta-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-@media (max-width:760px) {
-  .operations-head { align-items:stretch; flex-direction:column; }
-  .form-grid-2, .vehicle-meta-grid { grid-template-columns:1fr; }
-}

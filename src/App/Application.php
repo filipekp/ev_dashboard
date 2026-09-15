@@ -6,22 +6,16 @@ namespace App;
 
 use App\Csv\CsvExporter;
 use App\Csv\CsvImporter;
-use App\Csv\CsvPluginLoader;
 use App\Csv\CsvPluginRegistry;
+use App\Csv\CsvPluginLoader;
 use App\Repository\TripRepository;
-use App\Repository\VehicleOperationRepository;
 use App\Repository\VehicleRepository;
-use App\Service\DashboardService;
 use App\Service\ImportService;
-use App\Service\VehicleOperationService;
+use App\Service\DashboardService;
 use PDO;
 
 /**
- * Kořenový aplikační kontejner.
- *
- * Centralizuje vytváření služeb a repositories bez globálních singletonů.
- * Instance se vytvářejí lazy, aby se neinicializovaly části aplikace, které
- * konkrétní HTTP request nepotřebuje.
+ * Application composition root and service factory.
  *
  * @author    Pavel Filípek <pavel@filipek-czech.cz>
  * @copyright © 2026, Proclient s.r.o.
@@ -31,30 +25,20 @@ final class Application
 {
     /** @var Config */
     private $config;
-
     /** @var Database */
     private $database;
-
     /** @var Session */
     private $session;
-
     /** @var AuthService */
     private $auth;
-
     /** @var string */
     private $root;
-
     /** @var CsvPluginRegistry|null */
     private $csvPlugins;
-
     /** @var TripRepository|null */
     private $trips;
-
     /** @var VehicleRepository|null */
     private $vehicles;
-
-    /** @var VehicleOperationRepository|null */
-    private $vehicleOperations;
 
     /** @param array<string,mixed> $config */
     public function __construct(array $config, string $root)
@@ -66,6 +50,21 @@ final class Application
         $this->session->start();
         $this->database = new Database($this->config);
         $this->auth = new AuthService($this->database->pdo(), $this->config);
+    }
+
+    private function configureErrors(): void
+    {
+        $env = (string)$this->config->get('app.env', 'production');
+        $debug = (bool)$this->config->get('app.debug', false);
+        error_reporting(E_ALL);
+        if ($debug || $env !== 'production') {
+            ini_set('display_errors', '1');
+            ini_set('display_startup_errors', '1');
+        } else {
+            ini_set('display_errors', '0');
+            ini_set('display_startup_errors', '0');
+            ini_set('log_errors', '1');
+        }
     }
 
     public function config(): Config
@@ -99,7 +98,6 @@ final class Application
             $loader = new CsvPluginLoader(__DIR__ . '/Csv/Plugin');
             $this->csvPlugins = new CsvPluginRegistry($loader->load());
         }
-
         return $this->csvPlugins;
     }
 
@@ -108,7 +106,6 @@ final class Application
         if ($this->trips === null) {
             $this->trips = new TripRepository($this->pdo());
         }
-
         return $this->trips;
     }
 
@@ -117,17 +114,7 @@ final class Application
         if ($this->vehicles === null) {
             $this->vehicles = new VehicleRepository($this->pdo());
         }
-
         return $this->vehicles;
-    }
-
-    public function vehicleOperations(): VehicleOperationRepository
-    {
-        if ($this->vehicleOperations === null) {
-            $this->vehicleOperations = new VehicleOperationRepository($this->pdo());
-        }
-
-        return $this->vehicleOperations;
     }
 
     public function importer(): CsvImporter
@@ -142,26 +129,12 @@ final class Application
 
     public function importService(): ImportService
     {
-        return new ImportService(
-            $this->pdo(),
-            $this->auth(),
-            $this->importer(),
-            $this->vehicles(),
-            $this->trips()
-        );
+        return new ImportService($this->pdo(), $this->auth(), $this->importer(), $this->vehicles(), $this->trips());
     }
 
     public function dashboard(): DashboardService
     {
-        return new DashboardService($this->pdo(), $this->vehicleOperations());
-    }
-
-    public function vehicleOperationService(): VehicleOperationService
-    {
-        return new VehicleOperationService(
-            $this->vehicleOperations(),
-            $this->root . '/storage'
-        );
+        return new DashboardService($this->pdo());
     }
 
     public function template(): Template
@@ -182,22 +155,5 @@ final class Application
     public function updater(): GitHubUpdater
     {
         return new GitHubUpdater($this->config, $this->root, $this->migrations());
-    }
-
-    private function configureErrors(): void
-    {
-        $environment = (string)$this->config->get('app.env', 'production');
-        $debug = (bool)$this->config->get('app.debug', false);
-        error_reporting(E_ALL);
-
-        if ($debug || $environment !== 'production') {
-            ini_set('display_errors', '1');
-            ini_set('display_startup_errors', '1');
-            return;
-        }
-
-        ini_set('display_errors', '0');
-        ini_set('display_startup_errors', '0');
-        ini_set('log_errors', '1');
     }
 }

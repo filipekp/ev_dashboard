@@ -3,9 +3,8 @@
 declare(strict_types=1);
 
 namespace App;
-
 /**
- * Třída Http.
+ * Contains shared HTTP response helpers.
  *
  * @author    Pavel Filípek <pavel@filipek-czech.cz>
  * @copyright © 2026, Proclient s.r.o.

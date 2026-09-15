@@ -1,11 +1,129 @@
 <?php
-declare(strict_types=1); namespace App\Http\Controller;
-use App\Application; use App\Http; use RuntimeException; use Throwable;
+
+declare(strict_types=1);
+
+namespace App\Http\Controller;
+
+use App\Application;
+use App\Http;
+use RuntimeException;
+use Throwable;
+
 /**
- * Třída UsersController.
+ * Manages application users and their vehicle assignments.
  *
  * @author    Pavel Filípek <pavel@filipek-czech.cz>
  * @copyright © 2026, Proclient s.r.o.
  * @created   15.09.2026
  */
-final class UsersController { private $app; public function __construct(Application $app){$this->app=$app;} public function handle(): void {$pdo=$this->app->pdo();$me=$this->app->auth()->requireAdmin();try{if($_SERVER['REQUEST_METHOD']==='POST'){$this->app->session()->verifyCsrf();$action=(string)($_POST['action']??'');if($action==='create'){$name=trim((string)$_POST['name']);$email=strtolower(trim((string)$_POST['email']));$pass=(string)$_POST['password'];$role=in_array($_POST['role']??'',['admin','manager','user'],true)?$_POST['role']:'user';if($name===''||!filter_var($email,FILTER_VALIDATE_EMAIL)||strlen($pass)<8)throw new RuntimeException('Zkontrolujte údaje. Heslo musí mít alespoň 8 znaků.');$pdo->prepare('INSERT INTO users(name,email,password_hash,role,active) VALUES(?,?,?,?,1)')->execute([$name,$email,password_hash($pass,PASSWORD_DEFAULT),$role]);$this->app->session()->flash('Uživatel byl vytvořen.');}elseif($action==='update'){$id=(int)$_POST['id'];$name=trim((string)$_POST['name']);$email=strtolower(trim((string)$_POST['email']));$role=in_array($_POST['role']??'',['admin','manager','user'],true)?$_POST['role']:'user';$active=isset($_POST['active'])?1:0;if($id===(int)$me['id']&&!$active)throw new RuntimeException('Nemůžete deaktivovat vlastní účet.');if($name===''||!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Neplatné údaje.');$pdo->prepare('UPDATE users SET name=?,email=?,role=?,active=? WHERE id=?')->execute([$name,$email,$role,$active,$id]);$vehicleIds=array_values(array_unique(array_filter(array_map('intval',$_POST['vehicle_ids']??[]))));$pdo->prepare('DELETE FROM user_vehicles WHERE user_id=?')->execute([$id]);$ins=$pdo->prepare('INSERT INTO user_vehicles(user_id,vehicle_id) VALUES(?,?)');foreach($vehicleIds as $vid)$ins->execute([$id,$vid]);if($role==='user'){if($vehicleIds){$ph=implode(',',array_fill(0,count($vehicleIds),'?'));$pdo->prepare('UPDATE users SET default_vehicle_id=NULL WHERE id=? AND default_vehicle_id IS NOT NULL AND default_vehicle_id NOT IN ('.$ph.')')->execute(array_merge([$id],$vehicleIds));}else{$pdo->prepare('UPDATE users SET default_vehicle_id=NULL WHERE id=?')->execute([$id]);}}$this->app->session()->flash('Uživatel a jeho vozidla byli upraveni.');}elseif($action==='reset_link'){$id=(int)$_POST['id'];$q=$pdo->prepare('SELECT id,name,email,active FROM users WHERE id=?');$q->execute([$id]);$u=$q->fetch();if(!$u||!(int)$u['active'])throw new RuntimeException('Uživatel neexistuje nebo není aktivní.');$token=$this->app->auth()->createPasswordResetToken($id);$url=$this->app->auth()->resetUrl($token);$sent=$this->app->auth()->sendPasswordResetEmail($u['email'],$u['name'],$url);$msg=$sent?'Odkaz pro obnovu hesla byl odeslán.':'Resetovací odkaz byl vytvořen, ale e-mail se nepodařilo odeslat.';if((bool)$this->app->config()->get('app.debug',false))$msg.=' '.$url;$this->app->session()->flash($msg,$sent?'ok':'error');}elseif($action==='delete'){$id=(int)$_POST['id'];if($id===(int)$me['id'])throw new RuntimeException('Nemůžete smazat vlastní účet.');$pdo->prepare('DELETE FROM users WHERE id=?')->execute([$id]);$this->app->session()->flash('Uživatel byl smazán.');}Http::redirect('users.php');}}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();$this->app->session()->flash($e->getMessage(),'error');Http::redirect('users.php');}$users=$pdo->query('SELECT u.*, (SELECT COUNT(*) FROM user_vehicles uv WHERE uv.user_id=u.id) vehicle_count FROM users u ORDER BY u.name')->fetchAll();$vehicles=$pdo->query('SELECT id,name,vin FROM vehicles ORDER BY name')->fetchAll();$assigned=[];foreach($pdo->query('SELECT user_id,vehicle_id FROM user_vehicles') as $r)$assigned[(int)$r['user_id']][]=(int)$r['vehicle_id'];$flash=$this->app->session()->pullFlash();$this->app->template()->render('users',['app'=>$this->app,'me'=>$me,'users'=>$users,'vehicles'=>$vehicles,'assigned'=>$assigned,'flash'=>$flash]);}}
+final class UsersController
+{
+    /** @var Application */
+    private $app;
+
+    public function __construct(Application $app)
+    {
+        $this->app = $app;
+    }
+
+    public function handle(): void
+    {
+        $pdo = $this->app->pdo();
+        $me = $this->app->auth()->requireAdmin();
+        try {
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                $this->app->session()->verifyCsrf();
+                $action = (string)($_POST['action'] ?? '');
+                if ($action === 'create') {
+                    $name = trim((string)$_POST['name']);
+                    $email = strtolower(trim((string)$_POST['email']));
+                    $pass = (string)$_POST['password'];
+                    $role = in_array($_POST['role'] ?? '', ['admin', 'manager', 'user'], true)?$_POST['role']:'user';
+                    if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($pass) < 8) {
+                        throw new RuntimeException('Zkontrolujte údaje. Heslo musí mít alespoň 8 znaků.');
+                    }
+                    $pdo->prepare('INSERT INTO users(name,email,password_hash,role,active) VALUES(?,?,?,?,1)')->execute([
+                        $name,
+                        $email,
+                        password_hash($pass, PASSWORD_DEFAULT),
+                        $role
+                    ]);
+                    $this->app->session()->flash('Uživatel byl vytvořen.');
+                } elseif ($action === 'update') {
+                    $id = (int)$_POST['id'];
+                    $name = trim((string)$_POST['name']);
+                    $email = strtolower(trim((string)$_POST['email']));
+                    $role = in_array($_POST['role'] ?? '', ['admin', 'manager', 'user'], true)?$_POST['role']:'user';
+                    $active = isset($_POST['active'])?1:0;
+                    if ($id === (int)$me['id'] && !$active) {
+                        throw new RuntimeException('Nemůžete deaktivovat vlastní účet.');
+                    }
+                    if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        throw new RuntimeException('Neplatné údaje.');
+                    }
+                    $pdo->prepare('UPDATE users SET name=?,email=?,role=?,active=? WHERE id=?')->execute([$name, $email, $role, $active, $id]);
+                    $vehicleIds = array_values(array_unique(array_filter(array_map('intval', $_POST['vehicle_ids'] ?? []))));
+                    $pdo->prepare('DELETE FROM user_vehicles WHERE user_id=?')->execute([$id]);
+                    $ins = $pdo->prepare('INSERT INTO user_vehicles(user_id,vehicle_id) VALUES(?,?)');
+                    foreach ($vehicleIds as $vid) {
+                        $ins->execute([$id, $vid]);
+                    }
+                    if ($role === 'user') {
+                        if ($vehicleIds) {
+                            $ph = implode(',', array_fill(0, count($vehicleIds), '?'));
+                            $pdo->prepare('UPDATE users SET default_vehicle_id=NULL WHERE id=? AND default_vehicle_id IS NOT NULL AND default_vehicle_id NOT IN (' . $ph . ')')->execute(array_merge([$id], $vehicleIds));
+                        } else {
+                            $pdo->prepare('UPDATE users SET default_vehicle_id=NULL WHERE id=?')->execute([$id]);
+                        }
+                    }
+                    $this->app->session()->flash('Uživatel a jeho vozidla byli upraveni.');
+                } elseif ($action === 'reset_link') {
+                    $id = (int)$_POST['id'];
+                    $q = $pdo->prepare('SELECT id,name,email,active FROM users WHERE id=?');
+                    $q->execute([$id]);
+                    $u = $q->fetch();
+                    if (!$u || !(int)$u['active']) {
+                        throw new RuntimeException('Uživatel neexistuje nebo není aktivní.');
+                    }
+                    $token = $this->app->auth()->createPasswordResetToken($id);
+                    $url = $this->app->auth()->resetUrl($token);
+                    $sent = $this->app->auth()->sendPasswordResetEmail($u['email'], $u['name'], $url);
+                    $msg = $sent?'Odkaz pro obnovu hesla byl odeslán.':'Resetovací odkaz byl vytvořen, ale e-mail se nepodařilo odeslat.';
+                    if ((bool)$this->app->config()->get('app.debug', false)) {
+                        $msg .= ' ' . $url;
+                    }
+                    $this->app->session()->flash($msg, $sent?'ok':'error');
+                } elseif ($action === 'delete') {
+                    $id = (int)$_POST['id'];
+                    if ($id === (int)$me['id']) {
+                        throw new RuntimeException('Nemůžete smazat vlastní účet.');
+                    }
+                    $pdo->prepare('DELETE FROM users WHERE id=?')->execute([$id]);
+                    $this->app->session()->flash('Uživatel byl smazán.');
+                }
+                Http::redirect('users.php');
+            }
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            $this->app->session()->flash($e->getMessage(), 'error');
+            Http::redirect('users.php');
+        }
+        $users = $pdo->query('SELECT u.*, (SELECT COUNT(*) FROM user_vehicles uv WHERE uv.user_id=u.id) vehicle_count FROM users u ORDER BY u.name')->fetchAll();
+        $vehicles = $pdo->query('SELECT id,name,vin FROM vehicles ORDER BY name')->fetchAll();
+        $assigned = [];
+        foreach ($pdo->query('SELECT user_id,vehicle_id FROM user_vehicles') as $r) {
+            $assigned[(int)$r['user_id']][] = (int)$r['vehicle_id'];
+        }
+        $flash = $this->app->session()->pullFlash();
+        $this->app->template()->render('users', [
+            'app' => $this->app,
+            'me' => $me,
+            'users' => $users,
+            'vehicles' => $vehicles,
+            'assigned' => $assigned,
+            'flash' => $flash
+        ]);
+    }
+}

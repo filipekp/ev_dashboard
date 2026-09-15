@@ -272,3 +272,38 @@ Soubor je po nasazení automaticky objeven loaderem. ID pluginu se ukládá do `
 ### Důležitý princip
 
 Databázová tabulka `trips` zůstává společným normalizovaným modelem. Značkově specifické názvy sloupců, datumové formáty a zvláštnosti exportů nesmí být v controllerech, repository ani dashboardu; patří pouze do příslušného CSV pluginu.
+
+## Univerzální vozidla a provozní evidence (v7)
+
+Datový model vozidla nově rozlišuje pohony `BEV`, `PHEV`, `HEV`, `PETROL`, `DIESEL`, `LPG` a `CNG`. EV specifické údaje zůstávají zachované kvůli zpětné kompatibilitě se stávajícími Škoda CSV pluginy, ale provozní evidence je společná pro všechny typy vozidel.
+
+Nová stránka `public/operations.php` obsahuje:
+
+- tankování a nabíjení včetně ceny, tachometru a místa,
+- servisní historii a chráněné servisní přílohy,
+- ostatní provozní náklady,
+- připomínky podle data nebo stavu kilometrů,
+- knihu jízd s klasifikací soukromá / služební / dojíždění / ostatní,
+- souhrn provozních nákladů a výpočet Kč/km.
+
+### Architektura provozní evidence
+
+Provozní část dodržuje stejné vrstvení jako refaktorovaná importní část:
+
+```text
+public/operations.php
+    ↓
+Http/Controller/OperationsController
+    ↓
+Service/VehicleOperationService
+    ↓
+Repository/VehicleOperationRepository
+    ↓
+MySQL
+```
+
+Controller neobsahuje SQL ani business validaci. `VehicleOperationService` normalizuje vstupy a řeší pravidla aplikace, zatímco `VehicleOperationRepository` je jediná vrstva zodpovědná za SQL provozní evidence.
+
+Servisní přílohy se ukládají do `storage/service/`, tedy mimo veřejný webroot. Přístup k nim zajišťuje `AttachmentController`, který před odesláním souboru ověří oprávnění uživatele k vozidlu. Obsah `storage/service/` se nemá commitovat do Git repozitáře a updater tuto složku nesynchronizuje, takže uživatelské soubory při aktualizaci zůstávají zachované.
+
+Databázové změny jsou v `sql/migrate_v7.sql` a pro nové instalace také v `sql/schema.sql`.

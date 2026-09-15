@@ -1977,3 +1977,22 @@ html, body {
     grid-template-columns: 1fr
   }
 }
+
+/* v12: samoobslužné založení vozidla řidičem */
+.modal-close-link {
+  display: inline-grid;
+  place-items: center;
+  text-decoration: none;
+}
+
+.modal-form select {
+  width: 100%;
+}
+
+.empty-upload form {
+  margin: 0;
+}
+
+.empty-upload form input[type=file] {
+  display: none;
+}

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use PDO;
+use Throwable;
 
 /**
  * Repository vozidel.
@@ -61,6 +62,55 @@ final class VehicleRepository
         ]);
 
         return (int)$this->pdo->lastInsertId();
+    }
+
+    /**
+     * Založí vozidlo a atomicky jej přiřadí konkrétnímu uživateli.
+     *
+     * Používá se pro samoobslužné založení vozidla řidičem. Uživatel tak
+     * nikdy nezíská přístup k jinému existujícímu vozidlu pouze zadáním VIN.
+     *
+     * @param array<string,mixed> $vehicle
+     */
+    public function createForUser(int $userId, array $vehicle): int
+    {
+        $this->pdo->beginTransaction();
+
+        try {
+            $query = $this->pdo->prepare(
+                'INSERT INTO vehicles
+                    (name, vin, manufacturer, powertrain_type, battery_kwh, battery_nominal_kwh, fuel_tank_l,
+                     registration_plate, first_registration_date, odometer_km, soh_manual_pct, soh_manual_at, home_label)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, IF(? IS NULL, NULL, NOW()), ?)'
+            );
+            $query->execute([
+                (string)$vehicle['name'],
+                (string)$vehicle['vin'],
+                (string)$vehicle['manufacturer'],
+                (string)$vehicle['powertrain_type'],
+                (float)$vehicle['battery_kwh'],
+                $vehicle['battery_nominal_kwh'],
+                $vehicle['fuel_tank_l'],
+                $vehicle['registration_plate'],
+                $vehicle['first_registration_date'],
+                $vehicle['odometer_km'],
+                $vehicle['soh_manual_pct'],
+                $vehicle['soh_manual_pct'],
+                $vehicle['home_label'],
+            ]);
+
+            $vehicleId = (int)$this->pdo->lastInsertId();
+            $this->assignUser($userId, $vehicleId);
+
+            $this->pdo->commit();
+
+            return $vehicleId;
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public function assignUser(int $userId, int $vehicleId): void

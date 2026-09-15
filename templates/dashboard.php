@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>EV Stats</title>
-    <link rel="stylesheet" href="assets/app.css?v=20260914-3">
+    <link rel="stylesheet" href="assets/app.css?v=20260915-1">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -26,6 +26,7 @@
     </div>
     <div class="spacer"></div>
     <a class="toplink" href="garage.php">🚘 Garage</a>
+    <a class="toplink" href="index.php?add_vehicle=1">➕ Auto</a>
     <a class="toplink" href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">🧾 Provoz</a><?php if ($app->auth()->canManageVehicles($user)): ?><a
         class="toplink" href="vehicles.php">🚙
         Vozidla</a><?php endif; ?><?php if ($app->auth()->isAdmin($user)): ?><a
@@ -50,6 +51,7 @@
     <div class="mobile-menu-account">Přihlášen: <strong><?= h($user['name']) ?></strong></div>
     <nav class="mobile-menu-links" aria-label="Mobilní navigace">
         <a href="garage.php">🚘 <span>Garage</span></a>
+        <a href="index.php?add_vehicle=1">➕ <span>Přidat auto</span></a>
         <a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">🧾 <span>Provoz</span></a>
         <?php if ($app->auth()->canManageVehicles($user)): ?><a href="vehicles.php">🚙 <span>Vozidla</span></a><?php endif; ?>
         <?php if ($app->auth()->isAdmin($user)): ?><a href="users.php">👥 <span>Uživatelé</span></a><a href="update.php">🔄
@@ -69,6 +71,7 @@
     <?php if ($flash): ?>
         <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div>
     <?php endif; ?>
+    <?php require __DIR__ . '/partials/add-vehicle-modal.php'; ?>
     <?php if ($newVehicleModal): ?>
         <div class="modal-backdrop" id="newVehicleModal">
             <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="newVehicleTitle">

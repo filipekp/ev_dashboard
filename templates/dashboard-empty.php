@@ -1,5 +1,46 @@
 <!doctype html>
-<html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EV Stats</title><link rel="stylesheet" href="assets/app.css?v=20260914-3"></head>
-<body><header class="topbar"><div class="brand">⚡</div><b>EV Stats</b><div class="spacer"></div><?php if($app->auth()->canManageVehicles($user)):?><a class="toplink" href="vehicles.php">Vozidla</a><?php endif;?><?php if($app->auth()->isAdmin($user)):?><a class="toplink" href="users.php">Uživatelé</a><?php endif;?><a class="toplink" href="profile.php">👤 Profil</a><span class="user-chip"><?=h($user['name'])?></span><a class="toplink" href="logout.php">Odhlásit</a></header>
-<main class="wrap narrow"><?php if($flash):?><div class="<?=$flash['type']==='error'?'error':'notice'?>"><?=h($flash['message'])?></div><?php endif;?><section class="card empty-state"><h1>🚙 Žádné dostupné vozidlo</h1><p>Nahrajte podporovaný export jízd. CSV s VIN v názvu umí vozidlo automaticky rozpoznat a založit. Kia Connect XLSX VIN neobsahuje, proto nejprve založte vozidlo ručně a import spusťte z jeho dashboardu.</p><form action="upload.php" method="post" enctype="multipart/form-data" class="empty-upload"><input type="hidden" name="csrf" value="<?=h(csrfToken())?>"><input type="hidden" name="vehicle_id" value="0"><label class="btn primary">⬆ Nahrát data<input type="file" name="csv" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="this.form.submit()"></label><?php if($app->auth()->canManageVehicles($user)):?><a class="btn" href="vehicles.php">Přidat ručně</a><?php endif;?></form></section></main>
-<footer class="site-footer">created by: &copy; 2026 Pavel Filípek (<a href="https://www.filipek-czech.cz" target="_blank" rel="noopener noreferrer">www.filipek-czech.cz</a>) · verze <?=h($app->version()->label())?></footer></body></html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>EV Stats</title>
+  <link rel="stylesheet" href="assets/app.css?v=20260915-1">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">⚡</div>
+  <b>EV Stats</b>
+  <div class="spacer"></div>
+  <a class="toplink" href="index.php?add_vehicle=1">➕ Přidat auto</a>
+  <?php if ($app->auth()->canManageVehicles($user)): ?><a class="toplink" href="vehicles.php">Vozidla</a><?php endif; ?>
+  <?php if ($app->auth()->isAdmin($user)): ?><a class="toplink" href="users.php">Uživatelé</a><?php endif; ?>
+  <a class="toplink" href="profile.php">👤 Profil</a>
+  <span class="user-chip"><?= h($user['name']) ?></span>
+  <a class="toplink" href="logout.php">Odhlásit</a>
+</header>
+<main class="wrap narrow">
+  <?php if ($flash): ?>
+    <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div>
+  <?php endif; ?>
+
+  <?php require __DIR__ . '/partials/add-vehicle-modal.php'; ?>
+
+  <section class="card empty-state">
+    <h1>🚙 Žádné dostupné vozidlo</h1>
+    <p>Nejprve můžete založit vozidlo ručně. To je nutné zejména pro Kia Connect XLSX, protože tento export VIN neobsahuje. CSV s VIN v názvu umí nové vozidlo rozpoznat a založit automaticky.</p>
+    <div class="empty-upload">
+      <a class="btn primary" href="index.php?add_vehicle=1">➕ Přidat vozidlo</a>
+      <form action="upload.php" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
+        <input type="hidden" name="vehicle_id" value="0">
+        <label class="btn">⬆ Nahrát CSV s VIN<input type="file" name="csv"
+            accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            onchange="this.form.submit()"></label>
+      </form>
+      <?php if ($app->auth()->canManageVehicles($user)): ?><a class="btn" href="vehicles.php">Správa vozidel</a><?php endif; ?>
+    </div>
+  </section>
+</main>
+<footer class="site-footer">created by: &copy; 2026 Pavel Filípek (<a href="https://www.filipek-czech.cz" target="_blank" rel="noopener noreferrer">www.filipek-czech.cz</a>) · verze <?= h($app->version()->label()) ?></footer>
+</body>
+</html>

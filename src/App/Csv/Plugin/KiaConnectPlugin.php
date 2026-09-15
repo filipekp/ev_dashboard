@@ -78,6 +78,9 @@ final class KiaConnectPlugin extends AbstractCsvVehiclePlugin
             $minutes = max(0, (int)round(($end->getTimestamp() - $start->getTimestamp()) / 60));
         }
 
+        $recuperatedKwh = max(0.0, $recuperated ?? 0.0);
+        $netConsumed = max(0.0, $consumed - $recuperatedKwh);
+
         $classification = $this->valueOrNull($row['Vlastní štítek'] ?? null)
             ?: $this->valueOrNull($row['Obchodní štítek'] ?? null);
         if ($classification === '-') {
@@ -102,8 +105,8 @@ final class KiaConnectPlugin extends AbstractCsvVehiclePlugin
             'driving_minutes' => $minutes,
             'travel_minutes' => $minutes,
             'avg_speed_kmh' => ($distance > 0 && $minutes > 0) ? $distance / ($minutes / 60) : null,
-            'consumed_kwh' => $consumed,
-            'avg_consumption_kwh_100' => $distance > 0 ? $consumed / $distance * 100 : null,
+            'consumed_kwh' => $netConsumed,
+            'avg_consumption_kwh_100' => $distance > 0 ? $netConsumed / $distance * 100 : null,
             'public_charging_stops' => 0,
             'public_charge_soc_gained' => 0,
             'short_trip' => $distance <= 5 ? 1 : 0,
@@ -134,6 +137,10 @@ final class KiaConnectPlugin extends AbstractCsvVehiclePlugin
         $recuperated = $avgRecuperation !== null && $distance > 0
             ? $avgRecuperation * $distance / 100
             : null;
+        $netConsumed = $this->numOrNull($trip['consumed_kwh'] ?? null);
+        $grossConsumed = $netConsumed !== null
+            ? $netConsumed + ($recuperated ?? 0.0)
+            : null;
 
         return [
             date('d-m-Y', strtotime((string)$trip['started_at'])),
@@ -141,7 +148,7 @@ final class KiaConnectPlugin extends AbstractCsvVehiclePlugin
             date('H:i', strtotime((string)$trip['ended_at'])),
             $this->out($trip['distance_km'] ?? null),
             $this->out($trip['driving_minutes'] ?? null),
-            $this->out($trip['consumed_kwh'] ?? null),
+            $this->out($grossConsumed),
             $this->out($recuperated),
             '-',
             $this->out($trip['classification'] ?? '-'),

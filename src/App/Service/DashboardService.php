@@ -66,12 +66,13 @@
                 $period = 'all';
             }
 
-            $summaryQ = $this->pdo->prepare("SELECT COUNT(*) trip_count,COALESCE(SUM(distance_km),0) total_km,COALESCE(SUM(consumed_kwh),0) total_kwh,COALESCE(SUM(driving_minutes),0) drive_min,COALESCE(SUM(travel_minutes),0) travel_min,COALESCE(SUM(short_trip),0) short_trips,COALESCE(SUM(public_charging_stops),0) public_stops,COALESCE(SUM(public_charge_soc_gained),0) public_soc,MIN(start_odometer_km) odo_min,MAX(end_odometer_km) odo_max,MIN(end_soc) min_soc,SUM(CASE WHEN start_soc IS NOT NULL OR end_soc IS NOT NULL OR public_charging_stops>0 OR public_charge_soc_gained>0 THEN 1 ELSE 0 END) charge_rows,SUM(CASE WHEN start_address<>'' OR end_address<>'' THEN 1 ELSE 0 END) location_rows,SUM(CASE WHEN electricity_cost IS NOT NULL OR total_cost IS NOT NULL THEN 1 ELSE 0 END) cost_rows,COALESCE(SUM(electricity_cost),0) electricity_cost_total FROM trips WHERE $where");
+            $summaryQ = $this->pdo->prepare("SELECT COUNT(*) trip_count,COALESCE(SUM(distance_km),0) total_km,COALESCE(SUM(consumed_kwh),0) total_kwh,COALESCE(SUM(CASE WHEN avg_recuperation_kwh_100 IS NOT NULL THEN avg_recuperation_kwh_100 * distance_km / 100 ELSE 0 END),0) total_recuperated_kwh,COALESCE(SUM(driving_minutes),0) drive_min,COALESCE(SUM(travel_minutes),0) travel_min,COALESCE(SUM(short_trip),0) short_trips,COALESCE(SUM(public_charging_stops),0) public_stops,COALESCE(SUM(public_charge_soc_gained),0) public_soc,MIN(start_odometer_km) odo_min,MAX(end_odometer_km) odo_max,MIN(end_soc) min_soc,SUM(CASE WHEN start_soc IS NOT NULL OR end_soc IS NOT NULL OR public_charging_stops>0 OR public_charge_soc_gained>0 THEN 1 ELSE 0 END) charge_rows,SUM(CASE WHEN start_address<>'' OR end_address<>'' THEN 1 ELSE 0 END) location_rows,SUM(CASE WHEN electricity_cost IS NOT NULL OR total_cost IS NOT NULL THEN 1 ELSE 0 END) cost_rows,COALESCE(SUM(electricity_cost),0) electricity_cost_total FROM trips WHERE $where");
             $summaryQ->execute($params);
             $summary               = $summaryQ->fetch() ?: [];
             $tripCount             = (int)($summary['trip_count'] ?? 0);
             $totalKm               = (float)($summary['total_km'] ?? 0);
             $totalKwh              = (float)($summary['total_kwh'] ?? 0);
+            $totalRecuperatedKwh   = (float)($summary['total_recuperated_kwh'] ?? 0);
             $avgCons               = $totalKm > 0 ? $totalKwh / $totalKm * 100 : 0;
             $driveMin              = (int)($summary['drive_min'] ?? 0);
             $travelMin             = (int)($summary['travel_min'] ?? 0);

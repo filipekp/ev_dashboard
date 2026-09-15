@@ -16,6 +16,11 @@ use RuntimeException;
  * normalizuje pouze hodnoty, které export skutečně poskytuje, a dopočítává
  * průměrnou spotřebu, rekuperaci a rychlost.
  *
+ * Kia uvádí spotřebovanou a rekuperovanou energii odděleně. Interní
+ * consumed_kwh je v celé aplikaci normalizované netto zatížení baterie,
+ * proto se pro Kia počítá jako spotřeba minus rekuperace. Rekuperace se
+ * současně uchovává samostatně v avg_recuperation_kwh_100.
+ *
  * @author    Pavel Filípek <pavel@filipek-czech.cz>
  * @copyright © 2026, Proclient s.r.o.
  * @created   15.09.2026
@@ -126,8 +131,10 @@ final class KiaConnectXlsxPlugin implements TripImportPluginInterface
             $minutes = max(0, (int)round(($end->getTimestamp() - $start->getTimestamp()) / 60));
         }
 
-        $avgConsumption = $distance > 0 ? $consumed / $distance * 100 : null;
-        $avgRecuperation = ($distance > 0 && $recuperated !== null) ? $recuperated / $distance * 100 : null;
+        $recuperatedKwh = max(0.0, $recuperated ?? 0.0);
+        $netConsumed = max(0.0, $consumed - $recuperatedKwh);
+        $avgConsumption = $distance > 0 ? $netConsumed / $distance * 100 : null;
+        $avgRecuperation = ($distance > 0 && $recuperated !== null) ? $recuperatedKwh / $distance * 100 : null;
         $avgSpeed = ($distance > 0 && $minutes > 0) ? $distance / ($minutes / 60) : null;
 
         return [
@@ -154,7 +161,7 @@ final class KiaConnectXlsxPlugin implements TripImportPluginInterface
             'driving_minutes' => $minutes,
             'travel_minutes' => $minutes,
             'avg_speed_kmh' => $avgSpeed,
-            'consumed_kwh' => max(0.0, $consumed),
+            'consumed_kwh' => $netConsumed,
             'avg_consumption_kwh_100' => $avgConsumption,
             'start_soc' => null,
             'end_soc' => null,

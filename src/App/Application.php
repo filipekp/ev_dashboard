@@ -10,6 +10,7 @@ use App\Csv\CsvPluginRegistry;
 use App\Import\Plugin\CsvVehicleImportPlugin;
 use App\Import\Plugin\KiaConnectXlsxPlugin;
 use App\Import\TripFileImporter;
+use App\Repository\IntegrationImportRunRepository;
 use App\Repository\TripRepository;
 use App\Repository\VehicleOperationRepository;
 use App\Repository\VehicleRepository;
@@ -52,6 +53,9 @@ final class Application
 
     /** @var TripRepository|null */
     private $trips;
+
+    /** @var IntegrationImportRunRepository|null */
+    private $integrationImportRuns;
 
     /** @var VehicleRepository|null */
     private $vehicles;
@@ -124,6 +128,15 @@ final class Application
         return $this->vehicles;
     }
 
+    public function integrationImportRuns(): IntegrationImportRunRepository
+    {
+        if ($this->integrationImportRuns === null) {
+            $this->integrationImportRuns = new IntegrationImportRunRepository($this->pdo());
+        }
+
+        return $this->integrationImportRuns;
+    }
+
     public function vehicleOperations(): VehicleOperationRepository
     {
         if ($this->vehicleOperations === null) {
@@ -157,7 +170,8 @@ final class Application
             $this->auth(),
             $this->importer(),
             $this->vehicles(),
-            $this->trips()
+            $this->trips(),
+            $this->integrationImportRuns()
         );
     }
 

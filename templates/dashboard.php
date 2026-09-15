@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>EV Stats</title>
-    <link rel="stylesheet" href="assets/app.css?v=20260915-nav">
+    <link rel="stylesheet" href="assets/app.css?v=20260915-digital-garage">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -15,7 +15,26 @@
     $combustionOnly = !$hasTractionBattery;
 ?>
 <?php $navTitle = ''; require __DIR__ . '/partials/navigation.php'; ?>
-<main class="wrap">
+<main class="wrap dashboard-wrap">
+    <section class="vehicle-hero">
+        <div class="vehicle-hero-copy">
+            <span class="eyebrow">DIGITAL GARAGE / <?= h($powertrain) ?></span>
+            <h1><?= h($vehicle['name']) ?></h1>
+            <p><?= h((string)($vehicle['manufacturer'] ?? '')) ?> · <?= h((string)($vehicle['registration_plate'] ?? $vehicle['vin'])) ?></p>
+            <div class="hero-chips">
+                <span><?= h($powertrain) ?></span>
+                <?php if ($hasTractionBattery && (float)($vehicle['battery_kwh'] ?? 0) > 0): ?><span>🔋 <?= cz((float)$vehicle['battery_kwh'], 0) ?> kWh</span><?php endif; ?>
+                <?php if ($hasFuelSystem && (float)($vehicle['fuel_tank_l'] ?? 0) > 0): ?><span>⛽ <?= cz((float)$vehicle['fuel_tank_l'], 0) ?> l</span><?php endif; ?>
+            </div>
+        </div>
+        <div class="vehicle-hero-visual">
+            <?php if (!empty($vehiclePhoto)): ?><img src="media.php?view=<?= (int)$vehiclePhoto['id'] ?>" alt="<?= h($vehicle['name']) ?>"><?php else: ?><div class="vehicle-silhouette">🚙</div><?php endif; ?>
+        </div>
+        <div class="hero-actions">
+            <a class="hero-action" href="documents.php?vehicle_id=<?= (int)$vehicle['id'] ?>"><b>✦ Import Hub</b><small>Faktury, účtenky, CSV & AI</small></a>
+            <a class="hero-action" href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>"><b>＋ Přidat záznam</b><small>Nabíjení, tankování, servis</small></a>
+        </div>
+    </section>
     <?php if ($flash): ?>
         <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div>
     <?php endif; ?>
@@ -113,6 +132,12 @@
             <div class="card kpi"><small>CELKOVÉ NÁKLADY</small><strong><?= cz((float)$operationSummary['total_cost'], 0) ?> <em>Kč</em></strong><span><a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">otevřít provozní evidenci</a></span></div>
         <?php endif; ?>
     </section>
+    <section class="insight-strip">
+        <div><span class="insight-icon">✦</span><p><small>EFFICIENCY INSIGHT</small><b><?php if ($hasTractionBattery): ?><?= cz($avgCons, 1) ?> kWh/100 km<?php else: ?>Provozní přehled<?php endif; ?></b><em><?= $tripCount ?> jízd v aktuálním období</em></p></div>
+        <div><span class="insight-icon">◉</span><p><small>COST INSIGHT</small><b><?= cz((float)$operationSummary['cost_per_km'], 2) ?> Kč/km</b><em><?= cz((float)$operationSummary['total_cost'], 0) ?> Kč evidovaných nákladů</em></p></div>
+        <div><span class="insight-icon">↗</span><p><small>USAGE INSIGHT</small><b><?= cz($totalKm, 0) ?> km</b><em><?= cz($driveMin / 60, 1) ?> h za volantem</em></p></div>
+    </section>
+
     <section class="grid2">
         <div class="card chart-card"><h2>📈 <?= $hasTractionBattery ? 'Měsíční nájezd a průměrná spotřeba' : 'Měsíční nájezd' ?></h2>
             <p><?= $hasTractionBattery ? 'Kilometry (sloupce) vs. spotřeba v kWh/100 km (křivka)' : 'Ujeté kilometry v jednotlivých měsících' ?></p>

@@ -1,15 +1,5 @@
 <?php
-/**
- * Shared application navigation.
- *
- * Expected variables:
- * - $app
- * - $user or $me
- * Optional:
- * - $vehicle
- * - $vehicles
- * - $navTitle
- */
+/** Shared EV Stats 4.0 navigation. */
 $navUser = $user ?? $me ?? [];
 $navVehicles = isset($vehicles) && is_array($vehicles) ? $vehicles : [];
 $navVehicle = isset($vehicle) && is_array($vehicle) ? $vehicle : NULL;
@@ -19,139 +9,57 @@ $navIsAdmin = $navUser ? $app->auth()->isAdmin($navUser) : FALSE;
 $navHasVehicle = $navVehicle !== NULL && isset($navVehicle['id']);
 $navVehicleId = $navHasVehicle ? (int)$navVehicle['id'] : 0;
 $navPowertrain = $navHasVehicle ? strtoupper((string)($navVehicle['powertrain_type'] ?? 'BEV')) : '';
-$navHasTractionBattery = in_array($navPowertrain, ['BEV', 'PHEV'], TRUE);
 $navTitle = isset($navTitle) ? (string)$navTitle : '';
-$navCurrent = static function (string $page) use ($navPage): string {
-    return $navPage === $page ? ' is-active' : '';
-};
+$navCurrent = static function (string $page) use ($navPage): string { return $navPage === $page ? ' is-active' : ''; };
+$navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
 ?>
-<header class="topbar app-nav">
-    <a class="brand" href="index.php" aria-label="EV Stats dashboard">⚡</a>
+<aside class="app-sidebar" aria-label="Hlavní navigace">
+    <a class="sidebar-brand" href="index.php"><span class="sidebar-brand-mark">⚡</span><span><b>EV Stats</b><small>Digital Garage</small></span></a>
 
     <?php if ($navHasVehicle && $navVehicles): ?>
-        <form class="vehicle-switch" method="get" action="index.php">
+        <form class="sidebar-vehicle" method="get" action="index.php">
+            <small>AKTIVNÍ VOZIDLO</small>
             <select name="vehicle_id" onchange="this.form.submit()" aria-label="Vybrat vozidlo">
-                <?php foreach ($navVehicles as $navVehicleOption): ?>
-                    <option value="<?= (int)$navVehicleOption['id'] ?>" <?= (int)$navVehicleOption['id'] === $navVehicleId ? 'selected' : '' ?>>
-                        <?= (int)($navUser['default_vehicle_id'] ?? 0) === (int)$navVehicleOption['id'] ? '★ ' : '' ?><?= h($navVehicleOption['name']) ?> · <?= h($navVehicleOption['vin']) ?>
-                    </option>
+                <?php foreach ($navVehicles as $option): ?>
+                    <option value="<?= (int)$option['id'] ?>" <?= (int)$option['id'] === $navVehicleId ? 'selected' : '' ?>><?= (int)($navUser['default_vehicle_id'] ?? 0) === (int)$option['id'] ? '★ ' : '' ?><?= h($option['name']) ?></option>
                 <?php endforeach; ?>
             </select>
+            <span><?= h($navPowertrain) ?> · <?= h((string)($navVehicle['registration_plate'] ?? $navVehicle['vin'] ?? '')) ?></span>
         </form>
-        <a class="vehicle nav-vehicle-summary" href="index.php?vehicle_id=<?= $navVehicleId ?>">
-            <b><?= h($navVehicle['name']) ?></b>
-            <span><?= h($navPowertrain) ?><?php if ($navHasTractionBattery && (float)($navVehicle['battery_kwh'] ?? 0) > 0): ?> · <?= cz((float)$navVehicle['battery_kwh'], 0) ?> kWh<?php elseif ((float)($navVehicle['fuel_tank_l'] ?? 0) > 0): ?> · <?= cz((float)$navVehicle['fuel_tank_l'], 0) ?> l<?php endif; ?></span>
-            <small>VIN: <?= h($navVehicle['vin']) ?></small>
-        </a>
-    <?php elseif ($navTitle !== ''): ?>
-        <div class="nav-page-title"><?= h($navTitle) ?></div>
-    <?php else: ?>
-        <div class="nav-page-title">EV Stats</div>
     <?php endif; ?>
 
-    <div class="spacer"></div>
-
-    <nav class="desktop-nav" aria-label="Hlavní navigace">
-        <a class="toplink<?= $navCurrent('index.php') ?>" href="index.php<?= $navVehicleId ? '?vehicle_id=' . $navVehicleId : '' ?>">📊 Dashboard</a>
-
-        <details class="nav-dropdown">
-            <summary class="toplink">🚙 Vozidla <span class="nav-chevron">▾</span></summary>
-            <div class="nav-dropdown-menu">
-                <a href="index.php?add_vehicle=1">➕ Přidat vozidlo</a>
-                <?php if ($navHasVehicle): ?><a href="operations.php?vehicle_id=<?= $navVehicleId ?>">🧾 Provoz</a><a href="documents.php?vehicle_id=<?= $navVehicleId ?>">📄 Dokumenty & AI</a><?php endif; ?>
-                <a class="<?= $navCurrent('garage.php') ?>" href="garage.php">🚘 Garage</a>
-                <?php if ($navCanManageVehicles): ?><a href="vehicles.php">⚙️ Správa vozidel</a><?php endif; ?>
-            </div>
-        </details>
-
-        <?php if ($navIsAdmin): ?>
-            <details class="nav-dropdown">
-                <summary class="toplink">🛠 Správa <span class="nav-chevron">▾</span></summary>
-                <div class="nav-dropdown-menu">
-                    <a href="users.php">👥 Uživatelé</a>
-                    <a href="vehicles.php">🚙 Vozidla</a>
-                    <a href="update.php">🔄 Aktualizace</a>
-                </div>
-            </details>
-        <?php endif; ?>
-
+    <nav class="sidebar-nav">
+        <small>PŘEHLED</small>
+        <a class="<?= $navCurrent('index.php') ?>" href="index.php<?= $navVehicleQuery ?>"><span>⌂</span> Přehled</a>
+        <a class="<?= $navCurrent('garage.php') ?>" href="garage.php"><span>◈</span> Moje garáž</a>
         <?php if ($navHasVehicle): ?>
-            <form action="upload.php" method="post" enctype="multipart/form-data" class="upload nav-upload">
-                <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
-                <input type="hidden" name="vehicle_id" value="<?= $navVehicleId ?>">
-                <label>⬆ Nahrát data<input type="file" name="csv" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="this.form.submit()"></label>
-            </form>
+            <small>VOZIDLO</small>
+            <a class="<?= $navCurrent('operations.php') ?>" href="operations.php?vehicle_id=<?= $navVehicleId ?>"><span>↗</span> Provoz & náklady</a>
+            <a class="<?= $navCurrent('documents.php') ?>" href="documents.php?vehicle_id=<?= $navVehicleId ?>"><span>✦</span> Dokumenty & AI</a>
         <?php endif; ?>
-
-        <a class="toplink nav-account-trigger<?= $navCurrent('profile.php') ?>" href="profile.php" title="Otevřít profil">👤 <span><?= h((string)($navUser['name'] ?? 'Profil')) ?></span></a>
-        <a class="toplink nav-logout" href="logout.php" title="Odhlásit">↪</a>
+        <?php if ($navCanManageVehicles || $navIsAdmin): ?>
+            <small>SPRÁVA</small>
+            <?php if ($navCanManageVehicles): ?><a class="<?= $navCurrent('vehicles.php') ?>" href="vehicles.php"><span>⚙</span> Vozidla</a><?php endif; ?>
+            <?php if ($navIsAdmin): ?><a class="<?= $navCurrent('users.php') ?>" href="users.php"><span>♙</span> Uživatelé</a><a class="<?= $navCurrent('update.php') ?>" href="update.php"><span>↻</span> Aktualizace</a><?php endif; ?>
+        <?php endif; ?>
     </nav>
 
-    <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Otevřít menu" aria-controls="mobileMenuOverlay" aria-expanded="false">☰</button>
+    <div class="sidebar-bottom">
+        <a class="sidebar-profile<?= $navCurrent('profile.php') ?>" href="profile.php"><span class="avatar"><?= h(mb_strtoupper(mb_substr((string)($navUser['name'] ?? 'U'), 0, 1))) ?></span><span><b><?= h((string)($navUser['name'] ?? 'Profil')) ?></b><small>Můj účet</small></span><i>›</i></a>
+        <a class="sidebar-logout" href="logout.php">Odhlásit se</a>
+    </div>
+</aside>
+
+<header class="mobile-topbar">
+    <a class="mobile-brand" href="index.php">⚡ <b>EV Stats</b></a>
+    <?php if ($navHasVehicle && $navVehicles): ?><form method="get" action="index.php"><select name="vehicle_id" onchange="this.form.submit()" aria-label="Vybrat vozidlo"><?php foreach ($navVehicles as $option): ?><option value="<?= (int)$option['id'] ?>" <?= (int)$option['id'] === $navVehicleId ? 'selected' : '' ?>><?= h($option['name']) ?></option><?php endforeach; ?></select></form><?php endif; ?>
+    <a class="mobile-avatar" href="profile.php"><?= h(mb_strtoupper(mb_substr((string)($navUser['name'] ?? 'U'), 0, 1))) ?></a>
 </header>
 
-<div class="mobile-menu-overlay" id="mobileMenuOverlay" hidden>
-    <div class="mobile-menu-header">
-        <strong>EV Stats</strong>
-        <button type="button" class="mobile-menu-close" id="mobileMenuClose" aria-label="Zavřít menu">×</button>
-    </div>
-    <a class="mobile-menu-account" href="profile.php">Přihlášen: <strong><?= h((string)($navUser['name'] ?? '')) ?></strong><span>Otevřít profil ›</span></a>
-    <nav class="mobile-menu-links" aria-label="Mobilní navigace">
-        <a href="index.php<?= $navVehicleId ? '?vehicle_id=' . $navVehicleId : '' ?>">📊 <span>Dashboard</span></a>
-        <a href="garage.php">🚘 <span>Garage</span></a>
-        <a href="index.php?add_vehicle=1">➕ <span>Přidat vozidlo</span></a>
-        <?php if ($navHasVehicle): ?><a href="operations.php?vehicle_id=<?= $navVehicleId ?>">🧾 <span>Provoz</span></a><a href="documents.php?vehicle_id=<?= $navVehicleId ?>">📄 <span>Dokumenty & AI</span></a><?php endif; ?>
-        <?php if ($navCanManageVehicles): ?><a href="vehicles.php">🚙 <span>Správa vozidel</span></a><?php endif; ?>
-        <?php if ($navIsAdmin): ?>
-            <div class="mobile-menu-section">Administrace</div>
-            <a href="users.php">👥 <span>Uživatelé</span></a>
-            <a href="update.php">🔄 <span>Aktualizace</span></a>
-        <?php endif; ?>
-        <?php if ($navHasVehicle): ?>
-            <form action="upload.php" method="post" enctype="multipart/form-data" class="mobile-menu-upload">
-                <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
-                <input type="hidden" name="vehicle_id" value="<?= $navVehicleId ?>">
-                <label>⬆ <span>Nahrát data</span><input type="file" name="csv" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="this.form.submit()"></label>
-            </form>
-        <?php endif; ?>
-        <a href="profile.php">👤 <span>Můj profil</span></a>
-        <a href="logout.php" class="mobile-menu-logout">↪ <span>Odhlásit</span></a>
-    </nav>
-</div>
-
-<script>
-(() => {
-    const toggle = document.getElementById('mobileMenuToggle');
-    const overlay = document.getElementById('mobileMenuOverlay');
-    const close = document.getElementById('mobileMenuClose');
-    if (!toggle || !overlay || !close) return;
-
-    const openMenu = () => {
-        overlay.hidden = false;
-        document.body.classList.add('mobile-menu-open');
-        toggle.setAttribute('aria-expanded', 'true');
-        close.focus();
-    };
-    const closeMenu = () => {
-        overlay.hidden = true;
-        document.body.classList.remove('mobile-menu-open');
-        toggle.setAttribute('aria-expanded', 'false');
-        toggle.focus();
-    };
-
-    toggle.addEventListener('click', openMenu);
-    close.addEventListener('click', closeMenu);
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !overlay.hidden) closeMenu();
-    });
-
-    document.querySelectorAll('.nav-dropdown').forEach((dropdown) => {
-        dropdown.addEventListener('toggle', () => {
-            if (!dropdown.open) return;
-            document.querySelectorAll('.nav-dropdown[open]').forEach((other) => {
-                if (other !== dropdown) other.removeAttribute('open');
-            });
-        });
-    });
-})();
-</script>
+<nav class="mobile-bottom-nav" aria-label="Mobilní navigace">
+    <a class="<?= $navCurrent('index.php') ?>" href="index.php<?= $navVehicleQuery ?>"><span>⌂</span><small>Přehled</small></a>
+    <a class="<?= $navCurrent('garage.php') ?>" href="garage.php"><span>◈</span><small>Garáž</small></a>
+    <a class="mobile-add" href="<?= $navHasVehicle ? 'documents.php?vehicle_id=' . $navVehicleId : 'index.php?add_vehicle=1' ?>"><span>＋</span><small>Přidat</small></a>
+    <?php if ($navHasVehicle): ?><a class="<?= $navCurrent('operations.php') ?>" href="operations.php?vehicle_id=<?= $navVehicleId ?>"><span>↗</span><small>Provoz</small></a><?php else: ?><a href="index.php?add_vehicle=1"><span>＋</span><small>Vozidlo</small></a><?php endif; ?>
+    <a class="<?= $navCurrent('profile.php') ?>" href="profile.php"><span>☰</span><small>Více</small></a>
+</nav>

@@ -78,6 +78,7 @@ final class DashboardController
             'flash' => $flash,
             'newVehicleModal' => $newVehicleModal,
             'showAddVehicleModal' => $showAddVehicleModal,
+            'vehiclePhoto' => $this->app->vehicleMedia()->primaryForVehicle((int)$vehicle['id']),
         ]));
     }
 

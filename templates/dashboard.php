@@ -20,6 +20,7 @@
   <div class="vehicle">
     <b><?= h($vehicle['name']) ?></b><span><?= h($powertrain) ?><?php if ($electricDrive && (float)$vehicle['battery_kwh'] > 0): ?> · <?= cz((float)$vehicle['battery_kwh'], 0) ?> kWh<?php elseif ((float)($vehicle['fuel_tank_l'] ?? 0) > 0): ?> · <?= cz((float)$vehicle['fuel_tank_l'], 0) ?> l<?php endif; ?></span><small>VIN: <?= h($vehicle['vin']) ?></small></div>
   <div class="spacer"></div>
+  <a class="toplink" href="garage.php">🚘 Garage</a>
   <a class="toplink" href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">🧾 Provoz</a><?php if ($app->auth()->canManageVehicles($user)): ?><a class="toplink" href="vehicles.php">🚙
     Vozidla</a><?php endif; ?><?php if ($app->auth()->isAdmin($user)): ?><a
     class="toplink" href="users.php">👥 Uživatelé</a><?php endif; ?><?php if ($app->auth()->isAdmin($user)): ?><a class="toplink" href="update.php">🔄
@@ -39,6 +40,7 @@
   </div>
   <div class="mobile-menu-account">Přihlášen: <strong><?= h($user['name']) ?></strong></div>
   <nav class="mobile-menu-links" aria-label="Mobilní navigace">
+    <a href="garage.php">🚘 <span>Garage</span></a>
     <a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">🧾 <span>Provoz</span></a>
     <?php if ($app->auth()->canManageVehicles($user)): ?><a href="vehicles.php">🚙 <span>Vozidla</span></a><?php endif; ?>
     <?php if ($app->auth()->isAdmin($user)): ?><a href="users.php">👥 <span>Uživatelé</span></a><a href="update.php">🔄

@@ -119,6 +119,9 @@ final class VehiclesController
         $home = trim((string)($_POST['home_label'] ?? ''));
         $registrationPlate = strtoupper(trim((string)($_POST['registration_plate'] ?? '')));
         $firstRegistration = trim((string)($_POST['first_registration_date'] ?? ''));
+        $acquisitionDate = trim((string)($_POST['acquisition_date'] ?? ''));
+        $acquisitionPrice = $this->decimal($_POST['acquisition_price'] ?? null);
+        $currentValue = $this->decimal($_POST['current_value'] ?? null);
 
         if (in_array($powertrain, ['BEV', 'PHEV'], true) && ($battery === null || $battery <= 0)) {
             throw new RuntimeException('Pro BEV/PHEV vyplňte využitelnou kapacitu baterie.');
@@ -136,6 +139,9 @@ final class VehiclesController
             $tank,
             $registrationPlate ?: null,
             $firstRegistration ?: null,
+            $acquisitionDate ?: null,
+            $acquisitionPrice,
+            $currentValue,
             $odometer,
             $soh,
             $soh,
@@ -146,9 +152,9 @@ final class VehiclesController
             $query = $this->app->pdo()->prepare(
                 'INSERT INTO vehicles
                     (name, vin, powertrain_type, battery_kwh, battery_nominal_kwh, fuel_tank_l,
-                     registration_plate, first_registration_date, odometer_km, soh_manual_pct,
-                     soh_manual_at, home_label)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, IF(? IS NULL, NULL, NOW()), ?)'
+                     registration_plate, first_registration_date, acquisition_date, acquisition_price, current_value,
+                     odometer_km, soh_manual_pct, soh_manual_at, home_label)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, IF(? IS NULL, NULL, NOW()), ?)'
             );
             $query->execute($values);
             $this->app->session()->flash('Vozidlo bylo přidáno.');
@@ -162,8 +168,8 @@ final class VehiclesController
         $query = $this->app->pdo()->prepare(
             'UPDATE vehicles
              SET name=?, vin=?, powertrain_type=?, battery_kwh=?, battery_nominal_kwh=?, fuel_tank_l=?,
-                 registration_plate=?, first_registration_date=?, odometer_km=?, soh_manual_pct=?,
-                 soh_manual_at=IF(? IS NULL, NULL, NOW()), home_label=?
+                 registration_plate=?, first_registration_date=?, acquisition_date=?, acquisition_price=?, current_value=?,
+                 odometer_km=?, soh_manual_pct=?, soh_manual_at=IF(? IS NULL, NULL, NOW()), home_label=?
              WHERE id=?'
         );
         $query->execute($values);

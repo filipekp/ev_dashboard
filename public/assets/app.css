@@ -1861,3 +1861,119 @@ html, body {
     padding-left: 26px;
   }
 }
+
+/* Garage dashboard / analytics v3.0 */
+.garage-wrap {
+  max-width: 1600px
+}
+
+.garage-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px
+}
+
+.garage-heading h1 {
+  margin: 0 0 6px;
+  font-size: 30px
+}
+
+.garage-heading p,
+.garage-note {
+  margin: 0;
+  color: var(--muted)
+}
+
+.garage-year-filter label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px
+}
+
+.garage-year-filter select {
+  min-width: 120px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px
+}
+
+.garage-kpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr))
+}
+
+.garage-grid .chart-card {
+  min-height: 390px
+}
+
+.garage-grid canvas {
+  height: 300px !important
+}
+
+.table-subline {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted)
+}
+
+.garage-comparison a {
+  color: var(--text);
+  text-decoration: none
+}
+
+.garage-comparison a:hover {
+  color: var(--cyan)
+}
+
+.garage-note {
+  padding-top: 14px
+}
+
+.garage-help-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0
+}
+
+.garage-help-grid > div {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 15px
+}
+
+.garage-help-grid b,
+.garage-help-grid span {
+  display: block
+}
+
+.garage-help-grid span {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5
+}
+
+@media (max-width: 1000px) {
+  .garage-kpis,
+  .garage-help-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr))
+  }
+}
+
+@media (max-width: 650px) {
+  .garage-heading {
+    align-items: stretch;
+    flex-direction: column
+  }
+
+  .garage-kpis,
+  .garage-help-grid {
+    grid-template-columns: 1fr
+  }
+}

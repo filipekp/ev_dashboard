@@ -11,6 +11,7 @@ use App\Csv\CsvPluginRegistry;
 use App\Repository\TripRepository;
 use App\Repository\VehicleOperationRepository;
 use App\Repository\VehicleRepository;
+use App\Service\AnalyticsService;
 use App\Service\DashboardService;
 use App\Service\ImportService;
 use App\Service\VehicleOperationService;
@@ -154,6 +155,11 @@ final class Application
     public function dashboard(): DashboardService
     {
         return new DashboardService($this->pdo(), $this->vehicleOperations());
+    }
+
+    public function analytics(): AnalyticsService
+    {
+        return new AnalyticsService($this->pdo());
     }
 
     public function vehicleOperationService(): VehicleOperationService

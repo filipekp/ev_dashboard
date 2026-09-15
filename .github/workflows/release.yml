@@ -78,7 +78,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          .github/scripts/generate-release-notes.sh "$TAG" "${RUNNER_TEMP}/release-notes.md"
+          bash .github/scripts/generate-release-notes.sh "$TAG" "${RUNNER_TEMP}/release-notes.md"
           echo "notes=${RUNNER_TEMP}/release-notes.md" >> "$GITHUB_OUTPUT"
 
           echo "Generated release notes:"

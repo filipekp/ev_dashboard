@@ -1,13 +1,13 @@
 <?php
-    
+
     declare(strict_types=1);
-    
+
     namespace App\Service;
-    
+
     use App\Repository\VehicleOperationRepository;
     use DateTime;
     use PDO;
-    
+
     /**
      * Třída DashboardService.
      *
@@ -22,12 +22,12 @@
 
         /** @var VehicleOperationRepository|null */
         private $vehicleOperations;
-        
+
         public function __construct(PDO $pdo, ?VehicleOperationRepository $vehicleOperations = null) {
             $this->pdo = $pdo;
             $this->vehicleOperations = $vehicleOperations;
         }
-        
+
         /** @param array<string,mixed> $vehicle @param array<string,mixed> $query @return array<string,mixed> */
         public function build(array $vehicle, array $query): array {
             $vehicleId = (int)$vehicle['id'];
@@ -65,7 +65,7 @@
             } else {
                 $period = 'all';
             }
-            
+
             $summaryQ = $this->pdo->prepare("SELECT COUNT(*) trip_count,COALESCE(SUM(distance_km),0) total_km,COALESCE(SUM(consumed_kwh),0) total_kwh,COALESCE(SUM(driving_minutes),0) drive_min,COALESCE(SUM(travel_minutes),0) travel_min,COALESCE(SUM(short_trip),0) short_trips,COALESCE(SUM(public_charging_stops),0) public_stops,COALESCE(SUM(public_charge_soc_gained),0) public_soc,MIN(start_odometer_km) odo_min,MAX(end_odometer_km) odo_max,MIN(end_soc) min_soc,SUM(CASE WHEN start_soc IS NOT NULL OR end_soc IS NOT NULL OR public_charging_stops>0 OR public_charge_soc_gained>0 THEN 1 ELSE 0 END) charge_rows,SUM(CASE WHEN start_address<>'' OR end_address<>'' THEN 1 ELSE 0 END) location_rows,SUM(CASE WHEN electricity_cost IS NOT NULL OR total_cost IS NOT NULL THEN 1 ELSE 0 END) cost_rows,COALESCE(SUM(electricity_cost),0) electricity_cost_total FROM trips WHERE $where");
             $summaryQ->execute($params);
             $summary               = $summaryQ->fetch() ?: [];
@@ -153,35 +153,234 @@
             $q             = $this->pdo->prepare("SELECT * FROM trips WHERE $where ORDER BY started_at DESC LIMIT " . (int)$perPage . " OFFSET " . (int)$historyOffset);
             $q->execute($params);
             $historyTrips = $q->fetchAll();
-            $nominalKwh   = (float)($vehicle['battery_nominal_kwh'] ?: $vehicle['battery_kwh']);
-            $sohManual    = $vehicle['soh_manual_pct'] !== NULL ? (float)$vehicle['soh_manual_pct'] : NULL;
-            $sohSamples   = [];
-            $q            = $this->pdo->prepare('SELECT consumed_kwh,start_soc,end_soc FROM trips WHERE vehicle_id=? AND public_charging_stops=0 AND consumed_kwh>0 AND start_soc IS NOT NULL AND end_soc IS NOT NULL AND (start_soc-end_soc)>=10 ORDER BY started_at DESC LIMIT 30');
-            $q->execute([$vehicleId]);
-            foreach ($q->fetchAll() as $r) {
-                $drop = (float)$r['start_soc'] - (float)$r['end_soc'];
-                if ($drop <= 0) {
-                    continue;
-                }
-                $cap = (float)$r['consumed_kwh'] / ($drop / 100);
-                $pct = $nominalKwh > 0 ? $cap / $nominalKwh * 100 : 0;
-                if ($pct >= 60 && $pct <= 110) {
-                    $sohSamples[] = $pct;
-                }
-            }
-            sort($sohSamples);
-            $sohEstimated = NULL;
-            if (count($sohSamples) >= 3) {
-                $n            = count($sohSamples);
-                $sohEstimated = $n % 2 ? $sohSamples[intdiv($n, 2)] : ($sohSamples[$n / 2 - 1] + $sohSamples[$n / 2]) / 2;
-            }
+            $nominalKwh = (float)($vehicle['battery_nominal_kwh'] ?: $vehicle['battery_kwh']);
+            $sohManual  = $vehicle['soh_manual_pct'] !== NULL ? (float)$vehicle['soh_manual_pct'] : NULL;
+            $sohResult  = $this->estimateStateOfHealth($vehicleId, $nominalKwh);
+
+            // Zachováváme původní proměnné kvůli kompatibilitě se šablonami.
+            $sohSamples      = $sohResult['samples'];
+            $sohSampleCount  = $sohResult['sample_count'];
+            $sohRawEstimated = $sohResult['raw_pct'];
+            $sohEstimated    = $sohResult['display_pct'];
+            $sohSpreadPct    = $sohResult['spread_pct'];
+            $sohSocCoverage  = $sohResult['soc_coverage_pct'];
+
             $soh       = $sohManual ?? $sohEstimated;
-            $sohSource = $sohManual !== NULL ? 'BMS / diagnostika' : ($sohEstimated !== NULL ? 'orientační odhad z jízd' : 'nedostatek dat');
-            $sohClass  = $soh === NULL ? '' : ($soh >= 90 ? 'green' : ($soh >= 80 ? 'orange' : 'pink'));
+            $sohSource = $sohManual !== NULL
+                ? 'BMS / diagnostika'
+                : ($sohEstimated !== NULL ? 'orientační odhad z energetické bilance jízd' : 'nedostatek dat');
+            $sohClass = $soh === NULL ? '' : ($soh >= 90 ? 'green' : ($soh >= 80 ? 'orange' : 'pink'));
             $operationSummary = $this->vehicleOperations !== null
                 ? $this->vehicleOperations->costSummary($vehicleId)
                 : ['energy_cost' => 0.0, 'service_cost' => 0.0, 'other_cost' => 0.0, 'total_cost' => 0.0, 'distance_km' => 0.0, 'cost_per_km' => 0.0];
-            
+
             return get_defined_vars();
+        }
+
+        /**
+         * Odhadne State of Health trakční baterie z energetické bilance jízd.
+         *
+         * Jednotlivé jízdy nejprve převede na odhad využitelné kapacity,
+         * následně odstraní odlehlé vzorky pomocí MAD a z ponechaných jízd
+         * vypočítá kapacitu jako poměr součtu spotřebované energie a součtu
+         * poklesu SoC. Delší SoC intervaly tak mají přirozeně vyšší váhu.
+         *
+         * Jde stále o orientační výpočet. Přesnost je omezená přesností SoC
+         * a významem hodnoty consumed_kwh v importovaných datech.
+         *
+         * @param int   $vehicleId
+         * @param float $nominalKwh
+         *
+         * @return array<string,mixed>
+         */
+        private function estimateStateOfHealth(int $vehicleId, float $nominalKwh): array {
+            $result = [
+                'samples'          => [],
+                'sample_count'     => 0,
+                'raw_pct'          => NULL,
+                'display_pct'      => NULL,
+                'spread_pct'       => NULL,
+                'soc_coverage_pct' => 0.0,
+            ];
+
+            if ($nominalKwh <= 0) {
+                return $result;
+            }
+
+            $q = $this->pdo->prepare(
+                'SELECT consumed_kwh, start_soc, end_soc
+                 FROM trips
+                 WHERE vehicle_id = ?
+                   AND consumed_kwh > 0
+                   AND start_soc IS NOT NULL
+                   AND end_soc IS NOT NULL
+                   AND (start_soc - end_soc) >= 10
+                 ORDER BY started_at DESC
+                 LIMIT 100'
+            );
+            $q->execute([$vehicleId]);
+
+            $candidates = [];
+
+            foreach ($q->fetchAll() as $row) {
+                $startSoc    = (float)$row['start_soc'];
+                $endSoc      = (float)$row['end_soc'];
+                $consumedKwh = (float)$row['consumed_kwh'];
+                $socDrop     = $startSoc - $endSoc;
+
+                // Ochrana proti nekonzistentním nebo neplatným importovaným datům.
+                if (
+                    $startSoc < 0 || $startSoc > 100 ||
+                    $endSoc < 0 || $endSoc > 100 ||
+                    $socDrop < 10 || $socDrop > 100 ||
+                    $consumedKwh <= 0
+                ) {
+                    continue;
+                }
+
+                $estimatedCapacityKwh = $consumedKwh / ($socDrop / 100);
+                $samplePct            = ($estimatedCapacityKwh / $nominalKwh) * 100;
+
+                // Široký vstupní filtr. Jemnější odstranění odlehlých hodnot
+                // proběhne až statisticky pomocí MAD.
+                if ($samplePct < 60 || $samplePct > 115) {
+                    continue;
+                }
+
+                $candidates[] = [
+                    'pct'          => $samplePct,
+                    'soc_drop_pct' => $socDrop,
+                    'consumed_kwh' => $consumedKwh,
+                ];
+            }
+
+            // Pro robustní statistický odhad požadujeme alespoň pět jízd.
+            if (count($candidates) < 5) {
+                $result['samples']      = array_column($candidates, 'pct');
+                $result['sample_count'] = count($candidates);
+
+                return $result;
+            }
+
+            $values = array_column($candidates, 'pct');
+            $median = $this->median($values);
+
+            $deviations = [];
+            foreach ($values as $value) {
+                $deviations[] = abs($value - $median);
+            }
+
+            $mad = $this->median($deviations);
+
+            // 1.4826 převádí MAD na robustní ekvivalent směrodatné odchylky
+            // při přibližně normálním rozdělení. Minimální pásmo 3 p. b. brání
+            // příliš agresivnímu filtrování u velmi kompaktních dat.
+            $outlierBand = max(3.0, 3.0 * 1.4826 * $mad);
+            $filtered    = [];
+
+            foreach ($candidates as $candidate) {
+                if (abs($candidate['pct'] - $median) <= $outlierBand) {
+                    $filtered[] = $candidate;
+                }
+            }
+
+            if (count($filtered) < 5) {
+                $result['samples']      = array_column($filtered, 'pct');
+                $result['sample_count'] = count($filtered);
+
+                return $result;
+            }
+
+            $energySum      = 0.0;
+            $socFractionSum = 0.0;
+            $filteredValues = [];
+            $socCoverage    = 0.0;
+
+            foreach ($filtered as $candidate) {
+                $energySum      += $candidate['consumed_kwh'];
+                $socFractionSum += $candidate['soc_drop_pct'] / 100;
+                $socCoverage    += $candidate['soc_drop_pct'];
+                $filteredValues[] = $candidate['pct'];
+            }
+
+            if ($socFractionSum <= 0) {
+                return $result;
+            }
+
+            // Robustní agregovaný odhad: součet energie / součet změny SoC.
+            // Oproti prostému průměru dostávají delší jízdy s větším poklesem
+            // SoC větší váhu a méně se projeví zaokrouhlení SoC o 1–2 %.
+            $estimatedCapacityKwh = $energySum / $socFractionSum;
+            $rawPct               = ($estimatedCapacityKwh / $nominalKwh) * 100;
+
+            sort($filteredValues, SORT_NUMERIC);
+            $q1 = $this->percentile($filteredValues, 25);
+            $q3 = $this->percentile($filteredValues, 75);
+
+            $result['samples']          = $filteredValues;
+            $result['sample_count']     = count($filteredValues);
+            $result['raw_pct']          = round($rawPct, 2);
+            $result['display_pct']      = round(min(100.0, max(0.0, $rawPct)), 1);
+            $result['spread_pct']       = round($q3 - $q1, 2);
+            $result['soc_coverage_pct'] = round($socCoverage, 1);
+
+            return $result;
+        }
+
+        /**
+         * Vrátí medián číselného pole.
+         *
+         * @param array<int,float> $values
+         *
+         * @return float
+         */
+        private function median(array $values): float {
+            sort($values, SORT_NUMERIC);
+            $count = count($values);
+
+            if ($count === 0) {
+                return 0.0;
+            }
+
+            $middle = intdiv($count, 2);
+
+            if ($count % 2 === 1) {
+                return (float)$values[$middle];
+            }
+
+            return ((float)$values[$middle - 1] + (float)$values[$middle]) / 2;
+        }
+
+        /**
+         * Vrátí percentil z již seřazeného číselného pole.
+         *
+         * @param array<int,float> $sortedValues
+         * @param float            $percentile
+         *
+         * @return float
+         */
+        private function percentile(array $sortedValues, float $percentile): float {
+            $count = count($sortedValues);
+
+            if ($count === 0) {
+                return 0.0;
+            }
+
+            if ($count === 1) {
+                return (float)$sortedValues[0];
+            }
+
+            $position = ($percentile / 100) * ($count - 1);
+            $lower    = (int)floor($position);
+            $upper    = (int)ceil($position);
+
+            if ($lower === $upper) {
+                return (float)$sortedValues[$lower];
+            }
+
+            $weight = $position - $lower;
+
+            return (float)$sortedValues[$lower] * (1 - $weight)
+                + (float)$sortedValues[$upper] * $weight;
         }
     }

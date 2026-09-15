@@ -3992,3 +3992,52 @@ body.modal-open { overflow: hidden; }
 .trip-form-grid input:focus,.trip-form-grid select:focus,.trip-form-grid textarea:focus { border-color:rgba(91,231,190,.58); box-shadow:0 0 0 3px rgba(91,231,190,.08); }
 .trip-editor-info { margin-top:18px; padding:12px 14px; border:1px solid rgba(56,189,248,.2); border-radius:13px; background:rgba(56,189,248,.07); color:#b9dff3; font-size:13px; }
 @media (max-width:700px) { .trip-form-grid { grid-template-columns:1fr; } .trip-form-grid .span-2 { grid-column:auto; } .history-actions { width:100%; } .history-actions .btn { flex:1; text-align:center; justify-content:center; } }
+
+/* Vehicle media: defensive layout. Uploaded photos must never affect page/navigation geometry. */
+.documents-page .document-upload-grid {
+  min-width: 0;
+}
+
+.documents-page .document-upload-grid > .card {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.vehicle-photo-grid {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.vehicle-photo-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.vehicle-photo-card img {
+  width: 100%;
+  max-width: 100%;
+  height: 180px;
+  aspect-ratio: auto;
+  object-fit: contain;
+  object-position: center;
+  background: #0b1219;
+}
+
+.vehicle-photo-card figcaption {
+  overflow-wrap: anywhere;
+}
+
+.vehicle-photo-card figcaption form {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .vehicle-photo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vehicle-photo-card img {
+    height: min(56vw, 280px);
+  }
+}

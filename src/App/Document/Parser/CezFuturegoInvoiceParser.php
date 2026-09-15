@@ -45,7 +45,7 @@ final class CezFuturegoInvoiceParser implements DocumentParserInterface
 
         return strpos($text, 'CZ45274649') !== false
             && strpos($text, 'Dobíjecí relace') !== false
-            && strpos($text, 'Tarif:') !== false;
+            && strpos($text, 'Transakce') !== false;
     }
 
     /**

@@ -81,7 +81,7 @@ $flash = getFlash();
       <a class="btn" href="vehicles.php">Přidat ručně</a><?php endif; ?></form>
   </section>
 </main>
-<footer class="site-footer">created by: &copy; 2026 Pavel Filípek (<a href="https://www.filipek-czech.cz" target="_blank" rel="noopener noreferrer">www.filipek-czech.cz</a>)
+<footer class="site-footer">created by: &copy; 2026 Pavel Filípek (<a href="https://www.filipek-czech.cz" target="_blank" rel="noopener noreferrer">www.filipek-czech.cz</a>) · verze <?= h($app->version()->label()) ?>
 </footer>
 </body>
 </html><?php exit;
@@ -550,7 +550,7 @@ $sohClass = $soh === NULL ? '' : ($soh >= 90 ? 'green' : ($soh >= 80 ? 'orange' 
     <?php endif; ?>
   </section>
 </main>
-<footer class="site-footer">created by: &copy; 2026 Pavel Filípek (<a href="https://www.filipek-czech.cz" target="_blank" rel="noopener noreferrer">www.filipek-czech.cz</a>)
+<footer class="site-footer">created by: &copy; 2026 Pavel Filípek (<a href="https://www.filipek-czech.cz" target="_blank" rel="noopener noreferrer">www.filipek-czech.cz</a>) · verze <?= h($app->version()->label()) ?>
 </footer>
 <script>
   const mobileMenuToggle = document.getElementById('mobileMenuToggle');

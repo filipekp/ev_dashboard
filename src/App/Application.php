@@ -57,6 +57,11 @@ final class Application
         return new MigrationManager($this->pdo(), $this->root . '/sql');
     }
 
+    public function version(): AppVersion
+    {
+        return new AppVersion($this->root);
+    }
+
     public function updater(): GitHubUpdater
     {
         return new GitHubUpdater($this->config, $this->root, $this->migrations());

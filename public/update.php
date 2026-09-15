@@ -8,6 +8,8 @@ $me = $app->auth()->requireAdmin();
 $migrations = $app->migrations();
 $updater = $app->updater();
 $message = null;
+$installedVersion = $app->version()->info();
+$channel = $updater->channel();
 $error = null;
 $remote = null;
 
@@ -23,7 +25,7 @@ try {
         } elseif ($action === 'update') {
             $result = $updater->update();
             $applied = $result['migrations'] ?? [];
-            $message = 'Aktualizace z GitHubu byla dokončena.';
+            $message = 'Aktualizace z GitHubu na verzi ' . (string)($result['version'] ?? '') . ' byla dokončena.';
             if ($applied) {
                 $message .= ' Provedené migrace: ' . implode(', ', $applied) . '.';
             } else {
@@ -72,12 +74,14 @@ try {
 
   <section class="card admin-card">
     <h2>🔄 Aktualizace z GitHubu</h2>
-    <p>Zdroj: <code><?= h((string)$app->config()->get('update.repository')) ?></code>, větev <code><?= h((string)$app->config()->get('update.branch')) ?></code>.</p>
+    <p>Zdroj: <code><?= h((string)$app->config()->get('update.repository')) ?></code>.</p>
+    <p>Kanál: <strong><?= $channel === 'release' ? 'Release' : 'DEV' ?></strong><?php if ($channel === 'dev'): ?> · větev <code><?= h((string)$app->config()->get('update.branch')) ?></code><?php endif; ?>. Nastavuje se přes <code>UPDATE_CHANNEL=release</code> nebo <code>UPDATE_CHANNEL=dev</code> v <code>.env</code>.</p>
+    <p>Nainstalovaná verze: <strong><?= h((string)($installedVersion['version'] ?? 'local')) ?></strong></p>
     <?php if ($remote): ?>
-      <p>Poslední commit: <strong><?= h((string)$remote['short_sha']) ?></strong><?php if (!empty($remote['date'])): ?> · <?= h((string)$remote['date']) ?><?php endif; ?></p>
+      <p>Dostupná verze: <strong><?= h((string)$remote['version']) ?></strong><?php if (!empty($remote['date'])): ?> · <?= h((string)$remote['date']) ?><?php endif; ?></p>
       <?php if (!empty($remote['message'])): ?><p><?= nl2br(h((string)$remote['message'])) ?></p><?php endif; ?>
     <?php else: ?>
-      <p class="muted">Informaci o posledním commitu se nepodařilo načíst. Samotná aktualizace může přesto fungovat.</p>
+      <p class="muted">Informaci o dostupné verzi se nepodařilo načíst. Samotná aktualizace může přesto fungovat.</p>
     <?php endif; ?>
     <p><strong>.env se při aktualizaci nepřepisuje.</strong> Před nasazením se vytvoří záloha spravovaných souborů v neveřejném adresáři <code>.updates/</code> a následně se automaticky spustí nové databázové migrace.</p>
     <form method="post" onsubmit="return confirm('Opravdu stáhnout a nasadit aktuální verzi z GitHubu?');">

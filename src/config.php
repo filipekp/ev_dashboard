@@ -92,6 +92,7 @@
         ],
         'update' => [
             'repository' => env('UPDATE_REPOSITORY', 'filipekp/ev_dashboard'),
+            'channel' => strtolower((string)env('UPDATE_CHANNEL', 'release')),
             'branch' => env('UPDATE_BRANCH', 'dev'),
         ],
     ];

@@ -1,0 +1,28 @@
+{
+  "name": "EV Stats – Digital Garage",
+  "short_name": "EV Stats",
+  "description": "Přehled jízd, nákladů, spotřeby a provozu vašich vozidel.",
+  "lang": "cs",
+  "id": "./",
+  "start_url": "./index.php",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#080b10",
+  "theme_color": "#080b10",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,6 +1,9 @@
 Options -Indexes
 DirectoryIndex index.php
 
+AddType application/manifest+json .webmanifest
+
+
 RewriteEngine On
 
 # Citlivé adresáře a soubory nesmí být dostupné přímo z webu.

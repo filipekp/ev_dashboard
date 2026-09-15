@@ -78,8 +78,32 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
     <a class="<?= $navCurrent('garage.php') ?>" href="garage.php"><span>◈</span><small>Garáž</small></a>
     <a class="mobile-add" href="<?= $navHasVehicle ? 'import.php?vehicle_id=' . $navVehicleId : 'index.php?add_vehicle=1' ?>"><span>＋</span><small>Přidat</small></a>
     <?php if ($navHasVehicle): ?><a class="<?= $navCurrent('operations.php') ?>" href="operations.php?vehicle_id=<?= $navVehicleId ?>"><span>↗</span><small>Provoz</small></a><?php else: ?><a href="index.php?add_vehicle=1"><span>＋</span><small>Vozidlo</small></a><?php endif; ?>
-    <a class="<?= $navCurrent('profile.php') ?>" href="profile.php"><span>☰</span><small>Více</small></a>
+    <button class="mobile-more-trigger<?= in_array($navPage, ['timeline.php', 'import.php', 'documents.php', 'vehicles.php', 'users.php', 'update.php', 'profile.php'], TRUE) ? ' is-active' : '' ?>" type="button" data-mobile-more-open aria-haspopup="dialog" aria-controls="mobileMoreMenu" aria-expanded="false"><span>☰</span><small>Více</small></button>
 </nav>
+
+<div class="mobile-more-backdrop" data-mobile-more-backdrop hidden></div>
+<section class="mobile-more-menu" id="mobileMoreMenu" data-mobile-more-menu role="dialog" aria-modal="true" aria-label="Další navigace" hidden>
+    <header class="mobile-more-head">
+        <div><small>EV STATS</small><b>Další nabídka</b></div>
+        <button type="button" class="mobile-more-close" data-mobile-more-close aria-label="Zavřít menu">×</button>
+    </header>
+    <div class="mobile-more-links">
+        <?php if ($navHasVehicle): ?>
+            <a class="<?= $navCurrent('timeline.php') ?>" href="timeline.php?vehicle_id=<?= $navVehicleId ?>"><span>◷</span><div><b>Timeline</b><small>Historie událostí vozidla</small></div><i>›</i></a>
+            <a class="<?= $navCurrent('import.php') ?>" href="import.php?vehicle_id=<?= $navVehicleId ?>"><span>＋</span><div><b>Import Hub</b><small>Import jízd a dat</small></div><i>›</i></a>
+            <a class="<?= $navCurrent('documents.php') ?>" href="documents.php?vehicle_id=<?= $navVehicleId ?>"><span>✦</span><div><b>Dokumenty & AI</b><small>Faktury, účtenky a dokumenty</small></div><i>›</i></a>
+        <?php endif; ?>
+        <?php if ($navCanManageVehicles): ?>
+            <a class="<?= $navCurrent('vehicles.php') ?>" href="vehicles.php"><span>⚙</span><div><b>Vozidla</b><small>Správa vozidel a parametrů</small></div><i>›</i></a>
+        <?php endif; ?>
+        <?php if ($navIsAdmin): ?>
+            <a class="<?= $navCurrent('users.php') ?>" href="users.php"><span>♙</span><div><b>Uživatelé</b><small>Účty a oprávnění</small></div><i>›</i></a>
+            <a class="<?= $navCurrent('update.php') ?>" href="update.php"><span>↻</span><div><b>Aktualizace</b><small>Verze aplikace a updater</small></div><i>›</i></a>
+        <?php endif; ?>
+        <a class="<?= $navCurrent('profile.php') ?>" href="profile.php"><span class="avatar-mini"><?= h(mb_strtoupper(mb_substr((string)($navUser['name'] ?? 'U'), 0, 1))) ?></span><div><b>Můj profil</b><small><?= h((string)($navUser['name'] ?? 'Uživatel')) ?></small></div><i>›</i></a>
+        <a class="mobile-more-logout" href="logout.php"><span>⇥</span><div><b>Odhlásit se</b><small>Ukončit aktuální relaci</small></div><i>›</i></a>
+    </div>
+</section>
 
 <script>
 document.querySelectorAll('[data-vehicle-picker]').forEach((picker) => {
@@ -103,4 +127,25 @@ document.addEventListener('click', (event) => {
     }
   });
 });
+const mobileMoreMenu = document.querySelector('[data-mobile-more-menu]');
+const mobileMoreBackdrop = document.querySelector('[data-mobile-more-backdrop]');
+const mobileMoreOpen = document.querySelector('[data-mobile-more-open]');
+const mobileMoreClose = document.querySelector('[data-mobile-more-close]');
+
+const setMobileMoreOpen = (open) => {
+  if (!mobileMoreMenu || !mobileMoreBackdrop || !mobileMoreOpen) return;
+  mobileMoreMenu.hidden = !open;
+  mobileMoreBackdrop.hidden = !open;
+  mobileMoreOpen.setAttribute('aria-expanded', open ? 'true' : 'false');
+  document.body.classList.toggle('mobile-more-open', open);
+  if (open && mobileMoreClose) mobileMoreClose.focus();
+};
+
+if (mobileMoreOpen) mobileMoreOpen.addEventListener('click', () => setMobileMoreOpen(true));
+if (mobileMoreClose) mobileMoreClose.addEventListener('click', () => setMobileMoreOpen(false));
+if (mobileMoreBackdrop) mobileMoreBackdrop.addEventListener('click', () => setMobileMoreOpen(false));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && mobileMoreMenu && !mobileMoreMenu.hidden) setMobileMoreOpen(false);
+});
+
 </script>

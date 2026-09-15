@@ -219,6 +219,22 @@ final class VehicleOperationRepository
         return (int)$this->pdo->lastInsertId();
     }
 
+    /** @param array<string,mixed> $data */
+    public function updateTripBookEntry(int $vehicleId, int $entryId, array $data): void
+    {
+        $query = $this->pdo->prepare(
+            'UPDATE vehicle_trip_book_entries
+             SET source_trip_id=?, started_at=?, ended_at=?, start_address=?, end_address=?, distance_km=?,
+                 start_odometer_km=?, end_odometer_km=?, classification=?, purpose=?, note=?
+             WHERE id=? AND vehicle_id=?'
+        );
+        $query->execute([
+            $data['source_trip_id'], $data['started_at'], $data['ended_at'], $data['start_address'],
+            $data['end_address'], $data['distance_km'], $data['start_odometer_km'], $data['end_odometer_km'],
+            $data['classification'], $data['purpose'], $data['note'], $entryId, $vehicleId,
+        ]);
+    }
+
     /** @return array<int,array<string,mixed>> */
     public function tripBookEntries(int $vehicleId, int $limit = 100): array
     {

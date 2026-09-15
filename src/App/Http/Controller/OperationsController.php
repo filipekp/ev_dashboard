@@ -114,9 +114,14 @@ final class OperationsController
                     $this->app->session()->flash('Jízda byla přidána do knihy jízd.');
                     break;
 
+                case 'update_trip_book':
+                    $service->updateTripBookEntry($vehicleId, $_POST);
+                    $this->app->session()->flash('Záznam jízdy byl upraven.');
+                    break;
+
                 case 'update_trip':
                     $service->updateTripLog($vehicleId, $_POST);
-                    $this->app->session()->flash('Kniha jízd byla upravena.');
+                    $this->app->session()->flash('Importovaná jízda byla upravena.');
                     break;
 
                 default:

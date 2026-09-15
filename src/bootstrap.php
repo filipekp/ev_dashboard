@@ -28,6 +28,7 @@ $pdo = $app->pdo();
  * nemusel měnit desítky výpisů v HTML najednou.
  */
 function h(?string $value): string { return View::h($value); }
+function markdown(string $value): string { return View::markdown($value); }
 function cz($value, int $dec = 1): string { return View::cz($value, $dec); }
 function shortAddress(string $value): string { return View::shortAddress($value); }
 function routeKey(string $from, string $to): string { return View::routeKey($from, $to); }

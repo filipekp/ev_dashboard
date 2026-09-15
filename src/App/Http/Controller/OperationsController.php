@@ -64,7 +64,11 @@ final class OperationsController
             'serviceAttachments' => $attachments,
             'expenses' => $repository->expenses($vehicleId),
             'reminders' => $repository->reminders($vehicleId),
-            'tripLog' => $repository->tripLog($vehicleId),
+            'tripBook' => $repository->tripBookEntries($vehicleId),
+            'importedTrips' => $repository->tripLog($vehicleId, 30),
+            'prefillTrip' => (int)($_GET['source_trip_id'] ?? 0) > 0
+                ? $repository->importedTrip($vehicleId, (int)$_GET['source_trip_id'])
+                : null,
         ]);
     }
 
@@ -103,6 +107,11 @@ final class OperationsController
                     }
                     $this->app->vehicleOperations()->completeReminder($vehicleId, $reminderId);
                     $this->app->session()->flash('Připomínka byla označena jako hotová.');
+                    break;
+
+                case 'add_trip_book':
+                    $service->addTripBookEntry($vehicleId, $_POST);
+                    $this->app->session()->flash('Jízda byla přidána do knihy jízd.');
                     break;
 
                 case 'update_trip':

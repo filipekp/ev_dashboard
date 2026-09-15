@@ -29,15 +29,7 @@ $fuelEnergyType = [
       <h1><?= h($vehicle['name']) ?></h1>
       <p><?= h((string)$vehicle['powertrain_type']) ?> · VIN <?= h($vehicle['vin']) ?></p>
     </div>
-    <form method="get" class="vehicle-switch">
-      <select name="vehicle_id" onchange="this.form.submit()">
-        <?php foreach ($vehicles as $item): ?>
-          <option value="<?= (int)$item['id'] ?>" <?= (int)$item['id'] === (int)$vehicle['id'] ? 'selected' : '' ?>>
-            <?= h($item['name']) ?> · <?= h($item['vin']) ?>
-          </option>
-        <?php endforeach; ?>
-      </select>
-    </form>
+    <div class="active-vehicle-note"><span>✓</span><div><small>AKTIVNÍ VOZIDLO</small><b>Řídí se výběrem v levém panelu</b></div></div>
   </section>
 
   <section class="kpis operations-kpis">
@@ -153,37 +145,60 @@ $fuelEnergyType = [
     </div>
   </section>
 
-  <section class="card operations-section">
-    <h2>📒 Kniha jízd</h2>
-    <div class="table-scroll">
-      <table class="data-table"><thead><tr><th>Datum</th><th>Trasa</th><th>Km</th><th>Účel</th><th>Poznámka</th><th></th></tr></thead><tbody>
-      <?php foreach ($tripLog as $trip): ?>
-        <?php $tripFormId = 'trip-form-' . (int)$trip['id']; ?>
-        <tr>
-          <td><?= h(date('d.m.Y H:i', strtotime($trip['started_at']))) ?></td>
-          <td><?= h(displayRoute($trip['start_address'], $trip['end_address'])) ?></td>
-          <td><?= cz((float)$trip['distance_km'], 1) ?></td>
-          <td>
-            <select name="classification" form="<?= h($tripFormId) ?>">
-              <option value="">—</option>
-              <option value="private" <?= $trip['classification'] === 'private' ? 'selected' : '' ?>>Soukromá</option>
-              <option value="business" <?= $trip['classification'] === 'business' ? 'selected' : '' ?>>Služební</option>
-              <option value="commute" <?= $trip['classification'] === 'commute' ? 'selected' : '' ?>>Dojíždění</option>
-              <option value="other" <?= $trip['classification'] === 'other' ? 'selected' : '' ?>>Ostatní</option>
-            </select>
-          </td>
-          <td><input name="trip_note" form="<?= h($tripFormId) ?>" value="<?= h((string)($trip['trip_note'] ?? '')) ?>"></td>
-          <td>
-            <form method="post" id="<?= h($tripFormId) ?>">
-              <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
-              <input type="hidden" name="action" value="update_trip">
-              <input type="hidden" name="trip_id" value="<?= (int)$trip['id'] ?>">
-              <button class="btn">Uložit</button>
-            </form>
-          </td>
-        </tr>
-      <?php endforeach; ?>
-      </tbody></table>
+  <section class="card operations-section trip-book-section" id="trip-book">
+    <?php $tripSource = $prefillTrip ?? null; ?>
+    <div class="section-heading-row">
+      <div><small>KNIHA JÍZD</small><h2>📒 Vlastní evidence jízd</h2><p>Importované jízdy zůstávají zdrojovými daty. Do knihy jízd zapisujete jen záznamy, které skutečně chcete evidovat.</p></div>
+      <?php if ($tripSource): ?><a class="btn" href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>#trip-book">Zrušit předvyplnění</a><?php endif; ?>
+    </div>
+
+    <div class="trip-book-layout">
+      <form method="post" class="stack trip-book-form">
+        <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
+        <input type="hidden" name="action" value="add_trip_book">
+        <input type="hidden" name="source_trip_id" value="<?= $tripSource ? (int)$tripSource['id'] : 0 ?>">
+        <?php if ($tripSource): ?><div class="source-trip-badge">✦ Předvyplněno z importované jízdy #<?= (int)$tripSource['id'] ?></div><?php endif; ?>
+        <div class="form-grid-2">
+          <label>Začátek<input type="datetime-local" name="started_at" value="<?= h($tripSource ? date('Y-m-d\TH:i', strtotime($tripSource['started_at'])) : date('Y-m-d\TH:i')) ?>" required></label>
+          <label>Konec<input type="datetime-local" name="ended_at" value="<?= h($tripSource && $tripSource['ended_at'] ? date('Y-m-d\TH:i', strtotime($tripSource['ended_at'])) : '') ?>"></label>
+        </div>
+        <div class="form-grid-2">
+          <label>Odkud<input name="start_address" value="<?= h((string)($tripSource['start_address'] ?? '')) ?>" required></label>
+          <label>Kam<input name="end_address" value="<?= h((string)($tripSource['end_address'] ?? '')) ?>" required></label>
+        </div>
+        <div class="form-grid-3">
+          <label>Vzdálenost (km)<input type="number" step="0.01" min="0" name="distance_km" value="<?= h((string)($tripSource['distance_km'] ?? '')) ?>" required></label>
+          <label>Počáteční km<input type="number" step="0.1" min="0" name="start_odometer_km" value="<?= h((string)($tripSource['start_odometer_km'] ?? '')) ?>"></label>
+          <label>Konečné km<input type="number" step="0.1" min="0" name="end_odometer_km" value="<?= h((string)($tripSource['end_odometer_km'] ?? '')) ?>"></label>
+        </div>
+        <div class="form-grid-2">
+          <label>Typ jízdy<select name="classification"><option value="">—</option><option value="private" <?= ($tripSource['classification'] ?? '') === 'private' ? 'selected' : '' ?>>Soukromá</option><option value="business" <?= ($tripSource['classification'] ?? '') === 'business' ? 'selected' : '' ?>>Služební</option><option value="commute" <?= ($tripSource['classification'] ?? '') === 'commute' ? 'selected' : '' ?>>Dojíždění</option><option value="other" <?= ($tripSource['classification'] ?? '') === 'other' ? 'selected' : '' ?>>Ostatní</option></select></label>
+          <label>Účel cesty<input name="purpose" placeholder="Schůzka, cesta do práce, soukromá cesta…"></label>
+        </div>
+        <label>Poznámka<textarea name="trip_note" rows="2"><?= h((string)($tripSource['trip_note'] ?? '')) ?></textarea></label>
+        <button class="btn primary">Přidat do knihy jízd</button>
+      </form>
+
+      <aside class="imported-trip-picker">
+        <div class="imported-trip-picker-head"><b>Předvyplnit z importu</b><small>Vyberte jednu z posledních importovaných jízd.</small></div>
+        <div class="imported-trip-list">
+          <?php foreach ($importedTrips as $trip): ?>
+            <a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>&amp;source_trip_id=<?= (int)$trip['id'] ?>#trip-book" class="imported-trip-item<?= $tripSource && (int)$tripSource['id'] === (int)$trip['id'] ? ' is-selected' : '' ?>">
+              <span><b><?= h(date('d.m.Y H:i', strtotime($trip['started_at']))) ?></b><small><?= h(displayRoute($trip['start_address'], $trip['end_address'])) ?></small></span><strong><?= cz((float)$trip['distance_km'], 1) ?> km</strong>
+            </a>
+          <?php endforeach; ?>
+          <?php if (!$importedTrips): ?><p class="empty-hint">Zatím nejsou k dispozici žádné importované jízdy.</p><?php endif; ?>
+        </div>
+      </aside>
+    </div>
+
+    <div class="trip-book-history">
+      <h3>Zapsané jízdy</h3>
+      <?php if ($tripBook): ?>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Datum</th><th>Trasa</th><th>Km</th><th>Typ</th><th>Účel</th><th>Zdroj</th></tr></thead><tbody>
+      <?php foreach ($tripBook as $trip): ?><tr><td><?= h(date('d.m.Y H:i', strtotime($trip['started_at']))) ?></td><td><b><?= h(displayRoute($trip['start_address'], $trip['end_address'])) ?></b></td><td><?= cz((float)$trip['distance_km'], 1) ?></td><td><?= h((string)($trip['classification'] ?: '—')) ?></td><td><?= h((string)($trip['purpose'] ?: '—')) ?></td><td><?= $trip['source_trip_id'] ? '✦ Import #' . (int)$trip['source_trip_id'] : 'Ručně' ?></td></tr><?php endforeach; ?>
+      </tbody></table></div>
+      <?php else: ?><div class="empty-state-inline">Kniha jízd je zatím prázdná. Přidejte první záznam ručně nebo jej předvyplňte z importované jízdy.</div><?php endif; ?>
     </div>
   </section>
 

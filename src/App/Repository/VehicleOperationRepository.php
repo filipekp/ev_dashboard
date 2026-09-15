@@ -201,6 +201,52 @@ final class VehicleOperationRepository
         return $query->fetchAll();
     }
 
+    /** @param array<string,mixed> $data */
+    public function addTripBookEntry(int $vehicleId, array $data): int
+    {
+        $query = $this->pdo->prepare(
+            'INSERT INTO vehicle_trip_book_entries
+                (vehicle_id, source_trip_id, started_at, ended_at, start_address, end_address, distance_km,
+                 start_odometer_km, end_odometer_km, classification, purpose, note)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $query->execute([
+            $vehicleId, $data['source_trip_id'], $data['started_at'], $data['ended_at'], $data['start_address'],
+            $data['end_address'], $data['distance_km'], $data['start_odometer_km'], $data['end_odometer_km'],
+            $data['classification'], $data['purpose'], $data['note'],
+        ]);
+
+        return (int)$this->pdo->lastInsertId();
+    }
+
+    /** @return array<int,array<string,mixed>> */
+    public function tripBookEntries(int $vehicleId, int $limit = 100): array
+    {
+        $query = $this->pdo->prepare(
+            'SELECT b.*, t.source_format
+             FROM vehicle_trip_book_entries b
+             LEFT JOIN trips t ON t.id=b.source_trip_id
+             WHERE b.vehicle_id=?
+             ORDER BY b.started_at DESC, b.id DESC
+             LIMIT ' . (int)$limit
+        );
+        $query->execute([$vehicleId]);
+        return $query->fetchAll();
+    }
+
+    /** @return array<string,mixed>|null */
+    public function importedTrip(int $vehicleId, int $tripId): ?array
+    {
+        $query = $this->pdo->prepare(
+            'SELECT id, started_at, ended_at, start_address, end_address, distance_km, start_odometer_km,
+                    end_odometer_km, classification, trip_note
+             FROM trips WHERE vehicle_id=? AND id=? LIMIT 1'
+        );
+        $query->execute([$vehicleId, $tripId]);
+        $row = $query->fetch();
+        return $row ?: null;
+    }
+
     /** @return array<int,array<string,mixed>> */
     public function tripLog(int $vehicleId, int $limit = 100): array
     {

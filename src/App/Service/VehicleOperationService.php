@@ -133,6 +133,39 @@ final class VehicleOperationService
     }
 
     /** @param array<string,mixed> $input */
+    public function addTripBookEntry(int $vehicleId, array $input): void
+    {
+        $startedAt = trim((string)($input['started_at'] ?? ''));
+        $start = trim((string)($input['start_address'] ?? ''));
+        $end = trim((string)($input['end_address'] ?? ''));
+        $distance = $this->decimal($input['distance_km'] ?? null);
+        if ($startedAt === '' || $start === '' || $end === '' || $distance === null || $distance < 0) {
+            throw new RuntimeException('Vyplňte datum, trasu a platnou vzdálenost jízdy.');
+        }
+        $classification = trim((string)($input['classification'] ?? ''));
+        if (!in_array($classification, ['', 'private', 'business', 'commute', 'other'], true)) {
+            throw new RuntimeException('Neplatná klasifikace jízdy.');
+        }
+        $sourceTripId = (int)($input['source_trip_id'] ?? 0);
+        if ($sourceTripId > 0 && $this->repository->importedTrip($vehicleId, $sourceTripId) === null) {
+            throw new RuntimeException('Zdrojová importovaná jízda nebyla nalezena.');
+        }
+        $this->repository->addTripBookEntry($vehicleId, [
+            'source_trip_id' => $sourceTripId > 0 ? $sourceTripId : null,
+            'started_at' => str_replace('T', ' ', $startedAt),
+            'ended_at' => trim((string)($input['ended_at'] ?? '')) !== '' ? str_replace('T', ' ', trim((string)$input['ended_at'])) : null,
+            'start_address' => $start,
+            'end_address' => $end,
+            'distance_km' => $distance,
+            'start_odometer_km' => $this->decimal($input['start_odometer_km'] ?? null),
+            'end_odometer_km' => $this->decimal($input['end_odometer_km'] ?? null),
+            'classification' => $classification ?: null,
+            'purpose' => $this->nullableText($input['purpose'] ?? null),
+            'note' => $this->nullableText($input['trip_note'] ?? null),
+        ]);
+    }
+
+    /** @param array<string,mixed> $input */
     public function updateTripLog(int $vehicleId, array $input): void
     {
         $tripId = (int)($input['trip_id'] ?? 0);

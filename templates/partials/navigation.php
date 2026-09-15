@@ -1,8 +1,8 @@
 <?php
 /** Shared EV Stats 4.0 navigation. */
-$navUser = $user ?? $me ?? [];
-$navVehicles = isset($vehicles) && is_array($vehicles) ? $vehicles : [];
-$navVehicle = isset($vehicle) && is_array($vehicle) ? $vehicle : NULL;
+$navUser = $user ?? $me ?? $app->auth()->currentUser() ?? [];
+$navVehicles = isset($vehicles) && is_array($vehicles) ? $vehicles : ($navUser ? $app->auth()->allowedVehicles($navUser) : []);
+$navVehicle = isset($vehicle) && is_array($vehicle) ? $vehicle : ($navUser ? $app->auth()->selectVehicle($navUser) : NULL);
 $navPage = basename((string)($_SERVER['PHP_SELF'] ?? 'index.php'));
 $navCanManageVehicles = $navUser ? $app->auth()->canManageVehicles($navUser) : FALSE;
 $navIsAdmin = $navUser ? $app->auth()->isAdmin($navUser) : FALSE;
@@ -17,15 +17,30 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
     <a class="sidebar-brand" href="index.php"><span class="sidebar-brand-mark">⚡</span><span><b>EV Stats</b><small>Digital Garage</small></span></a>
 
     <?php if ($navHasVehicle && $navVehicles): ?>
-        <form class="sidebar-vehicle" method="get" action="index.php">
-            <small>AKTIVNÍ VOZIDLO</small>
-            <select name="vehicle_id" onchange="this.form.submit()" aria-label="Vybrat vozidlo">
+        <div class="vehicle-picker" data-vehicle-picker>
+            <button class="vehicle-picker-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                <span class="vehicle-picker-label">AKTIVNÍ VOZIDLO</span>
+                <span class="vehicle-picker-main"><i><?= (int)($navUser['default_vehicle_id'] ?? 0) === $navVehicleId ? '★' : '◆' ?></i><b><?= h((string)$navVehicle['name']) ?></b><em>⌄</em></span>
+                <span class="vehicle-picker-meta"><?= h($navPowertrain) ?><?= !empty($navVehicle['battery_kwh']) ? ' · ' . h((string)$navVehicle['battery_kwh']) . ' kWh' : '' ?><?= !empty($navVehicle['registration_plate']) ? ' · ' . h((string)$navVehicle['registration_plate']) : '' ?></span>
+            </button>
+            <div class="vehicle-picker-menu" role="listbox" hidden>
                 <?php foreach ($navVehicles as $option): ?>
-                    <option value="<?= (int)$option['id'] ?>" <?= (int)$option['id'] === $navVehicleId ? 'selected' : '' ?>><?= (int)($navUser['default_vehicle_id'] ?? 0) === (int)$option['id'] ? '★ ' : '' ?><?= h($option['name']) ?></option>
+                    <?php
+                    $optionId = (int)$option['id'];
+                    $optionPowertrain = strtoupper((string)($option['powertrain_type'] ?? 'BEV'));
+                    $targetPage = in_array($navPage, ['index.php', 'operations.php', 'documents.php'], TRUE) ? $navPage : 'index.php';
+                    $targetUrl = $targetPage . '?vehicle_id=' . $optionId;
+                    ?>
+                    <a class="vehicle-picker-option<?= $optionId === $navVehicleId ? ' is-selected' : '' ?>" href="<?= h($targetUrl) ?>" role="option" aria-selected="<?= $optionId === $navVehicleId ? 'true' : 'false' ?>">
+                        <span class="vehicle-picker-icon"><?= in_array($optionPowertrain, ['BEV','PHEV'], TRUE) ? '⚡' : '⛽' ?></span>
+                        <span><b><?= h((string)$option['name']) ?></b><small><?= h($optionPowertrain) ?><?= !empty($option['battery_kwh']) ? ' · ' . h((string)$option['battery_kwh']) . ' kWh' : '' ?><?= !empty($option['registration_plate']) ? ' · ' . h((string)$option['registration_plate']) : '' ?></small></span>
+                        <?php if ((int)($navUser['default_vehicle_id'] ?? 0) === $optionId): ?><i title="Výchozí vozidlo">★</i><?php endif; ?>
+                        <?php if ($optionId === $navVehicleId): ?><strong>✓</strong><?php endif; ?>
+                    </a>
                 <?php endforeach; ?>
-            </select>
-            <span><?= h($navPowertrain) ?> · <?= h((string)($navVehicle['registration_plate'] ?? $navVehicle['vin'] ?? '')) ?></span>
-        </form>
+                <a class="vehicle-picker-add" href="index.php?add_vehicle=1"><span>＋</span> Přidat nové vozidlo</a>
+            </div>
+        </div>
     <?php endif; ?>
 
     <nav class="sidebar-nav">
@@ -52,7 +67,7 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
 
 <header class="mobile-topbar">
     <a class="mobile-brand" href="index.php">⚡ <b>EV Stats</b></a>
-    <?php if ($navHasVehicle && $navVehicles): ?><form method="get" action="index.php"><select name="vehicle_id" onchange="this.form.submit()" aria-label="Vybrat vozidlo"><?php foreach ($navVehicles as $option): ?><option value="<?= (int)$option['id'] ?>" <?= (int)$option['id'] === $navVehicleId ? 'selected' : '' ?>><?= h($option['name']) ?></option><?php endforeach; ?></select></form><?php endif; ?>
+    <?php if ($navHasVehicle && $navVehicles): ?><a class="mobile-vehicle-link" href="garage.php"><b><?= h((string)$navVehicle['name']) ?></b><small><?= h($navPowertrain) ?></small></a><?php endif; ?>
     <a class="mobile-avatar" href="profile.php"><?= h(mb_strtoupper(mb_substr((string)($navUser['name'] ?? 'U'), 0, 1))) ?></a>
 </header>
 
@@ -63,3 +78,27 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
     <?php if ($navHasVehicle): ?><a class="<?= $navCurrent('operations.php') ?>" href="operations.php?vehicle_id=<?= $navVehicleId ?>"><span>↗</span><small>Provoz</small></a><?php else: ?><a href="index.php?add_vehicle=1"><span>＋</span><small>Vozidlo</small></a><?php endif; ?>
     <a class="<?= $navCurrent('profile.php') ?>" href="profile.php"><span>☰</span><small>Více</small></a>
 </nav>
+
+<script>
+document.querySelectorAll('[data-vehicle-picker]').forEach((picker) => {
+  const trigger = picker.querySelector('.vehicle-picker-trigger');
+  const menu = picker.querySelector('.vehicle-picker-menu');
+  if (!trigger || !menu) return;
+  trigger.addEventListener('click', () => {
+    const open = !menu.hidden;
+    document.querySelectorAll('.vehicle-picker-menu').forEach((item) => { item.hidden = true; });
+    menu.hidden = open;
+    trigger.setAttribute('aria-expanded', open ? 'false' : 'true');
+  });
+});
+document.addEventListener('click', (event) => {
+  document.querySelectorAll('[data-vehicle-picker]').forEach((picker) => {
+    if (!picker.contains(event.target)) {
+      const menu = picker.querySelector('.vehicle-picker-menu');
+      const trigger = picker.querySelector('.vehicle-picker-trigger');
+      if (menu) menu.hidden = true;
+      if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    }
+  });
+});
+</script>

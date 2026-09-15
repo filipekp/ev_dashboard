@@ -1,0 +1,113 @@
+name: Create GitHub Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout tagged revision
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate PHP syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            php -l "$file" >/dev/null
+          done < <(find public src -type f -name '*.php' -print0)
+
+      - name: Build release package
+        id: package
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          PACKAGE_NAME="ev-stats-${TAG}.zip"
+          STAGE_DIR="${RUNNER_TEMP}/ev-stats-${TAG}"
+
+          rm -rf "$STAGE_DIR" dist
+          mkdir -p "$STAGE_DIR" dist
+
+          # Only files needed by the application are shipped. In particular,
+          # local secrets (.env), updater backups and Git metadata stay out.
+          cp -a public src sql "$STAGE_DIR/"
+
+          for file in .htaccess .env.example .gitignore README.md Dockerfile docker-compose.yml; do
+            if [[ -f "$file" ]]; then
+              cp -a "$file" "$STAGE_DIR/"
+            fi
+          done
+
+          # VERSION is intentionally generated from the Git tag during CI.
+          printf '%s\n' "$TAG" > "$STAGE_DIR/VERSION"
+
+          (
+            cd "$(dirname "$STAGE_DIR")"
+            zip -qr "${GITHUB_WORKSPACE}/dist/${PACKAGE_NAME}" "$(basename "$STAGE_DIR")"
+          )
+
+          (
+            cd dist
+            sha256sum "$PACKAGE_NAME" > "${PACKAGE_NAME}.sha256"
+          )
+
+          echo "package=dist/${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "checksum=dist/${PACKAGE_NAME}.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Decide release type
+        id: release_type
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$TAG" =~ -(alpha|beta|rc|dev|preview)([.-]|$) ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          PACKAGE: ${{ steps.package.outputs.package }}
+          CHECKSUM: ${{ steps.package.outputs.checksum }}
+          PRERELEASE: ${{ steps.release_type.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          args=(
+            "$TAG"
+            "$PACKAGE"
+            "$CHECKSUM"
+            --verify-tag
+            --generate-notes
+            --title "EV Stats ${TAG}"
+          )
+
+          if [[ "$PRERELEASE" == "true" ]]; then
+            args+=(--prerelease)
+          else
+            args+=(--latest)
+          fi
+
+          gh release create "${args[@]}"

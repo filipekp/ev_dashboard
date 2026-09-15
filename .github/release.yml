@@ -1,0 +1,43 @@
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+      - duplicate
+      - invalid
+  categories:
+    - title: '🚀 Nové funkce'
+      labels:
+        - feature
+        - enhancement
+
+    - title: '🐛 Opravy'
+      labels:
+        - bug
+        - bugfix
+        - fix
+
+    - title: '🔐 Bezpečnost'
+      labels:
+        - security
+
+    - title: '⚡ Výkon a optimalizace'
+      labels:
+        - performance
+        - optimization
+
+    - title: '♻️ Refaktoring a údržba'
+      labels:
+        - refactor
+        - maintenance
+
+    - title: '📚 Dokumentace'
+      labels:
+        - documentation
+
+    - title: '📦 Závislosti'
+      labels:
+        - dependencies
+
+    - title: '🧰 Ostatní změny'
+      labels:
+        - '*'

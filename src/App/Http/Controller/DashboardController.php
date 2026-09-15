@@ -43,6 +43,11 @@ final class DashboardController
                 $this->createSelfVehicle($user);
                 return;
             }
+
+            if ($action === 'save_trip') {
+                $this->saveTrip($user);
+                return;
+            }
         }
 
         $vehicles = $this->app->auth()->allowedVehicles($user);
@@ -82,6 +87,112 @@ final class DashboardController
             'timelineEvents' => $this->app->timeline()->build((int)$vehicle['id'], 6),
             'insights' => $this->app->insights()->build($vehicle),
         ]));
+    }
+
+    /** @param array<string,mixed> $user */
+    private function saveTrip(array $user): void
+    {
+        try {
+            $this->app->session()->verifyCsrf();
+            $vehicleId = (int)($_POST['vehicle_id'] ?? 0);
+            $allowed = $this->app->auth()->allowedVehicles($user);
+            $vehicle = null;
+            foreach ($allowed as $candidate) {
+                if ((int)$candidate['id'] === $vehicleId) {
+                    $vehicle = $candidate;
+                    break;
+                }
+            }
+            if ($vehicle === null) {
+                throw new RuntimeException('K tomuto vozidlu nemáte přístup.');
+            }
+
+            $startedAt = $this->dateTime((string)($_POST['started_at'] ?? ''));
+            $endedAt = $this->dateTime((string)($_POST['ended_at'] ?? ''));
+            if (strtotime($endedAt) < strtotime($startedAt)) {
+                throw new RuntimeException('Čas ukončení jízdy nemůže být před jejím začátkem.');
+            }
+            $distance = max(0.0, (float)str_replace(',', '.', (string)($_POST['distance_km'] ?? '0')));
+            $minutes = max(0, (int)round((strtotime($endedAt) - strtotime($startedAt)) / 60));
+            $drivingMinutes = max(0, (int)($_POST['driving_minutes'] ?? $minutes));
+            if ($drivingMinutes === 0) {
+                $drivingMinutes = $minutes;
+            }
+            $consumed = $this->nullableDecimal($_POST['consumed_kwh'] ?? null);
+            $avgSpeed = $this->nullableDecimal($_POST['avg_speed_kmh'] ?? null);
+            if ($avgSpeed === null && $drivingMinutes > 0) {
+                $avgSpeed = $distance / ($drivingMinutes / 60);
+            }
+            $avgConsumption = $this->nullableDecimal($_POST['avg_consumption_kwh_100'] ?? null);
+            if ($avgConsumption === null && $consumed !== null && $distance > 0) {
+                $avgConsumption = $consumed / $distance * 100;
+            }
+            $startOdo = $this->nullableDecimal($_POST['start_odometer_km'] ?? null);
+            $endOdo = $this->nullableDecimal($_POST['end_odometer_km'] ?? null);
+            if ($distance <= 0 && $startOdo !== null && $endOdo !== null && $endOdo >= $startOdo) {
+                $distance = $endOdo - $startOdo;
+            }
+
+            $trip = [
+                'started_at' => $startedAt,
+                'ended_at' => $endedAt,
+                'classification' => $this->nullableText($_POST['classification'] ?? null),
+                'start_address' => trim((string)($_POST['start_address'] ?? '')),
+                'end_address' => trim((string)($_POST['end_address'] ?? '')),
+                'distance_km' => $distance,
+                'start_odometer_km' => $startOdo,
+                'end_odometer_km' => $endOdo,
+                'driving_minutes' => $drivingMinutes,
+                'travel_minutes' => max($drivingMinutes, (int)($_POST['travel_minutes'] ?? $minutes)),
+                'avg_speed_kmh' => $avgSpeed,
+                'consumed_kwh' => $consumed,
+                'avg_consumption_kwh_100' => $avgConsumption,
+                'start_soc' => $this->nullableDecimal($_POST['start_soc'] ?? null),
+                'end_soc' => $this->nullableDecimal($_POST['end_soc'] ?? null),
+                'public_charging_stops' => max(0, (int)($_POST['public_charging_stops'] ?? 0)),
+                'public_charge_soc_gained' => max(0.0, (float)str_replace(',', '.', (string)($_POST['public_charge_soc_gained'] ?? '0'))),
+                'short_trip' => $distance <= 5 ? 1 : 0,
+                'trip_note' => $this->nullableText($_POST['trip_note'] ?? null),
+            ];
+
+            $tripId = (int)($_POST['trip_id'] ?? 0);
+            if ($tripId > 0) {
+                $this->app->trips()->updateManualFields($vehicleId, $tripId, $trip);
+                $this->app->session()->flash('Jízda byla upravena.');
+            } else {
+                $trip['trip_hash'] = hash('sha256', 'manual|' . $vehicleId . '|' . $startedAt . '|' . microtime(true) . '|' . random_int(1, PHP_INT_MAX));
+                $trip['source_format'] = 'manual';
+                $this->app->trips()->insertManual($vehicleId, $trip);
+                $this->app->session()->flash('Jízda byla přidána.');
+            }
+            $_SESSION['vehicle_id'] = $vehicleId;
+        } catch (Throwable $e) {
+            $this->app->session()->flash($e->getMessage(), 'error');
+        }
+        Http::redirect('index.php?vehicle_id=' . (int)($_POST['vehicle_id'] ?? 0));
+    }
+
+    private function dateTime(string $value): string
+    {
+        $timestamp = strtotime($value);
+        if ($timestamp === false) {
+            throw new RuntimeException('Vyplňte platné datum a čas jízdy.');
+        }
+        return date('Y-m-d H:i:s', $timestamp);
+    }
+
+    /** @param mixed $value */
+    private function nullableDecimal($value): ?float
+    {
+        $text = trim((string)$value);
+        return $text === '' ? null : (float)str_replace(',', '.', $text);
+    }
+
+    /** @param mixed $value */
+    private function nullableText($value): ?string
+    {
+        $text = trim((string)$value);
+        return $text === '' ? null : $text;
     }
 
     /** @param array<string,mixed> $user */

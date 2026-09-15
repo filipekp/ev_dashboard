@@ -215,6 +215,7 @@
                         <th>SPOTŘEBOVÁNO</th>
                         <th>NABÍJENÍ</th>
                     <?php endif; ?>
+                    
                 </tr>
                 </thead>
                 <tbody><?php foreach ($longTrips as $t): ?>
@@ -238,9 +239,10 @@
         <div class="table-card-head">
             <div><h2>📋 Seznam a historie jízd</h2>
                 <p>Jízdy v aktuálním filtru · stránka <?= $historyPage ?> z <?= $historyPages ?></p></div>
-            <a class="btn export-btn"
-               href="export.php?vehicle_id=<?= $vehicle['id'] ?>&amp;period=<?= h($period) ?>&amp;year=<?= h($selectedYear) ?>">⬇
-                Export CSV</a>
+            <div class="history-actions">
+                <button class="btn btn-primary" type="button" data-trip-create>＋ Přidat jízdu</button>
+                <a class="btn export-btn" href="export.php?vehicle_id=<?= $vehicle['id'] ?>&amp;period=<?= h($period) ?>&amp;year=<?= h($selectedYear) ?>">⬇ Export CSV</a>
+            </div>
         </div>
         <div class="table-wrap">
             <table>
@@ -257,6 +259,7 @@
                         <th>SOC</th>
                         <th>NABÍJENÍ</th>
                     <?php endif; ?>
+                    <th class="trip-actions-col">AKCE</th>
                 </tr>
                 </thead>
                 <tbody><?php foreach ($historyTrips as $t): ?>
@@ -272,6 +275,7 @@
                             <td><?php if ($t['start_soc'] !== NULL || $t['end_soc'] !== NULL): ?><?= cz($t['start_soc'], 0) ?>% → <b><?= cz($t['end_soc'], 0) ?>%</b><?php else: ?>—<?php endif; ?></td>
                             <td><?= (float)$t['public_charge_soc_gained'] > 0 ? '<mark>+' . cz($t['public_charge_soc_gained'], 0) . '%</mark>' : '•' ?></td>
                         <?php endif; ?>
+                        <td class="trip-actions-col"><button type="button" class="icon-action" data-trip-edit="<?= (int)$t['id'] ?>" title="Upravit jízdu" aria-label="Upravit jízdu">✎</button></td>
                     </tr>
                 <?php endforeach; ?></tbody>
             </table>
@@ -290,6 +294,73 @@
         <?php endif; ?>
     </section>
 
+
+<?php
+$tripEditorData = [];
+foreach ($historyTrips as $tripRow) {
+    $tripEditorData[(string)$tripRow['id']] = [
+        'id' => (int)$tripRow['id'],
+        'started_at' => date('Y-m-d\\TH:i', strtotime((string)$tripRow['started_at'])),
+        'ended_at' => date('Y-m-d\\TH:i', strtotime((string)$tripRow['ended_at'])),
+        'start_address' => (string)$tripRow['start_address'],
+        'end_address' => (string)$tripRow['end_address'],
+        'distance_km' => $tripRow['distance_km'],
+        'start_odometer_km' => $tripRow['start_odometer_km'],
+        'end_odometer_km' => $tripRow['end_odometer_km'],
+        'driving_minutes' => $tripRow['driving_minutes'],
+        'travel_minutes' => $tripRow['travel_minutes'],
+        'avg_speed_kmh' => $tripRow['avg_speed_kmh'],
+        'consumed_kwh' => $tripRow['consumed_kwh'],
+        'avg_consumption_kwh_100' => $tripRow['avg_consumption_kwh_100'],
+        'start_soc' => $tripRow['start_soc'],
+        'end_soc' => $tripRow['end_soc'],
+        'public_charging_stops' => $tripRow['public_charging_stops'],
+        'public_charge_soc_gained' => $tripRow['public_charge_soc_gained'],
+        'classification' => (string)($tripRow['classification'] ?? ''),
+        'trip_note' => (string)($tripRow['trip_note'] ?? ''),
+        'source_format' => (string)($tripRow['source_format'] ?? ''),
+    ];
+}
+?>
+<div class="app-modal" id="tripEditorModal" hidden aria-hidden="true">
+    <div class="app-modal-backdrop" data-trip-close></div>
+    <section class="app-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tripEditorTitle">
+        <header class="app-modal-head">
+            <div><span class="eyebrow">HISTORIE JÍZD</span><h2 id="tripEditorTitle">Přidat jízdu</h2><p id="tripEditorSubtitle">Zapište jízdu ručně bez CSV importu.</p></div>
+            <button class="modal-close" type="button" data-trip-close aria-label="Zavřít">×</button>
+        </header>
+        <form method="post" class="app-modal-body" id="tripEditorForm">
+            <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
+            <input type="hidden" name="action" value="save_trip">
+            <input type="hidden" name="vehicle_id" value="<?= (int)$vehicle['id'] ?>">
+            <input type="hidden" name="trip_id" id="trip_id" value="">
+            <div class="trip-form-grid">
+                <label><span>Začátek</span><input required type="datetime-local" name="started_at" id="trip_started_at"></label>
+                <label><span>Konec</span><input required type="datetime-local" name="ended_at" id="trip_ended_at"></label>
+                <label class="span-2"><span>Odkud</span><input type="text" name="start_address" id="trip_start_address" maxlength="255" placeholder="Výchozí adresa"></label>
+                <label class="span-2"><span>Kam</span><input type="text" name="end_address" id="trip_end_address" maxlength="255" placeholder="Cílová adresa"></label>
+                <label><span>Vzdálenost (km)</span><input type="number" step="0.01" min="0" name="distance_km" id="trip_distance_km"></label>
+                <label><span>Doba jízdy (min)</span><input type="number" min="0" name="driving_minutes" id="trip_driving_minutes"></label>
+                <label><span>Tachometr start</span><input type="number" step="0.01" min="0" name="start_odometer_km" id="trip_start_odometer_km"></label>
+                <label><span>Tachometr konec</span><input type="number" step="0.01" min="0" name="end_odometer_km" id="trip_end_odometer_km"></label>
+                <label><span>Průměrná rychlost</span><input type="number" step="0.01" min="0" name="avg_speed_kmh" id="trip_avg_speed_kmh"></label>
+                <label><span>Typ jízdy</span><select name="classification" id="trip_classification"><option value="">Bez klasifikace</option><option value="private">Soukromá</option><option value="business">Služební</option><option value="commute">Dojíždění</option><option value="other">Ostatní</option></select></label>
+                <?php if ($hasTractionBattery): ?>
+                <label><span>Spotřebováno (kWh)</span><input type="number" step="0.001" min="0" name="consumed_kwh" id="trip_consumed_kwh"></label>
+                <label><span>Spotřeba (kWh/100 km)</span><input type="number" step="0.01" min="0" name="avg_consumption_kwh_100" id="trip_avg_consumption_kwh_100"></label>
+                <label><span>SoC start (%)</span><input type="number" step="0.1" min="0" max="100" name="start_soc" id="trip_start_soc"></label>
+                <label><span>SoC konec (%)</span><input type="number" step="0.1" min="0" max="100" name="end_soc" id="trip_end_soc"></label>
+                <label><span>Nabíjecí zastávky</span><input type="number" min="0" name="public_charging_stops" id="trip_public_charging_stops"></label>
+                <label><span>SoC dobito (%)</span><input type="number" step="0.1" min="0" name="public_charge_soc_gained" id="trip_public_charge_soc_gained"></label>
+                <?php endif; ?>
+                <label class="span-2"><span>Poznámka</span><textarea name="trip_note" id="trip_trip_note" rows="3" maxlength="500" placeholder="Volitelná poznámka k jízdě"></textarea></label>
+            </div>
+            <div class="trip-editor-info" id="tripEditorInfo" hidden>Importovaná jízda. Uložením upravíte data této jízdy; původní CSV soubor se nemění.</div>
+            <div class="modal-actions"><button type="button" class="btn" data-trip-close>Zrušit</button><button type="submit" class="btn btn-primary">Uložit jízdu</button></div>
+        </form>
+    </section>
+</div>
+<script type="application/json" id="tripEditorData"><?= json_encode($tripEditorData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
 <section class="dashboard-revolution-grid">
   <div class="card insight-panel"><div class="section-head"><div><span class="eyebrow">SMART LAYER</span><h2>✦ Insights</h2></div></div><div class="insight-strip stacked"><?php foreach($insights as $i):?><article class="insight-card"><span><?=$i['icon']?></span><div><b><?=h($i['title'])?></b><p><?=h($i['text'])?></p></div></article><?php endforeach;?></div></div>
   <div class="card mini-timeline"><div class="section-head"><div><span class="eyebrow">POSLEDNÍ UDÁLOSTI</span><h2>◷ Timeline</h2></div><a href="timeline.php">Celá historie →</a></div><?php foreach($timelineEvents as $e):?><div class="mini-event"><span><?=['trip'=>'🚗','energy'=>'⚡','service'=>'🔧','expense'=>'💳'][$e['type']]?></span><div><b><?=h((string)($e['label']?:ucfirst($e['type'])))?></b><small><?=h(date('d.m.Y H:i',strtotime($e['event_at'])))?> · <?=h((string)($e['detail']??''))?></small></div></div><?php endforeach;?><?php if(!$timelineEvents):?><p>Zatím žádné provozní události.</p><?php endif;?></div>
@@ -392,6 +463,35 @@
             scales : { x: { grid: { color: grid } }, y: { grid: { color: grid }, beginAtZero: true } }
         }
     });
+</script>
+
+<script>
+(() => {
+    const modal = document.getElementById('tripEditorModal');
+    const form = document.getElementById('tripEditorForm');
+    if (!modal || !form) return;
+    const data = JSON.parse(document.getElementById('tripEditorData')?.textContent || '{}');
+    const fields = ['started_at','ended_at','start_address','end_address','distance_km','start_odometer_km','end_odometer_km','driving_minutes','avg_speed_kmh','classification','consumed_kwh','avg_consumption_kwh_100','start_soc','end_soc','public_charging_stops','public_charge_soc_gained','trip_note'];
+    const set = (name, value) => { const el = document.getElementById('trip_' + name); if (el) el.value = value ?? ''; };
+    const nowLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,16); };
+    const open = (trip = null) => {
+        form.reset();
+        set('id', trip?.id || '');
+        fields.forEach(name => set(name, trip ? trip[name] : ''));
+        if (!trip) { const now = nowLocal(); set('started_at', now); set('ended_at', now); }
+        document.getElementById('tripEditorTitle').textContent = trip ? 'Upravit jízdu' : 'Přidat jízdu';
+        document.getElementById('tripEditorSubtitle').textContent = trip ? 'Upravujete záznam přímo v historii jízd.' : 'Zapište jízdu ručně bez CSV importu.';
+        const info = document.getElementById('tripEditorInfo');
+        if (info) info.hidden = !trip || trip.source_format === 'manual';
+        modal.hidden = false; modal.setAttribute('aria-hidden','false'); document.body.classList.add('modal-open');
+        setTimeout(() => document.getElementById('trip_started_at')?.focus(), 30);
+    };
+    const close = () => { modal.hidden = true; modal.setAttribute('aria-hidden','true'); document.body.classList.remove('modal-open'); };
+    document.querySelector('[data-trip-create]')?.addEventListener('click', () => open());
+    document.querySelectorAll('[data-trip-edit]').forEach(btn => btn.addEventListener('click', () => open(data[btn.dataset.tripEdit] || null)));
+    modal.querySelectorAll('[data-trip-close]').forEach(el => el.addEventListener('click', close));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) close(); });
+})();
 </script>
 </body>
 </html>

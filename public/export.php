@@ -18,6 +18,7 @@
   }
 
   $period = (string)($_GET['period'] ?? 'all');
+  $year = (string)($_GET['year'] ?? '');
   $params = [$vehicleId];
   $where  = 'vehicle_id=?';
   if (preg_match('/^\d{4}-\d{2}$/', $period)) {
@@ -27,6 +28,12 @@
     $where .= ' AND started_at>=? AND started_at<?';
     $params[] = $from;
     $params[] = $dt->format('Y-m-d H:i:s');
+  } elseif ($period === 'year' && preg_match('/^\d{4}$/', $year)) {
+    $from = $year . '-01-01 00:00:00';
+    $to = ((int)$year + 1) . '-01-01 00:00:00';
+    $where .= ' AND started_at>=? AND started_at<?';
+    $params[] = $from;
+    $params[] = $to;
   } else {
     $period = 'all';
   }
@@ -40,7 +47,7 @@
   }
 
   $safeVin = preg_replace('/[^A-Z0-9_-]/i', '', (string)$vehicle['vin']);
-  $suffix = $period === 'all' ? '' : '_' . $period;
+  $suffix = $period === 'all' ? '' : ($period === 'year' ? '_' . $year : '_' . $period);
   $filename = 'tripStatistics_' . ($safeVin ?: 'vehicle') . $suffix . '.csv';
 
   header('Content-Type: text/csv; charset=UTF-8');

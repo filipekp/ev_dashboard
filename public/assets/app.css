@@ -1036,7 +1036,9 @@ summary {
   color: #ffffff
 }
 
-.period-all {
+.period-actions {
+  display: flex;
+  gap: 8px;
   margin-right: auto
 }
 
@@ -1143,8 +1145,9 @@ summary {
     width: 100%
   }
 
-  .period-all {
-    margin-right: 0
+  .period-actions {
+    margin-right: 0;
+    flex-wrap: wrap
   }
 
   .year-filter {

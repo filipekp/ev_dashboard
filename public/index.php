@@ -95,7 +95,29 @@ if ((string)($_GET['new_vehicle'] ?? '') === '1' && (int)($_SESSION['new_vehicle
 }
 
 $flash = getFlash();
+
+// Dostupné měsíce/roky potřebujeme znát ještě před sestavením filtru období,
+// protože režim "Celý rok" filtruje podle samostatného parametru year.
+$months = $pdo->prepare('SELECT DISTINCT DATE_FORMAT(started_at, "%Y-%m") m FROM trips WHERE vehicle_id=? ORDER BY m');
+$months->execute([(int)$vehicle['id']]);
+$monthOptions = $months->fetchAll(PDO::FETCH_COLUMN);
+$years = [];
+foreach ($monthOptions as $m) {
+  $y = substr((string)$m, 0, 4);
+  if (!in_array($y, $years, TRUE)) {
+    $years[] = $y;
+  }
+}
+
 $period = (string)($_GET['period'] ?? 'all');
+$selectedYear = (string)($_GET['year'] ?? '');
+if (preg_match('/^\d{4}-\d{2}$/', $period)) {
+  $selectedYear = substr($period, 0, 4);
+}
+if (!in_array($selectedYear, $years, TRUE)) {
+  $selectedYear = $years ? (string)end($years) : date('Y');
+}
+
 $params = [(int)$vehicle['id']];
 $where = 'vehicle_id = ?';
 if (preg_match('/^\d{4}-\d{2}$/', $period)) {
@@ -103,6 +125,12 @@ if (preg_match('/^\d{4}-\d{2}$/', $period)) {
   $dt   = new DateTime($from);
   $dt->modify('+1 month');
   $to       = $dt->format('Y-m-d H:i:s');
+  $where    .= ' AND started_at >= ? AND started_at < ?';
+  $params[] = $from;
+  $params[] = $to;
+} elseif ($period === 'year') {
+  $from = $selectedYear . '-01-01 00:00:00';
+  $to   = ((int)$selectedYear + 1) . '-01-01 00:00:00';
   $where    .= ' AND started_at >= ? AND started_at < ?';
   $params[] = $from;
   $params[] = $to;
@@ -211,23 +239,6 @@ $longQ = $pdo->prepare("SELECT * FROM trips WHERE $where AND distance_km>=80 ORD
 $longQ->execute($params);
 $longTrips = $longQ->fetchAll();
 
-$months = $pdo->prepare('SELECT DISTINCT DATE_FORMAT(started_at, "%Y-%m") m FROM trips WHERE vehicle_id=? ORDER BY m');
-$months->execute([(int)$vehicle['id']]);
-$monthOptions = $months->fetchAll(PDO::FETCH_COLUMN);
-$years = [];
-foreach ($monthOptions as $m) {
-  $y = substr((string)$m, 0, 4);
-  if (!in_array($y, $years, TRUE)) {
-    $years[] = $y;
-  }
-}
-$selectedYear = (string)($_GET['year'] ?? '');
-if (preg_match('/^\d{4}-\d{2}$/', $period)) {
-  $selectedYear = substr($period, 0, 4);
-}
-if (!in_array($selectedYear, $years, TRUE)) {
-  $selectedYear = $years ? (string)end($years) : date('Y');
-}
 $monthsForYear = array_values(array_filter($monthOptions, function ($m) use ($selectedYear) {
   return substr((string)$m, 0, 4) === $selectedYear;
 }));
@@ -365,11 +376,15 @@ $sohClass = $soh === NULL ? '' : ($soh >= 90 ? 'green' : ($soh >= 80 ? 'orange' 
   <section class="period-filter">
     <div class="period-main">
       <b>🗓 Období:</b>
-      <a class="period-all <?= $period === 'all' ? 'active' : '' ?>"
-         href="?vehicle_id=<?= $vehicle['id'] ?>&amp;period=all&amp;year=<?= h($selectedYear) ?>">Celá historie</a>
+      <div class="period-actions">
+        <a class="<?= $period === 'all' ? 'active' : '' ?>"
+           href="?vehicle_id=<?= $vehicle['id'] ?>&amp;period=all&amp;year=<?= h($selectedYear) ?>">Celá historie</a>
+        <a class="<?= $period === 'year' ? 'active' : '' ?>"
+           href="?vehicle_id=<?= $vehicle['id'] ?>&amp;period=year&amp;year=<?= h($selectedYear) ?>">Celý rok</a>
+      </div>
       <form method="get" class="year-filter">
         <input type="hidden" name="vehicle_id" value="<?= $vehicle['id'] ?>">
-        <input type="hidden" name="period" value="all">
+        <input type="hidden" name="period" value="<?= $period === 'all' ? 'all' : 'year' ?>">
         <label for="periodYear">Rok</label>
         <select id="periodYear" name="year" onchange="this.form.submit()">
           <?php foreach ($years as $y): ?>
@@ -504,7 +519,7 @@ $sohClass = $soh === NULL ? '' : ($soh >= 90 ? 'green' : ($soh >= 80 ? 'orange' 
     <div class="table-card-head">
       <div><h2>📋 Seznam a historie jízd</h2>
         <p>Jízdy v aktuálním filtru · stránka <?= $historyPage ?> z <?= $historyPages ?></p></div>
-      <a class="btn export-btn" href="export.php?vehicle_id=<?= $vehicle['id'] ?>&amp;period=<?= h($period) ?>">⬇ Export CSV</a>
+      <a class="btn export-btn" href="export.php?vehicle_id=<?= $vehicle['id'] ?>&amp;period=<?= h($period) ?>&amp;year=<?= h($selectedYear) ?>">⬇ Export CSV</a>
     </div>
     <div class="table-wrap">
       <table>

@@ -5,6 +5,13 @@ namespace App\Repository;
 
 use PDO;
 
+/**
+ * Třída TripRepository.
+ *
+ * @author    Pavel Filípek <pavel@filipek-czech.cz>
+ * @copyright © 2026, Proclient s.r.o.
+ * @created   15.09.2026
+ */
 final class TripRepository
 {
     /** @var PDO */ private $pdo;

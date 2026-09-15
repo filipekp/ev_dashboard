@@ -8,6 +8,13 @@ use RuntimeException;
 use Throwable;
 use ZipArchive;
 
+/**
+ * Třída GitHubUpdater.
+ *
+ * @author    Pavel Filípek <pavel@filipek-czech.cz>
+ * @copyright © 2026, Proclient s.r.o.
+ * @created   15.09.2026
+ */
 final class GitHubUpdater
 {
     /** @var Config */ private $config;

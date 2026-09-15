@@ -8,6 +8,13 @@ use DateTimeImmutable;
 use PDO;
 use PDOException;
 
+/**
+ * Třída AuthService.
+ *
+ * @author    Pavel Filípek <pavel@filipek-czech.cz>
+ * @copyright © 2026, Proclient s.r.o.
+ * @created   15.09.2026
+ */
 final class AuthService
 {
     /** @var PDO */ private $pdo;

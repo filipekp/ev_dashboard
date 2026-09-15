@@ -8,6 +8,13 @@ use PDO;
 use PDOException;
 use RuntimeException;
 
+/**
+ * Třída Database.
+ *
+ * @author    Pavel Filípek <pavel@filipek-czech.cz>
+ * @copyright © 2026, Proclient s.r.o.
+ * @created   15.09.2026
+ */
 final class Database
 {
     /** @var PDO */

@@ -5,6 +5,13 @@ namespace App;
 
 use RuntimeException;
 
+/**
+ * Třída Template.
+ *
+ * @author    Pavel Filípek <pavel@filipek-czech.cz>
+ * @copyright © 2026, Proclient s.r.o.
+ * @created   15.09.2026
+ */
 final class Template
 {
     /** @var string */ private $root;

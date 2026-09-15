@@ -11,6 +11,13 @@ use PDO;
 use RuntimeException;
 use Throwable;
 
+/**
+ * Třída ImportService.
+ *
+ * @author    Pavel Filípek <pavel@filipek-czech.cz>
+ * @copyright © 2026, Proclient s.r.o.
+ * @created   15.09.2026
+ */
 final class ImportService
 {
     /** @var PDO */ private $pdo; /** @var AuthService */ private $auth; /** @var CsvImporter */ private $importer; /** @var VehicleRepository */ private $vehicles; /** @var TripRepository */ private $trips;

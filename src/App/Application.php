@@ -14,6 +14,13 @@ use App\Service\ImportService;
 use App\Service\DashboardService;
 use PDO;
 
+/**
+ * Třída Application.
+ *
+ * @author    Pavel Filípek <pavel@filipek-czech.cz>
+ * @copyright © 2026, Proclient s.r.o.
+ * @created   15.09.2026
+ */
 final class Application
 {
     /** @var Config */ private $config;

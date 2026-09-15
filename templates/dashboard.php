@@ -18,11 +18,11 @@
 <main class="wrap dashboard-wrap">
     <section class="vehicle-hero">
         <div class="vehicle-hero-copy">
-            <span class="eyebrow">DIGITAL GARAGE / <?= h($powertrain) ?></span>
+            <span class="eyebrow">DIGITAL GARAGE / <?= h(powertrainLabel($powertrain)) ?></span>
             <h1><?= h($vehicle['name']) ?></h1>
             <p><?= h((string)($vehicle['manufacturer'] ?? '')) ?> · <?= h((string)($vehicle['registration_plate'] ?? $vehicle['vin'])) ?></p>
             <div class="hero-chips">
-                <span><?= h($powertrain) ?></span>
+                <span><?= h(powertrainLabel($powertrain)) ?></span>
                 <?php if ($hasTractionBattery && (float)($vehicle['battery_kwh'] ?? 0) > 0): ?><span>🔋 <?= cz((float)$vehicle['battery_kwh'], 0) ?> kWh</span><?php endif; ?>
                 <?php if ($hasFuelSystem && (float)($vehicle['fuel_tank_l'] ?? 0) > 0): ?><span>⛽ <?= cz((float)$vehicle['fuel_tank_l'], 0) ?> l</span><?php endif; ?>
             </div>
@@ -111,7 +111,7 @@
             <div class="card kpi"><small>PRŮM. SPOTŘEBA</small><strong class="green"><?= cz($avgCons, 2) ?> <em>kWh/100 km</em></strong><span>Z baterie: <?= cz($totalKwh, 1) ?> kWh<?php if ($totalRecuperatedKwh > 0): ?> · Rekuperováno: <?= cz($totalRecuperatedKwh, 1) ?> kWh<?php endif; ?></span></div>
             <div class="card kpi"><small>ODHAD DOJEZDU</small><strong>~<?= cz($range, 0) ?> <em>km</em></strong><span>na 100 % baterie</span></div>
         <?php else: ?>
-            <div class="card kpi"><small>PALIVO</small><strong class="green"><?= cz((float)$operationSummary['energy_cost'], 0) ?> <em>Kč</em></strong><span>evidovaná tankování</span></div>
+            <div class="card kpi"><small>PRŮM. SPOTŘEBA</small><strong class="green"><?= $avgFuelCons > 0 ? cz($avgFuelCons, 2) : '—' ?> <em><?= h(fuelUnit($powertrain)) ?>/100 km</em></strong><span><?= $totalFuel > 0 ? 'Spotřebováno: ' . cz($totalFuel, 1) . ' ' . h(fuelUnit($powertrain)) : 'Spotřebu lze zadat u jednotlivých jízd' ?></span></div>
             <div class="card kpi"><small>PROVOZNÍ NÁKLADY</small><strong><?= cz((float)$operationSummary['cost_per_km'], 2) ?> <em>Kč/km</em></strong><span>palivo + servis + ostatní</span></div>
         <?php endif; ?>
         <div class="card kpi"><small>DOBA JÍZDY</small><strong><?= cz($driveMin / 60, 1) ?> <em>hod</em></strong><span>Průměr: <?= cz($avgSpeed, 1) ?> km/h</span></div>
@@ -210,7 +210,7 @@
                     <th>VZDÁLENOST</th>
                     <th>ČAS JÍZDY</th>
                     <th>PRŮM. RYCHLOST</th>
-                    <?php if ($hasTractionBattery): ?>
+                    <?php if ($hasTractionBattery || $hasFuelSystem): ?>
                         <th>PRŮM. SPOTŘEBA</th>
                         <th>SPOTŘEBOVÁNO</th>
                         <th>NABÍJENÍ</th>
@@ -253,11 +253,10 @@
                     <th>KM</th>
                     <th>ČAS</th>
                     <th>RYCHLOST</th>
-                    <?php if ($hasTractionBattery): ?>
+                    <?php if ($hasTractionBattery || $hasFuelSystem): ?>
                         <th>PRŮM. SPOTŘEBA</th>
                         <th>SPOTŘEBOVÁNO</th>
-                        <th>SOC</th>
-                        <th>NABÍJENÍ</th>
+                        <?php if ($hasTractionBattery): ?><th>SOC</th><th>NABÍJENÍ</th><?php endif; ?>
                     <?php endif; ?>
                     <th class="trip-actions-col">AKCE</th>
                 </tr>
@@ -270,10 +269,13 @@
                         <td><?= cz($t['driving_minutes'], 0) ?>m</td>
                         <td><?= cz($t['avg_speed_kmh'], 0) ?> km/h</td>
                         <?php if ($hasTractionBattery): ?>
-                            <td><b><?= cz($t['avg_consumption_kwh_100'], 1) ?></b></td>
+                            <td><b><?= cz($t['avg_consumption_kwh_100'], 1) ?></b> kWh/100 km</td>
                             <td><b><?= cz($t['consumed_kwh'], 1) ?></b> kWh</td>
                             <td><?php if ($t['start_soc'] !== NULL || $t['end_soc'] !== NULL): ?><?= cz($t['start_soc'], 0) ?>% → <b><?= cz($t['end_soc'], 0) ?>%</b><?php else: ?>—<?php endif; ?></td>
                             <td><?= (float)$t['public_charge_soc_gained'] > 0 ? '<mark>+' . cz($t['public_charge_soc_gained'], 0) . '%</mark>' : '•' ?></td>
+                        <?php elseif ($hasFuelSystem): ?>
+                            <td><b><?= $t['avg_fuel_consumption_l_100'] !== null ? cz($t['avg_fuel_consumption_l_100'], 1) : '—' ?></b> <?= h(fuelUnit($powertrain)) ?>/100 km</td>
+                            <td><b><?= $t['fuel_consumed_l'] !== null ? cz($t['fuel_consumed_l'], 1) : '—' ?></b> <?= h(fuelUnit($powertrain)) ?></td>
                         <?php endif; ?>
                         <td class="trip-actions-col"><button type="button" class="icon-action" data-trip-edit="<?= (int)$t['id'] ?>" title="Upravit jízdu" aria-label="Upravit jízdu">✎</button></td>
                     </tr>
@@ -312,6 +314,8 @@ foreach ($historyTrips as $tripRow) {
         'avg_speed_kmh' => $tripRow['avg_speed_kmh'],
         'consumed_kwh' => $tripRow['consumed_kwh'],
         'avg_consumption_kwh_100' => $tripRow['avg_consumption_kwh_100'],
+        'fuel_consumed_l' => $tripRow['fuel_consumed_l'] ?? null,
+        'avg_fuel_consumption_l_100' => $tripRow['avg_fuel_consumption_l_100'] ?? null,
         'start_soc' => $tripRow['start_soc'],
         'end_soc' => $tripRow['end_soc'],
         'public_charging_stops' => $tripRow['public_charging_stops'],
@@ -352,6 +356,9 @@ foreach ($historyTrips as $tripRow) {
                 <label><span>SoC konec (%)</span><input type="number" step="0.1" min="0" max="100" name="end_soc" id="trip_end_soc"></label>
                 <label><span>Nabíjecí zastávky</span><input type="number" min="0" name="public_charging_stops" id="trip_public_charging_stops"></label>
                 <label><span>SoC dobito (%)</span><input type="number" step="0.1" min="0" name="public_charge_soc_gained" id="trip_public_charge_soc_gained"></label>
+                <?php elseif ($hasFuelSystem): ?>
+                <label><span>Spotřebováno (<?= h(fuelUnit($powertrain)) ?>)</span><input type="number" step="0.001" min="0" name="fuel_consumed_l" id="trip_fuel_consumed_l"></label>
+                <label><span>Průměrná spotřeba (<?= h(fuelUnit($powertrain)) ?>/100 km)</span><input type="number" step="0.01" min="0" name="avg_fuel_consumption_l_100" id="trip_avg_fuel_consumption_l_100"></label>
                 <?php endif; ?>
                 <label class="span-2"><span>Poznámka</span><textarea name="trip_note" id="trip_trip_note" rows="3" maxlength="500" placeholder="Volitelná poznámka k jízdě"></textarea></label>
             </div>
@@ -471,7 +478,7 @@ foreach ($historyTrips as $tripRow) {
     const form = document.getElementById('tripEditorForm');
     if (!modal || !form) return;
     const data = JSON.parse(document.getElementById('tripEditorData')?.textContent || '{}');
-    const fields = ['started_at','ended_at','start_address','end_address','distance_km','start_odometer_km','end_odometer_km','driving_minutes','avg_speed_kmh','classification','consumed_kwh','avg_consumption_kwh_100','start_soc','end_soc','public_charging_stops','public_charge_soc_gained','trip_note'];
+    const fields = ['started_at','ended_at','start_address','end_address','distance_km','start_odometer_km','end_odometer_km','driving_minutes','avg_speed_kmh','classification','consumed_kwh','avg_consumption_kwh_100','fuel_consumed_l','avg_fuel_consumption_l_100','start_soc','end_soc','public_charging_stops','public_charge_soc_gained','trip_note'];
     const set = (name, value) => { const el = document.getElementById('trip_' + name); if (el) el.value = value ?? ''; };
     const nowLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,16); };
     const open = (trip = null) => {

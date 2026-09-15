@@ -127,6 +127,14 @@ final class DashboardController
             if ($avgConsumption === null && $consumed !== null && $distance > 0) {
                 $avgConsumption = $consumed / $distance * 100;
             }
+            $fuelConsumed = $this->nullableDecimal($_POST['fuel_consumed_l'] ?? null);
+            $avgFuelConsumption = $this->nullableDecimal($_POST['avg_fuel_consumption_l_100'] ?? null);
+            if ($avgFuelConsumption === null && $fuelConsumed !== null && $distance > 0) {
+                $avgFuelConsumption = $fuelConsumed / $distance * 100;
+            }
+            if ($fuelConsumed === null && $avgFuelConsumption !== null && $distance > 0) {
+                $fuelConsumed = $avgFuelConsumption * $distance / 100;
+            }
             $startOdo = $this->nullableDecimal($_POST['start_odometer_km'] ?? null);
             $endOdo = $this->nullableDecimal($_POST['end_odometer_km'] ?? null);
             if ($distance <= 0 && $startOdo !== null && $endOdo !== null && $endOdo >= $startOdo) {
@@ -147,6 +155,8 @@ final class DashboardController
                 'avg_speed_kmh' => $avgSpeed,
                 'consumed_kwh' => $consumed,
                 'avg_consumption_kwh_100' => $avgConsumption,
+                'fuel_consumed_l' => $fuelConsumed,
+                'avg_fuel_consumption_l_100' => $avgFuelConsumption,
                 'start_soc' => $this->nullableDecimal($_POST['start_soc'] ?? null),
                 'end_soc' => $this->nullableDecimal($_POST['end_soc'] ?? null),
                 'public_charging_stops' => max(0, (int)($_POST['public_charging_stops'] ?? 0)),

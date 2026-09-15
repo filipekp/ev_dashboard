@@ -62,6 +62,8 @@ CREATE TABLE IF NOT EXISTS trips (
     avg_speed_kmh DECIMAL(7,2) NULL,
     consumed_kwh DECIMAL(9,3) NULL,
     avg_consumption_kwh_100 DECIMAL(7,2) NULL,
+    fuel_consumed_l DECIMAL(9,3) NULL,
+    avg_fuel_consumption_l_100 DECIMAL(7,2) NULL,
     start_soc DECIMAL(5,2) NULL,
     end_soc DECIMAL(5,2) NULL,
     public_charging_stops INT UNSIGNED NOT NULL DEFAULT 0,

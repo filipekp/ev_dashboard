@@ -51,4 +51,13 @@ function canAccessVehicle(PDO $pdo, array $user, int $vehicleId): bool { global 
 function selectVehicle(PDO $pdo, array $user): ?array { global $app; return $app->auth()->selectVehicle($user); }
 function createPasswordResetToken(PDO $pdo, int $userId, int $minutes = 60): string { global $app; return $app->auth()->createPasswordResetToken($userId, $minutes); }
 function resetUrl(string $token): string { global $app; return $app->auth()->resetUrl($token); }
+
+function powertrainLabel(string $code): string {
+    $labels = ['BEV'=>'Elektromobil','PHEV'=>'Plug-in hybrid','HEV'=>'Hybrid','PETROL'=>'Benzín','DIESEL'=>'Nafta','LPG'=>'LPG','CNG'=>'CNG'];
+    $code = strtoupper($code);
+    return $labels[$code] ?? $code;
+}
+function powertrainHasBattery(string $code): bool { return in_array(strtoupper($code), ['BEV','PHEV'], true); }
+function powertrainHasFuel(string $code): bool { return in_array(strtoupper($code), ['PHEV','HEV','PETROL','DIESEL','LPG','CNG'], true); }
+function fuelUnit(string $code): string { return strtoupper($code) === 'CNG' ? 'kg' : 'l'; }
 function sendPasswordResetEmail(string $to, string $name, string $url): bool { global $app; return $app->auth()->sendPasswordResetEmail($to, $name, $url); }

@@ -36,7 +36,7 @@
             <option value="PHEV">PHEV – plug-in hybrid</option>
             <option value="HEV">HEV – hybrid</option>
             <option value="PETROL">Benzín</option>
-            <option value="DIESEL">Diesel</option>
+            <option value="DIESEL">Nafta</option>
             <option value="LPG">LPG</option>
             <option value="CNG">CNG</option>
           </select>

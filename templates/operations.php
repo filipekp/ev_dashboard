@@ -27,7 +27,7 @@ $fuelEnergyType = [
     <div>
       <small>PROVOZNÍ EVIDENCE</small>
       <h1><?= h($vehicle['name']) ?></h1>
-      <p><?= h((string)$vehicle['powertrain_type']) ?> · VIN <?= h($vehicle['vin']) ?></p>
+      <p><?= h(powertrainLabel($powertrain)) ?> · VIN <?= h($vehicle['vin']) ?></p>
     </div>
     <div class="active-vehicle-note"><span>✓</span><div><small>AKTIVNÍ VOZIDLO</small><b>Řídí se výběrem v levém panelu</b></div></div>
   </section>

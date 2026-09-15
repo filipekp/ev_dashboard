@@ -102,6 +102,7 @@ final class AnalyticsService
             'SELECT COUNT(*) trip_count,
                     COALESCE(SUM(distance_km),0) distance_km,
                     COALESCE(SUM(consumed_kwh),0) consumed_kwh,
+                    COALESCE(SUM(fuel_consumed_l),0) fuel_consumed_l,
                     COALESCE(SUM(electricity_cost),0) csv_energy_cost
              FROM trips
              WHERE vehicle_id=? AND started_at>=? AND started_at<?'
@@ -129,6 +130,7 @@ final class AnalyticsService
 
         $distance = (float)($trip['distance_km'] ?? 0);
         $consumed = (float)($trip['consumed_kwh'] ?? 0);
+        $fuelConsumed = (float)($trip['fuel_consumed_l'] ?? 0);
         $operatingCost = $energyCost + $serviceCost + $otherCost;
         $depreciation = $this->depreciationForYear($vehicle, $year);
         $fullTco = $operatingCost + $depreciation;
@@ -141,7 +143,9 @@ final class AnalyticsService
             'trip_count' => (int)($trip['trip_count'] ?? 0),
             'distance_km' => $distance,
             'consumed_kwh' => $consumed,
+            'fuel_consumed_l' => $fuelConsumed,
             'avg_consumption' => $distance > 0 ? ($consumed / $distance) * 100 : 0.0,
+            'avg_fuel_consumption' => $distance > 0 ? ($fuelConsumed / $distance) * 100 : 0.0,
             'energy_cost' => $energyCost,
             'service_cost' => $serviceCost,
             'other_cost' => $otherCost,

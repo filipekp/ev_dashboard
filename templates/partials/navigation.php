@@ -21,7 +21,7 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
             <button class="vehicle-picker-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
                 <span class="vehicle-picker-label">AKTIVNÍ VOZIDLO</span>
                 <span class="vehicle-picker-main"><i><?= (int)($navUser['default_vehicle_id'] ?? 0) === $navVehicleId ? '★' : '◆' ?></i><b><?= h((string)$navVehicle['name']) ?></b><em>⌄</em></span>
-                <span class="vehicle-picker-meta"><?= h($navPowertrain) ?><?= !empty($navVehicle['battery_kwh']) ? ' · ' . h((string)$navVehicle['battery_kwh']) . ' kWh' : '' ?><?= !empty($navVehicle['registration_plate']) ? ' · ' . h((string)$navVehicle['registration_plate']) : '' ?></span>
+                <span class="vehicle-picker-meta"><?= h(powertrainLabel($navPowertrain)) ?><?= powertrainHasBattery($navPowertrain) && !empty($navVehicle['battery_kwh']) ? ' · ' . h((string)$navVehicle['battery_kwh']) . ' kWh' : '' ?><?= powertrainHasFuel($navPowertrain) && !empty($navVehicle['fuel_tank_l']) ? ' · ' . h((string)$navVehicle['fuel_tank_l']) . ' ' . h(fuelUnit($navPowertrain)) : '' ?><?= !empty($navVehicle['registration_plate']) ? ' · ' . h((string)$navVehicle['registration_plate']) : '' ?></span>
             </button>
             <div class="vehicle-picker-menu" role="listbox" hidden>
                 <?php foreach ($navVehicles as $option): ?>
@@ -33,7 +33,7 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
                     ?>
                     <a class="vehicle-picker-option<?= $optionId === $navVehicleId ? ' is-selected' : '' ?>" href="<?= h($targetUrl) ?>" role="option" aria-selected="<?= $optionId === $navVehicleId ? 'true' : 'false' ?>">
                         <span class="vehicle-picker-icon"><?= in_array($optionPowertrain, ['BEV','PHEV'], TRUE) ? '⚡' : '⛽' ?></span>
-                        <span><b><?= h((string)$option['name']) ?></b><small><?= h($optionPowertrain) ?><?= !empty($option['battery_kwh']) ? ' · ' . h((string)$option['battery_kwh']) . ' kWh' : '' ?><?= !empty($option['registration_plate']) ? ' · ' . h((string)$option['registration_plate']) : '' ?></small></span>
+                        <span><b><?= h((string)$option['name']) ?></b><small><?= h(powertrainLabel($optionPowertrain)) ?><?= powertrainHasBattery($optionPowertrain) && !empty($option['battery_kwh']) ? ' · ' . h((string)$option['battery_kwh']) . ' kWh' : '' ?><?= powertrainHasFuel($optionPowertrain) && !empty($option['fuel_tank_l']) ? ' · ' . h((string)$option['fuel_tank_l']) . ' ' . h(fuelUnit($optionPowertrain)) : '' ?><?= !empty($option['registration_plate']) ? ' · ' . h((string)$option['registration_plate']) : '' ?></small></span>
                         <?php if ((int)($navUser['default_vehicle_id'] ?? 0) === $optionId): ?><i title="Výchozí vozidlo">★</i><?php endif; ?>
                         <?php if ($optionId === $navVehicleId): ?><strong>✓</strong><?php endif; ?>
                     </a>

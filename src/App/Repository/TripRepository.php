@@ -16,7 +16,7 @@ final class TripRepository
 {
     /** @var PDO */ private $pdo;
     /** @var string[] */
-    private $columns = ['trip_hash','started_at','ended_at','classification','trip_note','start_address','end_address','start_lat','start_lng','end_lat','end_lng','distance_km','start_odometer_km','end_odometer_km','driving_minutes','travel_minutes','avg_speed_kmh','consumed_kwh','avg_consumption_kwh_100','start_soc','end_soc','public_charging_stops','public_charge_soc_gained','short_trip','source_format','total_cost','total_cost_currency','electricity_cost','electricity_cost_currency','electricity_price_per_kwh','avg_aux_consumption_kwh_100','avg_recuperation_kwh_100'];
+    private $columns = ['trip_hash','started_at','ended_at','classification','trip_note','start_address','end_address','start_lat','start_lng','end_lat','end_lng','distance_km','start_odometer_km','end_odometer_km','driving_minutes','travel_minutes','avg_speed_kmh','consumed_kwh','avg_consumption_kwh_100','fuel_consumed_l','avg_fuel_consumption_l_100','start_soc','end_soc','public_charging_stops','public_charge_soc_gained','short_trip','source_format','total_cost','total_cost_currency','electricity_cost','electricity_cost_currency','electricity_price_per_kwh','avg_aux_consumption_kwh_100','avg_recuperation_kwh_100'];
 
     public function __construct(PDO $pdo) { $this->pdo = $pdo; }
 

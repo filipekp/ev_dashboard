@@ -4,69 +4,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>EV Stats</title>
-    <link rel="stylesheet" href="assets/app.css?v=20260915-1">
+    <link rel="stylesheet" href="assets/app.css?v=20260915-nav">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
-<?php $powertrain  = (string)($vehicle['powertrain_type'] ?? 'BEV');
-    $electricDrive = in_array($powertrain, [
-        'BEV',
-        'PHEV'
-    ], TRUE); ?>
-<header class="topbar">
-    <div class="brand">⚡</div>
-    <form class="vehicle-switch" method="get"><select name="vehicle_id" onchange="this.form.submit()"
-                                                      aria-label="Vybrat vozidlo"><?php foreach ($vehicles as $v): ?>
-                <option
-                    value="<?= $v['id'] ?>" <?= (int)$v['id'] === (int)$vehicle['id'] ? 'selected' : '' ?>><?= (int)($user['default_vehicle_id'] ?? 0) === (int)$v['id'] ? '★ ' : '' ?><?= h($v['name']) ?>
-                    · <?= h($v['vin']) ?></option>
-            <?php endforeach; ?></select></form>
-    <div class="vehicle">
-        <b><?= h($vehicle['name']) ?></b><span><?= h($powertrain) ?><?php if ($electricDrive && (float)$vehicle['battery_kwh'] > 0): ?> · <?= cz((float)$vehicle['battery_kwh'], 0) ?> kWh<?php elseif ((float)($vehicle['fuel_tank_l'] ?? 0) > 0): ?> · <?= cz((float)$vehicle['fuel_tank_l'], 0) ?> l<?php endif; ?></span><small>VIN: <?= h($vehicle['vin']) ?></small>
-    </div>
-    <div class="spacer"></div>
-    <a class="toplink" href="garage.php">🚘 Garage</a>
-    <a class="toplink" href="index.php?add_vehicle=1">➕ Auto</a>
-    <a class="toplink" href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">🧾 Provoz</a><?php if ($app->auth()->canManageVehicles($user)): ?><a
-        class="toplink" href="vehicles.php">🚙
-        Vozidla</a><?php endif; ?><?php if ($app->auth()->isAdmin($user)): ?><a
-        class="toplink" href="users.php">👥 Uživatelé</a><?php endif; ?><?php if ($app->auth()->isAdmin($user)): ?><a class="toplink"
-                                                                                                                     href="update.php">🔄
-        Aktualizace</a><?php endif; ?>
-    <form action="upload.php" method="post" enctype="multipart/form-data" class="upload"><input type="hidden" name="csrf"
-                                                                                                value="<?= h(csrfToken()) ?>"><input
-            type="hidden" name="vehicle_id" value="<?= $vehicle['id'] ?>"><label>⬆ Nahrát data<input type="file" name="csv"
-                                                                                                     accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                                                                                                     onchange="this.form.submit()"></label></form>
-    <a class="toplink" href="profile.php">👤 Profil</a><span class="user-chip"><?= h($user['name']) ?></span><a class="toplink" href="logout.php">Odhlásit</a>
-    <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Otevřít menu" aria-controls="mobileMenuOverlay"
-            aria-expanded="false">☰
-    </button>
-</header>
-<div class="mobile-menu-overlay" id="mobileMenuOverlay" hidden>
-    <div class="mobile-menu-header">
-        <strong>EV Stats</strong>
-        <button type="button" class="mobile-menu-close" id="mobileMenuClose" aria-label="Zavřít menu">×</button>
-    </div>
-    <div class="mobile-menu-account">Přihlášen: <strong><?= h($user['name']) ?></strong></div>
-    <nav class="mobile-menu-links" aria-label="Mobilní navigace">
-        <a href="garage.php">🚘 <span>Garage</span></a>
-        <a href="index.php?add_vehicle=1">➕ <span>Přidat auto</span></a>
-        <a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">🧾 <span>Provoz</span></a>
-        <?php if ($app->auth()->canManageVehicles($user)): ?><a href="vehicles.php">🚙 <span>Vozidla</span></a><?php endif; ?>
-        <?php if ($app->auth()->isAdmin($user)): ?><a href="users.php">👥 <span>Uživatelé</span></a><a href="update.php">🔄
-            <span>Aktualizace</span></a><?php endif; ?>
-        <form action="upload.php" method="post" enctype="multipart/form-data" class="mobile-menu-upload">
-            <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
-            <input type="hidden" name="vehicle_id" value="<?= $vehicle['id'] ?>">
-            <label>⬆ <span>Nahrát data</span><input type="file" name="csv"
-                                                    accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                                                    onchange="this.form.submit()"></label>
-        </form>
-        <a href="profile.php">👤 <span>Profil</span></a>
-        <a href="logout.php" class="mobile-menu-logout">↪ <span>Odhlásit</span></a>
-    </nav>
-</div>
+<?php
+    $powertrain = strtoupper((string)($vehicle['powertrain_type'] ?? 'BEV'));
+    $hasTractionBattery = in_array($powertrain, ['BEV', 'PHEV'], TRUE);
+    $hasFuelSystem = in_array($powertrain, ['PHEV', 'HEV', 'PETROL', 'DIESEL', 'LPG', 'CNG'], TRUE);
+    $combustionOnly = !$hasTractionBattery;
+?>
+<?php $navTitle = ''; require __DIR__ . '/partials/navigation.php'; ?>
 <main class="wrap">
     <?php if ($flash): ?>
         <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div>
@@ -123,6 +71,9 @@
                 <input type="hidden" name="period" value="<?= $period === 'all' ? 'all' : 'year' ?>">
                 <label for="periodYear">Rok</label>
                 <select id="periodYear" name="year" onchange="this.form.submit()">
+                    <?php if (!$years): ?>
+                        <option value="<?= h($selectedYear) ?>"><?= h($selectedYear) ?></option>
+                    <?php endif; ?>
                     <?php foreach ($years as $y): ?>
                         <option value="<?= h($y) ?>" <?= $selectedYear === $y ? 'selected' : '' ?>><?= h($y) ?></option>
                     <?php endforeach; ?>
@@ -137,108 +88,94 @@
     <section class="kpis">
         <div class="card kpi"><small>CELKOVÝ NÁJEZD</small><strong><?= cz($totalKm, 0) ?>
                 <em>km</em></strong><span>Tachometr: <?= cz($odoMin, 0) ?> → <?= cz($odoMax, 0) ?> km</span></div>
-        <?php if ($electricDrive): ?>
-            <div class="card kpi"><small>PRŮM. SPOTŘEBA</small><strong class="green"><?= cz($avgCons, 2) ?> <em>kWh/100 km</em></strong><span>Z baterie: <?= cz($totalKwh, 1) ?> kWh<?php if ($totalRecuperatedKwh > 0): ?> · Rekuperováno: <?= cz($totalRecuperatedKwh, 1) ?> kWh<?php endif; ?></span>
-            </div>
+        <?php if ($hasTractionBattery): ?>
+            <div class="card kpi"><small>PRŮM. SPOTŘEBA</small><strong class="green"><?= cz($avgCons, 2) ?> <em>kWh/100 km</em></strong><span>Z baterie: <?= cz($totalKwh, 1) ?> kWh<?php if ($totalRecuperatedKwh > 0): ?> · Rekuperováno: <?= cz($totalRecuperatedKwh, 1) ?> kWh<?php endif; ?></span></div>
             <div class="card kpi"><small>ODHAD DOJEZDU</small><strong>~<?= cz($range, 0) ?> <em>km</em></strong><span>na 100 % baterie</span></div>
         <?php else: ?>
-            <div class="card kpi"><small>ENERGIE / PALIVO</small><strong class="green"><?= cz((float)$operationSummary['energy_cost'], 0) ?>
-                    <em>Kč</em></strong><span>evidované tankování</span></div>
-            <div class="card kpi"><small>PROVOZNÍ NÁKLADY</small><strong><?= cz((float)$operationSummary['cost_per_km'], 2) ?> <em>Kč/km</em></strong><span>servis + palivo + ostatní</span>
-            </div>
+            <div class="card kpi"><small>PALIVO</small><strong class="green"><?= cz((float)$operationSummary['energy_cost'], 0) ?> <em>Kč</em></strong><span>evidovaná tankování</span></div>
+            <div class="card kpi"><small>PROVOZNÍ NÁKLADY</small><strong><?= cz((float)$operationSummary['cost_per_km'], 2) ?> <em>Kč/km</em></strong><span>palivo + servis + ostatní</span></div>
         <?php endif; ?>
-        <div class="card kpi"><small>DOBA JÍZDY</small><strong><?= cz($driveMin / 60, 1) ?> <em>hod</em></strong><span>Průměr: <?= cz($avgSpeed, 1) ?> km/h</span>
-        </div>
-        <div class="card kpi"><small>POMALÉ / DC</small><?php if ($chargeDataAvailable): ?><strong><?= cz($homePct, 0) ?>%
-                <em>/ <?= cz($publicPct, 0) ?>
-                    %</em></strong><span>Veřejné DC: <?= cz($publicStops, 0) ?>× · <?= cz($publicKwh, 1) ?> kWh*</span><?php else: ?>
-                <strong>—</strong><span>CSV neobsahuje SoC ani nabíjení</span><?php endif; ?>
-        </div>
+        <div class="card kpi"><small>DOBA JÍZDY</small><strong><?= cz($driveMin / 60, 1) ?> <em>hod</em></strong><span>Průměr: <?= cz($avgSpeed, 1) ?> km/h</span></div>
+        <?php if ($hasTractionBattery): ?>
+            <div class="card kpi"><small>POMALÉ / DC</small><?php if ($chargeDataAvailable): ?><strong><?= cz($homePct, 0) ?>%
+                    <em>/ <?= cz($publicPct, 0) ?>%</em></strong><span>Veřejné DC: <?= cz($publicStops, 0) ?>× · <?= cz($publicKwh, 1) ?> kWh*</span><?php else: ?>
+                    <strong>—</strong><span>Import neobsahuje SoC ani nabíjení</span><?php endif; ?>
+            </div>
+        <?php else: ?>
+            <div class="card kpi"><small>SERVIS</small><strong><?= cz((float)$operationSummary['service_cost'], 0) ?> <em>Kč</em></strong><span>evidované servisní náklady</span></div>
+        <?php endif; ?>
         <div class="card kpi"><small>JÍZDY CELKEM</small><strong><?= $tripCount ?></strong><span>Z toho krátkých: <?= $shortTrips ?></span></div>
-        <?php if ($electricDrive): ?>
-            <div class="card kpi soh-kpi"><small>🔋 STATE OF HEALTH</small><?php if ($soh !== NULL): ?><strong
-                    class="<?= $sohClass ?>"><?= cz($soh, 1) ?> <em>%</em></strong>
+        <?php if ($hasTractionBattery): ?>
+            <div class="card kpi soh-kpi"><small>🔋 STATE OF HEALTH</small><?php if ($soh !== NULL): ?><strong class="<?= $sohClass ?>"><?= cz($soh, 1) ?> <em>%</em></strong>
                     <span><?= $sohSource ?><?= count($sohSamples) ? ' · ' . count($sohSamples) . ' vzorků' : '' ?></span><?php else: ?>
                     <strong>—</strong><span>Nedostatek dat pro spolehlivý odhad</span><?php endif; ?></div>
         <?php else: ?>
-            <div class="card kpi"><small>CELKOVÉ NÁKLADY</small><strong><?= cz((float)$operationSummary['total_cost'], 0) ?><em>Kč</em></strong><span><a
-                        href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">otevřít provozní evidenci</a></span></div>
+            <div class="card kpi"><small>CELKOVÉ NÁKLADY</small><strong><?= cz((float)$operationSummary['total_cost'], 0) ?> <em>Kč</em></strong><span><a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">otevřít provozní evidenci</a></span></div>
         <?php endif; ?>
     </section>
     <section class="grid2">
-        <div class="card chart-card"><h2>📈 Měsíční nájezd a průměrná spotřeba</h2>
-            <p>Kilometry (sloupce) vs. spotřeba v kWh/100 km (křivka)</p>
+        <div class="card chart-card"><h2>📈 <?= $hasTractionBattery ? 'Měsíční nájezd a průměrná spotřeba' : 'Měsíční nájezd' ?></h2>
+            <p><?= $hasTractionBattery ? 'Kilometry (sloupce) vs. spotřeba v kWh/100 km (křivka)' : 'Ujeté kilometry v jednotlivých měsících' ?></p>
             <canvas id="monthly"></canvas>
         </div>
         <div class="card chart-card"><h2>⏰ Denní rytmus (v kolik hodin vyjíždíte)</h2>
             <p>Četnost výjezdů podle hodin dne</p>
             <canvas id="hours"></canvas>
         </div>
-        <div class="card energy"><h2>⚡ Energetická bilance a nabíjecí lokality</h2><?php if ($chargeDataAvailable): ?><p>Odhad energie podle veřejného
-                nabíjení zaznamenaného v CSV</p>
-                <div class="energy-layout">
-                    <div class="energy-chart-wrap">
-                        <canvas id="energy" width="120" height="120"></canvas>
+        <?php if ($hasTractionBattery): ?>
+            <div class="card energy"><h2>⚡ Energetická bilance a nabíjecí lokality</h2><?php if ($chargeDataAvailable): ?><p>Odhad energie podle veřejného nabíjení zaznamenaného v importu</p>
+                    <div class="energy-layout">
+                        <div class="energy-chart-wrap"><canvas id="energy" width="120" height="120"></canvas></div>
+                        <div class="energy-list">
+                            <div><b class="green">🏠 Domácí / ostatní AC</b><strong><?= cz($homeKwh, 0) ?> kWh</strong><small><?= cz($homePct, 0) ?> %</small></div>
+                            <div><b class="orange">⚡ Veřejné DC</b><strong><?= cz($publicKwh, 0) ?> kWh</strong><small><?= cz($publicPct, 0) ?>%</small></div>
+                        </div>
                     </div>
+                    <footer>Celkem v bilanci: <b><?= cz($chargeTotal, 0) ?> kWh</b><span>* veřejná energie je odhad z přírůstku SoC</span></footer>
+                <?php else: ?>
+                    <p>Tento zdroj dat neobsahuje SoC ani události nabíjení.</p>
                     <div class="energy-list">
-                        <div><b class="green">🏠 Domácí / ostatní AC</b><strong><?= cz($homeKwh, 0) ?> kWh</strong><small><?= cz($homePct, 0) ?>
-                                %</small></div>
-                        <div><b class="orange">⚡ Veřejné DC</b><strong><?= cz($publicKwh, 0) ?> kWh</strong><small><?= cz($publicPct, 0) ?>%</small>
-                        </div>
+                        <div><b class="green">🔋 Energie spotřebovaná jízdami</b><strong><?= cz($totalKwh, 1) ?> kWh</strong><small>podle importovaných jízd</small></div>
+                        <?php if ($costDataAvailable): ?><div><b class="orange">💰 Náklady na elektřinu</b><strong><?= cz($costTotal, 0) ?> CZK</strong><small>součet hodnot z importu</small></div><?php endif; ?>
                     </div>
-                </div>
-                <footer>Celkem v bilanci: <b><?= cz($chargeTotal, 0) ?> kWh</b><span>* veřejná energie je odhad z přírůstku SoC</span></footer>
-            <?php else: ?>
-                <p>Tento typ CSV neobsahuje SoC ani události nabíjení.</p>
+                <?php endif; ?>
+            </div>
+        <?php else: ?>
+            <div class="card energy"><h2>⛽ Provozní náklady</h2>
+                <p>Souhrn ručně evidovaného provozu vozidla</p>
                 <div class="energy-list">
-                    <div><b class="green">🔋 Energie spotřebovaná jízdami</b><strong><?= cz($totalKwh, 1) ?> kWh</strong><small>vypočteno z průměrné
-                            spotřeby a
-                            vzdálenosti</small></div>
-                    <?php if ($costDataAvailable): ?>
-                        <div><b class="orange">💰 Náklady na elektřinu</b><strong><?= cz($costTotal, 0) ?> CZK</strong><small>součet hodnot z
-                                CSV</small>
-                        </div>
-                    <?php endif; ?></div>
-            <?php endif; ?></div>
-        <div class="card chart-card"><h2>🏎 Spotřeba podle rychlostních pásem</h2>
-            <p>Jízdy jsou seskupené podle průměrné rychlosti</p>
+                    <div><b class="green">⛽ Palivo</b><strong><?= cz((float)$operationSummary['energy_cost'], 0) ?> Kč</strong><small>tankování</small></div>
+                    <div><b>🔧 Servis</b><strong><?= cz((float)$operationSummary['service_cost'], 0) ?> Kč</strong><small>servisní záznamy</small></div>
+                    <div><b class="orange">💸 Ostatní</b><strong><?= cz((float)$operationSummary['other_cost'], 0) ?> Kč</strong><small>pojištění, parkování a další</small></div>
+                </div>
+                <footer>Celkem: <b><?= cz((float)$operationSummary['total_cost'], 0) ?> Kč</b><span><a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">doplnit provozní evidenci</a></span></footer>
+            </div>
+        <?php endif; ?>
+        <div class="card chart-card"><h2>🏎 <?= $hasTractionBattery ? 'Spotřeba podle rychlostních pásem' : 'Nájezd podle rychlostních pásem' ?></h2>
+            <p><?= $hasTractionBattery ? 'Jízdy jsou seskupené podle průměrné rychlosti' : 'Ujeté kilometry podle průměrné rychlosti jízd' ?></p>
             <canvas id="speed"></canvas>
         </div>
         <div class="card"><h2>🔄 Pravidelné dojíždění</h2>
             <p>Nejčastější směry v importovaných datech</p><?php if ($routes): ?>
-                <div class="route-cards"><?php $i = 0;
-                        foreach ($routes as $name => $r) {
-                            if ($i++ >= 2) {
-                                break;
-                            }
-                            $c = $r['km'] ? $r['kwh'] / $r['km'] * 100 : 0; ?>
-                            <div><b><?= h($name) ?></b><span><?= $r['count'] ?>×</span><strong><?= cz($c, 1) ?> <em>kWh/100 km</em></strong><small>Průměrná
-                                    délka: <?= cz($r['km'] / $r['count'], 1) ?> km</small></div>
-                        <?php } ?></div>
-            <?php else: ?><p><b>Trasy nejsou v tomto CSV k dispozici.</b>
-                Export neobsahuje adresy začátku a konce jízdy.</p><?php endif; ?>
-            <div class="battery">🛡️ <b>Šetrné nabíjení
-                    baterie</b><span><?php if ($minSoc !== NULL): ?>Nejnižší zaznamenané SoC: <?= cz($minSoc, 0) ?> %.<?php else: ?>SoC není v tomto CSV k dispozici.<?php endif; ?></span>
-                <mark>Stav: informativní</mark>
-            </div>
+                <div class="route-cards"><?php $i = 0; foreach ($routes as $name => $r) { if ($i++ >= 2) { break; } $c = $r['km'] ? $r['kwh'] / $r['km'] * 100 : 0; ?>
+                        <div><b><?= h($name) ?></b><span><?= $r['count'] ?>×</span><?php if ($hasTractionBattery): ?><strong><?= cz($c, 1) ?> <em>kWh/100 km</em></strong><?php endif; ?><small>Průměrná délka: <?= cz($r['km'] / $r['count'], 1) ?> km</small></div>
+                    <?php } ?></div>
+            <?php else: ?><p><b>Trasy nejsou v tomto importu k dispozici.</b> Zdroj neobsahuje adresy začátku a konce jízdy.</p><?php endif; ?>
+            <?php if ($hasTractionBattery): ?>
+                <div class="battery">🛡️ <b>Šetrné nabíjení baterie</b><span><?php if ($minSoc !== NULL): ?>Nejnižší zaznamenané SoC: <?= cz($minSoc, 0) ?> %.<?php else: ?>SoC není v tomto zdroji k dispozici.<?php endif; ?></span><mark>Stav: informativní</mark></div>
+            <?php else: ?>
+                <div class="battery">🧾 <b>Provozní evidence</b><span>Tankování, servis, náklady a připomínky jsou vedené odděleně od importovaných jízd.</span><mark><a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">Otevřít</a></mark></div>
+            <?php endif; ?>
         </div>
         <div class="card"><h2>📍 Nejčastější pravidelné trasy</h2>
             <p>Statistika tras s nejvyšším počtem opakování</p><?php if ($routes): ?>
-                <div class="route-list"><?php $i = 0;
-                        foreach ($routes as $name => $r) {
-                            if ($i++ >= 3) {
-                                break;
-                            }
-                            $c = $r['km'] ? $r['kwh'] / $r['km'] * 100 : 0; ?>
-                            <div><span><b><?= h($name) ?></b><small><?= cz($r['km'] / $r['count'], 1) ?> km průměr</small></span>
-                                <mark><?= cz($c, 1) ?> kWh</mark>
-                                <small><?= $r['count'] ?>× jízda</small></div>
-                        <?php } ?></div>
-            <?php else: ?><p><b>Trasy nejsou dostupné.</b> Export neobsahuje GPS
-                ani adresy.</p><?php endif; ?></div>
+                <div class="route-list"><?php $i = 0; foreach ($routes as $name => $r) { if ($i++ >= 3) { break; } $c = $r['km'] ? $r['kwh'] / $r['km'] * 100 : 0; ?>
+                        <div><span><b><?= h($name) ?></b><small><?= cz($r['km'] / $r['count'], 1) ?> km průměr</small></span><?php if ($hasTractionBattery): ?><mark><?= cz($c, 1) ?> kWh/100 km</mark><?php endif; ?><small><?= $r['count'] ?>× jízda</small></div>
+                    <?php } ?></div>
+            <?php else: ?><p><b>Trasy nejsou dostupné.</b> Import neobsahuje GPS ani adresy.</p><?php endif; ?></div>
     </section>
     <section class="card table-card"><h2>🗺 Cesty &gt; 80 km <span class="pill"><?= $longTripCount ?> tras</span></h2>
-        <p>Přehled delších tras včetně nabíjení na cestách</p>
+        <p><?= $hasTractionBattery ? 'Přehled delších tras včetně nabíjení na cestách' : 'Přehled delších tras vozidla' ?></p>
         <div class="table-wrap">
             <table>
                 <thead>
@@ -248,9 +185,11 @@
                     <th>VZDÁLENOST</th>
                     <th>ČAS JÍZDY</th>
                     <th>PRŮM. RYCHLOST</th>
-                    <th>PRŮM. SPOTŘEBA</th>
-                    <th>SPOTŘEBOVÁNO</th>
-                    <th>NABÍJENÍ</th>
+                    <?php if ($hasTractionBattery): ?>
+                        <th>PRŮM. SPOTŘEBA</th>
+                        <th>SPOTŘEBOVÁNO</th>
+                        <th>NABÍJENÍ</th>
+                    <?php endif; ?>
                 </tr>
                 </thead>
                 <tbody><?php foreach ($longTrips as $t): ?>
@@ -260,11 +199,11 @@
                         <td><b><?= cz($t['distance_km'], 1) ?> km</b></td>
                         <td><?= intdiv((int)$t['driving_minutes'], 60) ?> h <?= ((int)$t['driving_minutes']) % 60 ?> m</td>
                         <td><?= cz($t['avg_speed_kmh'], 0) ?> km/h</td>
-                        <td>
-                            <mark><?= cz($t['avg_consumption_kwh_100'], 1) ?> kWh/100km</mark>
-                        </td>
-                        <td><b><?= cz($t['consumed_kwh'], 1) ?> kWh</b></td>
-                        <td><?= (float)$t['public_charge_soc_gained'] > 0 ? '<mark>+' . cz($t['public_charge_soc_gained'], 0) . '%</mark>' : '—' ?></td>
+                        <?php if ($hasTractionBattery): ?>
+                            <td><mark><?= cz($t['avg_consumption_kwh_100'], 1) ?> kWh/100km</mark></td>
+                            <td><b><?= cz($t['consumed_kwh'], 1) ?> kWh</b></td>
+                            <td><?= (float)$t['public_charge_soc_gained'] > 0 ? '<mark>+' . cz($t['public_charge_soc_gained'], 0) . '%</mark>' : '—' ?></td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?></tbody>
             </table>
@@ -287,10 +226,12 @@
                     <th>KM</th>
                     <th>ČAS</th>
                     <th>RYCHLOST</th>
-                    <th>PRŮM. SPOTŘEBA</th>
-                    <th>SPOTŘEBOVÁNO</th>
-                    <th>SOC</th>
-                    <th>NABÍJENÍ</th>
+                    <?php if ($hasTractionBattery): ?>
+                        <th>PRŮM. SPOTŘEBA</th>
+                        <th>SPOTŘEBOVÁNO</th>
+                        <th>SOC</th>
+                        <th>NABÍJENÍ</th>
+                    <?php endif; ?>
                 </tr>
                 </thead>
                 <tbody><?php foreach ($historyTrips as $t): ?>
@@ -300,12 +241,12 @@
                         <td><b><?= cz($t['distance_km'], 1) ?></b></td>
                         <td><?= cz($t['driving_minutes'], 0) ?>m</td>
                         <td><?= cz($t['avg_speed_kmh'], 0) ?> km/h</td>
-                        <td><b><?= cz($t['avg_consumption_kwh_100'], 1) ?></b></td>
-                        <td><b><?= cz($t['consumed_kwh'], 1) ?></b> kWh</td>
-                        <td><?php if ($t['start_soc'] !== NULL || $t['end_soc'] !== NULL): ?><?= cz($t['start_soc'], 0) ?>% →
-                                <b><?= cz($t['end_soc'], 0) ?>
-                                %</b><?php else: ?>—<?php endif; ?></td>
-                        <td><?= (float)$t['public_charge_soc_gained'] > 0 ? '<mark>+' . cz($t['public_charge_soc_gained'], 0) . '%</mark>' : '•' ?></td>
+                        <?php if ($hasTractionBattery): ?>
+                            <td><b><?= cz($t['avg_consumption_kwh_100'], 1) ?></b></td>
+                            <td><b><?= cz($t['consumed_kwh'], 1) ?></b> kWh</td>
+                            <td><?php if ($t['start_soc'] !== NULL || $t['end_soc'] !== NULL): ?><?= cz($t['start_soc'], 0) ?>% → <b><?= cz($t['end_soc'], 0) ?>%</b><?php else: ?>—<?php endif; ?></td>
+                            <td><?= (float)$t['public_charge_soc_gained'] > 0 ? '<mark>+' . cz($t['public_charge_soc_gained'], 0) . '%</mark>' : '•' ?></td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?></tbody>
             </table>
@@ -328,32 +269,10 @@
     · verze <?= h($app->version()->label()) ?>
 </footer>
 <script>
-    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-    const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
-    const mobileMenuClose = document.getElementById('mobileMenuClose');
-    const openMobileMenu = () => {
-        mobileMenuOverlay.hidden = false;
-        document.body.classList.add('mobile-menu-open');
-        mobileMenuToggle.setAttribute('aria-expanded', 'true');
-        mobileMenuClose.focus();
-    };
-    const closeMobileMenu = () => {
-        mobileMenuOverlay.hidden = true;
-        document.body.classList.remove('mobile-menu-open');
-        mobileMenuToggle.setAttribute('aria-expanded', 'false');
-        mobileMenuToggle.focus();
-    };
-    mobileMenuToggle.addEventListener('click', openMobileMenu);
-    mobileMenuClose.addEventListener('click', closeMobileMenu);
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !mobileMenuOverlay.hidden) {
-            closeMobileMenu();
-        }
-    });
     const monthlyLabels = <?=json_encode($monthLabels, JSON_UNESCAPED_UNICODE)?>, monthlyKm = <?=json_encode($monthKm)?>,
         monthlyCons = <?=json_encode($monthCons)?>;
     const hours = <?=json_encode(array_values($hourData))?>, speedLabels = <?=json_encode($bandLabels, JSON_UNESCAPED_UNICODE)?>,
-        speedValues = <?=json_encode($bandValues)?>;
+        speedValues = <?=json_encode($hasTractionBattery ? $bandValues : $bandKm)?>;
     const grid = 'rgba(148,163,184,.12)', tick = '#9fb4d0';
     Chart.defaults.color = tick;
     Chart.defaults.font.family = 'Inter,system-ui,sans-serif';
@@ -369,7 +288,7 @@
                 backgroundColor: 'rgba(16,185,129,.35)',
                 borderColor    : '#10b981',
                 yAxisID        : 'y'
-            }, {
+            }<?php if ($hasTractionBattery): ?>, {
                 type           : 'line',
                 label          : 'Spotřeba (kWh/100km)',
                 data           : monthlyCons,
@@ -377,14 +296,14 @@
                 backgroundColor: '#22d3ee',
                 tension        : .3,
                 yAxisID        : 'y1'
-            }]
+            }<?php endif; ?>]
         },
         options: {
             responsive: true,
             scales    : {
                 x : { grid: { color: grid } },
                 y : { grid: { color: grid }, beginAtZero: true },
-                y1: { position: 'right', grid: { drawOnChartArea: false } }
+                <?php if ($hasTractionBattery): ?>y1: { position: 'right', grid: { drawOnChartArea: false } }<?php endif; ?>
             }
         }
     });
@@ -403,7 +322,7 @@
             scales : { x: { grid: { color: grid } }, y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: grid } } }
         }
     });
-    <?php if($chargeDataAvailable): ?>
+    <?php if ($hasTractionBattery && $chargeDataAvailable): ?>
     const energyCanvas = document.getElementById('energy');
     new Chart(energyCanvas, {
         type   : 'doughnut',
@@ -436,11 +355,11 @@
         type   : 'bar',
         data   : {
             labels  : speedLabels,
-            datasets: [{ data: speedValues, backgroundColor: ['#22d3ee', '#10b981', '#f59e0b', '#f43f5e'], borderRadius: 7 }]
+            datasets: [{ label: <?= json_encode($hasTractionBattery ? 'kWh/100 km' : 'km', JSON_UNESCAPED_UNICODE) ?>, data: speedValues, backgroundColor: ['#22d3ee', '#10b981', '#f59e0b', '#f43f5e'], borderRadius: 7 }]
         },
         options: {
             plugins: { legend: { display: false } },
-            scales : { x: { grid: { color: grid } }, y: { grid: { color: grid }, suggestedMin: 10 } }
+            scales : { x: { grid: { color: grid } }, y: { grid: { color: grid }, beginAtZero: true } }
         }
     });
 </script>

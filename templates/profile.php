@@ -4,12 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Můj profil – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css">
+  <link rel="stylesheet" href="assets/app.css?v=20260915-nav">
 </head>
 <body>
-<header class="topbar"><a class="brand" href="index.php">⚡</a><b>Můj profil</b>
-  <div class="spacer"></div>
-  <a class="toplink" href="index.php">Dashboard</a><a class="toplink" href="logout.php">Odhlásit</a></header>
+<?php $navTitle = 'Můj profil'; require __DIR__ . '/partials/navigation.php'; ?>
 <main class="wrap profile-wrap"><?php if ($flash): ?>
     <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div><?php endif; ?>
   <div class="grid2">

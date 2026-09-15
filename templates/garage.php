@@ -4,21 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Garage – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css?v=20260915-garage">
+  <link rel="stylesheet" href="assets/app.css?v=20260915-nav">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
-<header class="topbar">
-  <a class="brand" href="index.php">⚡</a>
-  <div class="vehicle"><b>Garage dashboard</b><small><?= count($vehicles) ?> vozidel v přehledu</small></div>
-  <div class="spacer"></div>
-  <a class="toplink" href="index.php">📊 Dashboard</a>
-  <?php if ($app->auth()->canManageVehicles($user)): ?><a class="toplink" href="vehicles.php">🚙 Vozidla</a><?php endif; ?>
-  <a class="toplink" href="profile.php">👤 Profil</a>
-  <span class="user-chip"><?= h($user['name']) ?></span>
-  <a class="toplink" href="logout.php">Odhlásit</a>
-</header>
-
+<?php $navTitle = 'Garage dashboard'; require __DIR__ . '/partials/navigation.php'; ?>
 <main class="wrap garage-wrap">
   <?php if ($flash): ?><div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div><?php endif; ?>
 

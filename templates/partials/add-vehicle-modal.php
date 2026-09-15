@@ -41,19 +41,19 @@
             <option value="CNG">CNG</option>
           </select>
         </label>
-        <label>Využitelná kapacita baterie (kWh)
+        <label data-electric-field>Využitelná kapacita baterie (kWh)
           <input name="battery_kwh" type="number" step="0.1" min="0" placeholder="např. 78,0">
         </label>
-        <label>Nominální kapacita baterie (kWh) <span>volitelné</span>
+        <label data-electric-field>Nominální kapacita baterie (kWh) <span>volitelné</span>
           <input name="battery_nominal_kwh" type="number" step="0.1" min="0" placeholder="pokud ji znáte">
         </label>
-        <label>SoH z diagnostiky (%) <span>volitelné</span>
+        <label data-electric-field>SoH z diagnostiky (%) <span>volitelné</span>
           <input name="soh_manual_pct" type="number" step="0.1" min="50" max="110" placeholder="např. 96,5">
         </label>
-        <label>Domácí lokalita <span>volitelné</span>
+        <label data-electric-field>Domácí nabíjecí lokalita <span>volitelné</span>
           <input name="home_label" placeholder="např. Olomouc">
         </label>
-        <label>Objem nádrže (l) <span>pro spalovací/hybridní vůz</span>
+        <label data-fuel-field>Objem nádrže (l) <span>pro spalovací/hybridní vůz</span>
           <input name="fuel_tank_l" type="number" step="0.1" min="0">
         </label>
         <label>SPZ <span>volitelné</span>
@@ -73,4 +73,20 @@
       </form>
     </section>
   </div>
+  <script>
+    (() => {
+      const powertrain = document.getElementById('selfVehiclePowertrain');
+      if (!powertrain) return;
+      const electricFields = document.querySelectorAll('#addVehicleModal [data-electric-field]');
+      const fuelFields = document.querySelectorAll('#addVehicleModal [data-fuel-field]');
+      const updateFields = () => {
+        const electric = ['BEV', 'PHEV'].includes(powertrain.value);
+        const fuel = ['PHEV', 'HEV', 'PETROL', 'DIESEL', 'LPG', 'CNG'].includes(powertrain.value);
+        electricFields.forEach((field) => field.hidden = !electric);
+        fuelFields.forEach((field) => field.hidden = !fuel);
+      };
+      powertrain.addEventListener('change', updateFields);
+      updateFields();
+    })();
+  </script>
 <?php endif; ?>

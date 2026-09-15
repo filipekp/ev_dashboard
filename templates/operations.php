@@ -4,21 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Provoz vozidla – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css?v=20260915-ops">
+  <link rel="stylesheet" href="assets/app.css?v=20260915-nav">
 </head>
 <body>
-<header class="topbar">
-  <a class="brand" href="index.php?vehicle_id=<?= (int)$vehicle['id'] ?>">⚡</a>
-  <b>Provoz vozidla</b>
-  <div class="spacer"></div>
-  <a class="toplink" href="index.php?vehicle_id=<?= (int)$vehicle['id'] ?>">Dashboard</a>
-  <?php if ($app->auth()->canManageVehicles($user)): ?>
-    <a class="toplink" href="vehicles.php">Vozidla</a>
-  <?php endif; ?>
-  <a class="toplink" href="profile.php">Můj profil</a>
-  <a class="toplink" href="logout.php">Odhlásit</a>
-</header>
-
+<?php
+$powertrain = strtoupper((string)($vehicle['powertrain_type'] ?? 'BEV'));
+$hasTractionBattery = in_array($powertrain, ['BEV', 'PHEV'], TRUE);
+$hasFuelSystem = in_array($powertrain, ['PHEV', 'HEV', 'PETROL', 'DIESEL', 'LPG', 'CNG'], TRUE);
+$fuelEnergyType = [
+    'DIESEL' => 'diesel',
+    'LPG' => 'lpg',
+    'CNG' => 'cng',
+][$powertrain] ?? 'petrol';
+?>
+<?php $navTitle = 'Provoz vozidla'; require __DIR__ . '/partials/navigation.php'; ?>
 <main class="wrap operations-page">
   <?php if ($flash): ?>
     <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div>
@@ -42,7 +41,7 @@
   </section>
 
   <section class="kpis operations-kpis">
-    <div class="card kpi"><small>ENERGIE / PALIVO</small><strong><?= cz($summary['energy_cost'], 0) ?> <em>Kč</em></strong></div>
+    <div class="card kpi"><small><?= $hasTractionBattery && !$hasFuelSystem ? 'ELEKTŘINA' : ($hasFuelSystem && !$hasTractionBattery ? 'PALIVO' : 'ENERGIE / PALIVO') ?></small><strong><?= cz($summary['energy_cost'], 0) ?> <em>Kč</em></strong></div>
     <div class="card kpi"><small>SERVIS</small><strong><?= cz($summary['service_cost'], 0) ?> <em>Kč</em></strong></div>
     <div class="card kpi"><small>OSTATNÍ NÁKLADY</small><strong><?= cz($summary['other_cost'], 0) ?> <em>Kč</em></strong></div>
     <div class="card kpi"><small>CELKEM</small><strong><?= cz($summary['total_cost'], 0) ?> <em>Kč</em></strong></div>
@@ -51,17 +50,25 @@
 
   <section class="grid2 operations-forms">
     <div class="card">
-      <h2>⛽ Tankování / nabíjení</h2>
+      <h2><?= $hasTractionBattery && !$hasFuelSystem ? '⚡ Nabíjení' : ($hasFuelSystem && !$hasTractionBattery ? '⛽ Tankování' : '⛽ Tankování / nabíjení') ?></h2>
       <form method="post" class="stack">
         <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
         <input type="hidden" name="action" value="add_energy">
         <label>Datum a čas<input type="datetime-local" name="occurred_at" value="<?= date('Y-m-d\TH:i') ?>" required></label>
+        <?php if ($hasTractionBattery && $hasFuelSystem): ?>
+          <div class="form-grid-2">
+            <label>Událost<select name="entry_type" id="operationEntryType"><option value="charging">Nabíjení</option><option value="fueling">Tankování</option></select></label>
+            <label>Energie / palivo<select name="energy_type" id="operationEnergyType"><option value="electricity">Elektřina</option><option value="petrol">Benzín</option><option value="diesel">Nafta</option><option value="lpg">LPG</option><option value="cng">CNG</option></select></label>
+          </div>
+        <?php elseif ($hasTractionBattery): ?>
+          <input type="hidden" name="entry_type" value="charging">
+          <input type="hidden" name="energy_type" value="electricity">
+        <?php else: ?>
+          <input type="hidden" name="entry_type" value="fueling">
+          <input type="hidden" name="energy_type" value="<?= h($fuelEnergyType) ?>">
+        <?php endif; ?>
         <div class="form-grid-2">
-          <label>Událost<select name="entry_type"><option value="charging">Nabíjení</option><option value="fueling">Tankování</option></select></label>
-          <label>Energie / palivo<select name="energy_type"><option value="electricity">Elektřina</option><option value="petrol">Benzín</option><option value="diesel">Nafta</option><option value="lpg">LPG</option><option value="cng">CNG</option></select></label>
-        </div>
-        <div class="form-grid-2">
-          <label>Množství<input type="number" step="0.001" min="0" name="quantity" required></label>
+          <label>Množství <?= $hasTractionBattery && !$hasFuelSystem ? '(kWh)' : ($hasFuelSystem && !$hasTractionBattery ? '(l / kg)' : '') ?><input type="number" step="0.001" min="0" name="quantity" required></label>
           <label>Cena za jednotku<input type="number" step="0.01" min="0" name="unit_price"></label>
         </div>
         <div class="form-grid-2">
@@ -187,5 +194,16 @@
 
   <section class="card operations-section"><h2>💸 Historie ostatních nákladů</h2><div class="table-scroll"><table class="data-table"><thead><tr><th>Datum</th><th>Kategorie</th><th>Název</th><th>Částka</th><th>Km</th></tr></thead><tbody><?php foreach ($expenses as $row): ?><tr><td><?= h(date('d.m.Y', strtotime($row['occurred_at']))) ?></td><td><?= h($row['category']) ?></td><td><?= h($row['title']) ?></td><td><?= cz((float)$row['amount'], 0) ?> Kč</td><td><?= $row['odometer_km'] !== null ? cz((float)$row['odometer_km'], 0) : '—' ?></td></tr><?php endforeach; ?></tbody></table></div></section>
 </main>
+<?php if ($hasTractionBattery && $hasFuelSystem): ?>
+<script>
+  const operationEntryType = document.getElementById('operationEntryType');
+  const operationEnergyType = document.getElementById('operationEnergyType');
+  if (operationEntryType && operationEnergyType) {
+    operationEntryType.addEventListener('change', () => {
+      operationEnergyType.value = operationEntryType.value === 'charging' ? 'electricity' : <?= json_encode($fuelEnergyType) ?>;
+    });
+  }
+</script>
+<?php endif; ?>
 </body>
 </html>

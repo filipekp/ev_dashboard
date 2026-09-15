@@ -4,18 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Aktualizace – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css">
+  <link rel="stylesheet" href="assets/app.css?v=20260915-nav">
 </head>
 <body>
-<header class="topbar">
-  <a class="brand" href="index.php">⚡</a>
-  <b>Aktualizace aplikace</b>
-  <div class="spacer"></div>
-  <a class="toplink" href="index.php">Dashboard</a>
-  <a class="toplink" href="users.php">Uživatelé</a>
-  <a class="toplink" href="vehicles.php">Vozidla</a>
-  <a class="toplink" href="logout.php">Odhlásit</a>
-</header>
+<?php $navTitle = 'Aktualizace aplikace'; require __DIR__ . '/partials/navigation.php'; ?>
 <main class="wrap narrow update-page">
   <?php if ($message): ?>
     <div class="notice"><?= h($message) ?></div>

@@ -4,13 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Vozidla – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css">
+  <link rel="stylesheet" href="assets/app.css?v=20260915-nav">
 </head>
 <body>
-<header class="topbar"><a class="brand" href="index.php">⚡</a><b>Správa vozidel</b>
-  <div class="spacer"></div><?php if ($app->auth()->isAdmin($me)): ?><a class="toplink" href="users.php">Uživatelé</a><a class="toplink" href="update.php">Aktualizace</a><?php endif; ?><a class="toplink"
-                                                                                                                          href="profile.php">Můj
-    profil</a><a class="toplink" href="index.php">Dashboard</a><a class="toplink" href="logout.php">Odhlásit</a></header>
+<?php $navTitle = 'Správa vozidel'; require __DIR__ . '/partials/navigation.php'; ?>
 <main class="wrap narrow"><?php if ($flash): ?>
     <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div><?php endif; ?>
   <section class="card admin-card"><h2>➕ Přidat vozidlo</h2>

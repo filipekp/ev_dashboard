@@ -31,6 +31,9 @@
         /** @param array<string,mixed> $vehicle @param array<string,mixed> $query @return array<string,mixed> */
         public function build(array $vehicle, array $query): array {
             $vehicleId = (int)$vehicle['id'];
+            $powertrain = strtoupper((string)($vehicle['powertrain_type'] ?? 'BEV'));
+            $hasTractionBattery = in_array($powertrain, ['BEV', 'PHEV'], TRUE);
+            $hasFuelSystem = in_array($powertrain, ['PHEV', 'HEV', 'PETROL', 'DIESEL', 'LPG', 'CNG'], TRUE);
             $months    = $this->pdo->prepare('SELECT DISTINCT DATE_FORMAT(started_at, "%Y-%m") m FROM trips WHERE vehicle_id=? ORDER BY m');
             $months->execute([$vehicleId]);
             $monthOptions = $months->fetchAll(PDO::FETCH_COLUMN);
@@ -77,9 +80,9 @@
             $driveMin              = (int)($summary['drive_min'] ?? 0);
             $travelMin             = (int)($summary['travel_min'] ?? 0);
             $avgSpeed              = $driveMin > 0 ? $totalKm / ($driveMin / 60) : 0;
-            $range                 = $avgCons > 0 ? (float)$vehicle['battery_kwh'] / $avgCons * 100 : 0;
+            $range                 = $hasTractionBattery && $avgCons > 0 ? (float)$vehicle['battery_kwh'] / $avgCons * 100 : 0;
             $shortTrips            = (int)($summary['short_trips'] ?? 0);
-            $chargeDataAvailable   = (int)($summary['charge_rows'] ?? 0) > 0;
+            $chargeDataAvailable   = $hasTractionBattery && (int)($summary['charge_rows'] ?? 0) > 0;
             $locationDataAvailable = (int)($summary['location_rows'] ?? 0) > 0;
             $costDataAvailable     = (int)($summary['cost_rows'] ?? 0) > 0;
             $costTotal             = (float)($summary['electricity_cost_total'] ?? 0);
@@ -116,12 +119,14 @@
                 'Dálnice (>85 km/h)'
             ];
             $bandValues = array_fill(0, 4, 0.0);
+            $bandKm     = array_fill(0, 4, 0.0);
             $q          = $this->pdo->prepare("SELECT CASE WHEN avg_speed_kmh<40 THEN 0 WHEN avg_speed_kmh<65 THEN 1 WHEN avg_speed_kmh<=85 THEN 2 ELSE 3 END band,SUM(distance_km) km,SUM(consumed_kwh) kwh FROM trips WHERE $where GROUP BY band");
             $q->execute($params);
             foreach ($q->fetchAll() as $r) {
                 $idx              = (int)$r['band'];
                 $km               = (float)$r['km'];
                 $bandValues[$idx] = round($km > 0 ? (float)$r['kwh'] / $km * 100 : 0, 1);
+                $bandKm[$idx]     = round($km, 1);
             }
             $routes = [];
             $q      = $this->pdo->prepare("SELECT start_address,end_address,COUNT(*) c,SUM(distance_km) km,SUM(consumed_kwh) kwh FROM trips WHERE $where AND (start_address<>'' OR end_address<>'') GROUP BY start_address,end_address ORDER BY c DESC,km DESC LIMIT 10");
@@ -154,9 +159,18 @@
             $q             = $this->pdo->prepare("SELECT * FROM trips WHERE $where ORDER BY started_at DESC LIMIT " . (int)$perPage . " OFFSET " . (int)$historyOffset);
             $q->execute($params);
             $historyTrips = $q->fetchAll();
-            $nominalKwh = (float)($vehicle['battery_nominal_kwh'] ?: $vehicle['battery_kwh']);
-            $sohManual  = $vehicle['soh_manual_pct'] !== NULL ? (float)$vehicle['soh_manual_pct'] : NULL;
-            $sohResult  = $this->estimateStateOfHealth($vehicleId, $nominalKwh);
+            $nominalKwh = $hasTractionBattery ? (float)($vehicle['battery_nominal_kwh'] ?: $vehicle['battery_kwh']) : 0.0;
+            $sohManual  = $hasTractionBattery && $vehicle['soh_manual_pct'] !== NULL ? (float)$vehicle['soh_manual_pct'] : NULL;
+            $sohResult  = $hasTractionBattery
+                ? $this->estimateStateOfHealth($vehicleId, $nominalKwh)
+                : [
+                    'samples' => [],
+                    'sample_count' => 0,
+                    'raw_pct' => NULL,
+                    'display_pct' => NULL,
+                    'spread_pct' => NULL,
+                    'soc_coverage_pct' => 0.0,
+                ];
 
             // Zachováváme původní proměnné kvůli kompatibilitě se šablonami.
             $sohSamples      = $sohResult['samples'];

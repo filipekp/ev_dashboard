@@ -1,0 +1,1 @@
+<?php declare(strict_types=1); require dirname(__DIR__).'/src/bootstrap.php'; $user=$app->auth()->requireLogin(); $vehicle=$app->auth()->selectVehicle($user); if(!$vehicle) App\Http::redirect('index.php'); $app->template()->render('import-hub',['app'=>$app,'user'=>$user,'vehicle'=>$vehicle,'vehicles'=>$app->auth()->allowedVehicles($user),'flash'=>$app->session()->pullFlash()]);

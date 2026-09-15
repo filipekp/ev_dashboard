@@ -289,6 +289,11 @@
             </nav>
         <?php endif; ?>
     </section>
+
+<section class="dashboard-revolution-grid">
+  <div class="card insight-panel"><div class="section-head"><div><span class="eyebrow">SMART LAYER</span><h2>✦ Insights</h2></div></div><div class="insight-strip stacked"><?php foreach($insights as $i):?><article class="insight-card"><span><?=$i['icon']?></span><div><b><?=h($i['title'])?></b><p><?=h($i['text'])?></p></div></article><?php endforeach;?></div></div>
+  <div class="card mini-timeline"><div class="section-head"><div><span class="eyebrow">POSLEDNÍ UDÁLOSTI</span><h2>◷ Timeline</h2></div><a href="timeline.php">Celá historie →</a></div><?php foreach($timelineEvents as $e):?><div class="mini-event"><span><?=['trip'=>'🚗','energy'=>'⚡','service'=>'🔧','expense'=>'💳'][$e['type']]?></span><div><b><?=h((string)($e['label']?:ucfirst($e['type'])))?></b><small><?=h(date('d.m.Y H:i',strtotime($e['event_at'])))?> · <?=h((string)($e['detail']??''))?></small></div></div><?php endforeach;?><?php if(!$timelineEvents):?><p>Zatím žádné provozní události.</p><?php endif;?></div>
+</section>
 </main>
 <footer class="site-footer">created by: &copy; 2026 Pavel Filípek (<a href="https://www.filipek-czech.cz" target="_blank" rel="noopener noreferrer">www.filipek-czech.cz</a>)
     · verze <?= h($app->version()->label()) ?>

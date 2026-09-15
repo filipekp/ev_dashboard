@@ -39,6 +39,7 @@ final class GarageController
             'vehicles' => $vehicles,
             'vehiclePhotos' => $this->app->vehicleMedia()->primaries($vehicleIds),
             'flash' => $this->app->session()->pullFlash(),
+            'activeVehicle' => $this->app->auth()->selectVehicle($user),
         ]));
     }
 }

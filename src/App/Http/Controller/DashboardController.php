@@ -79,6 +79,8 @@ final class DashboardController
             'newVehicleModal' => $newVehicleModal,
             'showAddVehicleModal' => $showAddVehicleModal,
             'vehiclePhoto' => $this->app->vehicleMedia()->primaryForVehicle((int)$vehicle['id']),
+            'timelineEvents' => $this->app->timeline()->build((int)$vehicle['id'], 6),
+            'insights' => $this->app->insights()->build($vehicle),
         ]));
     }
 

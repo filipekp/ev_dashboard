@@ -28,7 +28,7 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
                     <?php
                     $optionId = (int)$option['id'];
                     $optionPowertrain = strtoupper((string)($option['powertrain_type'] ?? 'BEV'));
-                    $targetPage = in_array($navPage, ['index.php', 'operations.php', 'documents.php'], TRUE) ? $navPage : 'index.php';
+                    $targetPage = in_array($navPage, ['index.php', 'operations.php', 'documents.php', 'timeline.php', 'import.php'], TRUE) ? $navPage : 'index.php';
                     $targetUrl = $targetPage . '?vehicle_id=' . $optionId;
                     ?>
                     <a class="vehicle-picker-option<?= $optionId === $navVehicleId ? ' is-selected' : '' ?>" href="<?= h($targetUrl) ?>" role="option" aria-selected="<?= $optionId === $navVehicleId ? 'true' : 'false' ?>">
@@ -49,7 +49,9 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
         <a class="<?= $navCurrent('garage.php') ?>" href="garage.php"><span>◈</span> Moje garáž</a>
         <?php if ($navHasVehicle): ?>
             <small>VOZIDLO</small>
+            <a class="<?= $navCurrent('timeline.php') ?>" href="timeline.php?vehicle_id=<?= $navVehicleId ?>"><span>◷</span> Timeline</a>
             <a class="<?= $navCurrent('operations.php') ?>" href="operations.php?vehicle_id=<?= $navVehicleId ?>"><span>↗</span> Provoz & náklady</a>
+            <a class="<?= $navCurrent('import.php') ?>" href="import.php?vehicle_id=<?= $navVehicleId ?>"><span>＋</span> Import Hub</a>
             <a class="<?= $navCurrent('documents.php') ?>" href="documents.php?vehicle_id=<?= $navVehicleId ?>"><span>✦</span> Dokumenty & AI</a>
         <?php endif; ?>
         <?php if ($navCanManageVehicles || $navIsAdmin): ?>
@@ -74,7 +76,7 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
 <nav class="mobile-bottom-nav" aria-label="Mobilní navigace">
     <a class="<?= $navCurrent('index.php') ?>" href="index.php<?= $navVehicleQuery ?>"><span>⌂</span><small>Přehled</small></a>
     <a class="<?= $navCurrent('garage.php') ?>" href="garage.php"><span>◈</span><small>Garáž</small></a>
-    <a class="mobile-add" href="<?= $navHasVehicle ? 'documents.php?vehicle_id=' . $navVehicleId : 'index.php?add_vehicle=1' ?>"><span>＋</span><small>Přidat</small></a>
+    <a class="mobile-add" href="<?= $navHasVehicle ? 'import.php?vehicle_id=' . $navVehicleId : 'index.php?add_vehicle=1' ?>"><span>＋</span><small>Přidat</small></a>
     <?php if ($navHasVehicle): ?><a class="<?= $navCurrent('operations.php') ?>" href="operations.php?vehicle_id=<?= $navVehicleId ?>"><span>↗</span><small>Provoz</small></a><?php else: ?><a href="index.php?add_vehicle=1"><span>＋</span><small>Vozidlo</small></a><?php endif; ?>
     <a class="<?= $navCurrent('profile.php') ?>" href="profile.php"><span>☰</span><small>Více</small></a>
 </nav>

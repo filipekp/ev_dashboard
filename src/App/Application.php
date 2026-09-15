@@ -29,6 +29,8 @@ use App\Service\DocumentImportService;
 use App\Service\ImportService;
 use App\Service\VehicleMediaService;
 use App\Service\VehicleOperationService;
+use App\Service\VehicleTimelineService;
+use App\Service\VehicleInsightService;
 use PDO;
 
 /**
@@ -253,6 +255,16 @@ final class Application
             $ai,
             $this->root . '/storage'
         );
+    }
+
+    public function timeline(): VehicleTimelineService
+    {
+        return new VehicleTimelineService($this->pdo());
+    }
+
+    public function insights(): VehicleInsightService
+    {
+        return new VehicleInsightService($this->pdo());
     }
 
     public function vehicleOperationService(): VehicleOperationService

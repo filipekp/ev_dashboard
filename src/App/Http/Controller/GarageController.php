@@ -29,10 +29,15 @@ final class GarageController
         $vehicles = $this->app->auth()->allowedVehicles($user);
         $data = $this->app->analytics()->build($vehicles, $_GET);
 
+        $vehicleIds = array_map(static function (array $vehicle): int {
+            return (int)$vehicle['id'];
+        }, $vehicles);
+
         $this->app->template()->render('garage', array_merge($data, [
             'app' => $this->app,
             'user' => $user,
             'vehicles' => $vehicles,
+            'vehiclePhotos' => $this->app->vehicleMedia()->primaries($vehicleIds),
             'flash' => $this->app->session()->pullFlash(),
         ]));
     }

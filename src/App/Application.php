@@ -10,13 +10,24 @@ use App\Csv\CsvPluginRegistry;
 use App\Import\Plugin\CsvVehicleImportPlugin;
 use App\Import\Plugin\KiaConnectXlsxPlugin;
 use App\Import\TripFileImporter;
+use App\Document\Ai\GeminiDocumentExtractor;
+use App\Document\Ai\OpenAiDocumentExtractor;
+use App\Document\Parser\CezFuturegoInvoiceParser;
+use App\Document\Parser\DocumentParserRegistry;
+use App\Document\Parser\EonDriveInvoiceParser;
+use App\Document\Parser\JsonDocumentParser;
+use App\Document\Parser\PowerpassElliInvoiceParser;
+use App\Repository\DocumentRepository;
 use App\Repository\IntegrationImportRunRepository;
 use App\Repository\TripRepository;
+use App\Repository\VehicleMediaRepository;
 use App\Repository\VehicleOperationRepository;
 use App\Repository\VehicleRepository;
 use App\Service\AnalyticsService;
 use App\Service\DashboardService;
+use App\Service\DocumentImportService;
 use App\Service\ImportService;
+use App\Service\VehicleMediaService;
 use App\Service\VehicleOperationService;
 use PDO;
 
@@ -62,6 +73,12 @@ final class Application
 
     /** @var VehicleOperationRepository|null */
     private $vehicleOperations;
+
+    /** @var DocumentRepository|null */
+    private $documents;
+
+    /** @var VehicleMediaRepository|null */
+    private $vehicleMedia;
 
     /** @param array<string,mixed> $config */
     public function __construct(array $config, string $root)
@@ -183,6 +200,59 @@ final class Application
     public function analytics(): AnalyticsService
     {
         return new AnalyticsService($this->pdo());
+    }
+
+
+    public function documents(): DocumentRepository
+    {
+        if ($this->documents === null) {
+            $this->documents = new DocumentRepository($this->pdo());
+        }
+        return $this->documents;
+    }
+
+    public function vehicleMedia(): VehicleMediaRepository
+    {
+        if ($this->vehicleMedia === null) {
+            $this->vehicleMedia = new VehicleMediaRepository($this->pdo());
+        }
+        return $this->vehicleMedia;
+    }
+
+    public function vehicleMediaService(): VehicleMediaService
+    {
+        return new VehicleMediaService($this->vehicleMedia(), $this->root . '/storage');
+    }
+
+    public function documentImportService(): DocumentImportService
+    {
+        $provider = strtolower((string)$this->config->get('ai.provider', 'none'));
+        $ai = null;
+        if ($provider === 'openai') {
+            $ai = new OpenAiDocumentExtractor(
+                (string)$this->config->get('ai.openai_api_key', ''),
+                (string)$this->config->get('ai.openai_model', 'gpt-5.6-luna')
+            );
+        } elseif ($provider === 'gemini') {
+            $ai = new GeminiDocumentExtractor(
+                (string)$this->config->get('ai.gemini_api_key', ''),
+                (string)$this->config->get('ai.gemini_model', 'gemini-3.8-flash')
+            );
+        }
+
+        return new DocumentImportService(
+            $this->pdo(),
+            $this->documents(),
+            $this->vehicleOperations(),
+            new DocumentParserRegistry([
+                new PowerpassElliInvoiceParser(),
+                new CezFuturegoInvoiceParser(),
+                new EonDriveInvoiceParser(),
+                new JsonDocumentParser(),
+            ]),
+            $ai,
+            $this->root . '/storage'
+        );
     }
 
     public function vehicleOperationService(): VehicleOperationService

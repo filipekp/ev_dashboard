@@ -40,11 +40,12 @@
       <div class="table-card-head"><div><h2>🏁 Porovnání vozidel</h2><p>Stejné období a stejná metodika pro všechna dostupná vozidla.</p></div></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>VOZIDLO</th><th>POHON</th><th>NÁJEZD</th><th>JÍZDY</th><th>SPOTŘEBA</th><th>ENERGIE/PALIVO</th><th>SERVIS</th><th>OSTATNÍ</th><th>PROVOZ Kč/km</th><th>TCO Kč/km</th></tr></thead>
+          <thead><tr><th></th><th>VOZIDLO</th><th>POHON</th><th>NÁJEZD</th><th>JÍZDY</th><th>SPOTŘEBA</th><th>ENERGIE/PALIVO</th><th>SERVIS</th><th>OSTATNÍ</th><th>PROVOZ Kč/km</th><th>TCO Kč/km</th></tr></thead>
           <tbody>
           <?php foreach ($comparison as $row): ?>
             <tr>
-              <td><a href="index.php?vehicle_id=<?= (int)$row['id'] ?>"><b><?= h($row['name']) ?></b></a><small class="table-subline"><?= h($row['vin']) ?></small></td>
+              <td class="garage-car-photo"><?php if(isset($vehiclePhotos[(int)$row['id']])): ?><img src="media.php?view=<?= (int)$vehiclePhotos[(int)$row['id']]['id'] ?>" alt="<?= h($row['name']) ?>"><?php else: ?><span>🚙</span><?php endif; ?></td>
+              <td><a href="index.php?vehicle_id=<?= (int)$row['id'] ?>"><b><?= h($row['name']) ?></b></a><small class="table-subline"><?= h($row['vin']) ?></small><small class="table-subline"><a href="documents.php?vehicle_id=<?= (int)$row['id'] ?>#vehicle-photos">Fotky a dokumenty</a></small></td>
               <td><span class="pill"><?= h($row['powertrain_type']) ?></span></td>
               <td><b><?= cz($row['distance_km'], 0) ?> km</b></td>
               <td><?= (int)$row['trip_count'] ?></td>

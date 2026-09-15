@@ -535,3 +535,42 @@ Obvykle se používají příkazy podobné:
 ## Licence
 
 Doplňte podle licence projektu.
+
+## Dokumentové centrum a AI import
+
+Aplikace obsahuje rozšiřitelný dokumentový import pro účtenky za tankování,
+faktury za nabíjení, servisní faktury a další dokumenty vozidla. Originály jsou
+uložené mimo veřejný webroot ve `storage/documents`, fotografie vozidel v
+`storage/vehicle-media`.
+
+Workflow je záměrně bezpečný: upload -> SHA-256 deduplikace -> deterministický
+parser -> AI fallback -> náhled -> ruční potvrzení -> provozní evidence. AI tedy
+nikdy sama bez potvrzení uživatele nevytváří finanční záznamy.
+
+Konfigurace v `.env`:
+
+```env
+# none | openai | gemini
+AI_PROVIDER=openai
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-5.6-luna
+
+# Alternativně:
+# AI_PROVIDER=gemini
+# GEMINI_API_KEY=...
+# GEMINI_MODEL=gemini-3.8-flash
+```
+
+Nové provider-specific importy patří do `src/App/Document/Parser`. Parser pouze
+implementuje `DocumentParserInterface` a vrátí společný normalizovaný model.
+Pokud žádný parser dokument nepodporuje, použije se nakonfigurovaný AI adaptér.
+Součástí projektu je lokální `PowerpassElliInvoiceParser`, který umí textové PDF
+faktury Powerpass / Elli bez AI nebo externího API. Z faktury načte jednotlivé
+nabíjecí relace včetně stanice, EVSE ID, času, kWh, ceny za kWh a výsledné ceny.
+Další providery (E.ON Drive, IONITY, ČEZ/PRE apod.) lze doplnit stejným způsobem
+bez změn controllerů a databázové logiky.
+
+Po nasazení spusťte migrace přes stávající updater; migrace `migrate_v13.sql`
+vytvoří tabulky pro média, dokumenty, audit importů a samostatné vazby dokumentů
+na vzniklé provozní záznamy.
+

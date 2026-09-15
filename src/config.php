@@ -95,4 +95,11 @@
             'channel' => strtolower((string)env('UPDATE_CHANNEL', 'release')),
             'branch' => env('UPDATE_BRANCH', 'dev'),
         ],
+        'ai' => [
+            'provider' => strtolower((string)env('AI_PROVIDER', 'none')),
+            'openai_api_key' => env('OPENAI_API_KEY', ''),
+            'openai_model' => env('OPENAI_MODEL', 'gpt-5.6-luna'),
+            'gemini_api_key' => env('GEMINI_API_KEY', ''),
+            'gemini_model' => env('GEMINI_MODEL', 'gemini-3.8-flash'),
+        ],
     ];

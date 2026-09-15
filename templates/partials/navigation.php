@@ -58,7 +58,7 @@ $navCurrent = static function (string $page) use ($navPage): string {
             <summary class="toplink">🚙 Vozidla <span class="nav-chevron">▾</span></summary>
             <div class="nav-dropdown-menu">
                 <a href="index.php?add_vehicle=1">➕ Přidat vozidlo</a>
-                <?php if ($navHasVehicle): ?><a href="operations.php?vehicle_id=<?= $navVehicleId ?>">🧾 Provoz</a><?php endif; ?>
+                <?php if ($navHasVehicle): ?><a href="operations.php?vehicle_id=<?= $navVehicleId ?>">🧾 Provoz</a><a href="documents.php?vehicle_id=<?= $navVehicleId ?>">📄 Dokumenty & AI</a><?php endif; ?>
                 <a class="<?= $navCurrent('garage.php') ?>" href="garage.php">🚘 Garage</a>
                 <?php if ($navCanManageVehicles): ?><a href="vehicles.php">⚙️ Správa vozidel</a><?php endif; ?>
             </div>
@@ -100,7 +100,7 @@ $navCurrent = static function (string $page) use ($navPage): string {
         <a href="index.php<?= $navVehicleId ? '?vehicle_id=' . $navVehicleId : '' ?>">📊 <span>Dashboard</span></a>
         <a href="garage.php">🚘 <span>Garage</span></a>
         <a href="index.php?add_vehicle=1">➕ <span>Přidat vozidlo</span></a>
-        <?php if ($navHasVehicle): ?><a href="operations.php?vehicle_id=<?= $navVehicleId ?>">🧾 <span>Provoz</span></a><?php endif; ?>
+        <?php if ($navHasVehicle): ?><a href="operations.php?vehicle_id=<?= $navVehicleId ?>">🧾 <span>Provoz</span></a><a href="documents.php?vehicle_id=<?= $navVehicleId ?>">📄 <span>Dokumenty & AI</span></a><?php endif; ?>
         <?php if ($navCanManageVehicles): ?><a href="vehicles.php">🚙 <span>Správa vozidel</span></a><?php endif; ?>
         <?php if ($navIsAdmin): ?>
             <div class="mobile-menu-section">Administrace</div>

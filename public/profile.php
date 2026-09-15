@@ -1,7 +1,7 @@
 <?php
   declare(strict_types=1);
   require dirname(__DIR__) . '/src/bootstrap.php';
-  $me = requireLogin($pdo);
+  $me = $app->auth()->requireLogin();
   try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       verifyCsrf();
@@ -20,7 +20,7 @@
         flash('Profil byl uložen.');
       } elseif ($action === 'default_vehicle') {
         $vehicleId = (int)($_POST['default_vehicle_id'] ?? 0);
-        if ($vehicleId > 0 && !canAccessVehicle($pdo, $me, $vehicleId)) {
+        if ($vehicleId > 0 && !$app->auth()->canAccessVehicle($me, $vehicleId)) {
           throw new RuntimeException('Toto vozidlo nemáte k dispozici.');
         }
         $pdo->prepare('UPDATE users SET default_vehicle_id=? WHERE id=?')->execute([
@@ -62,7 +62,7 @@
   $q = $pdo->prepare('SELECT id,name,email,role,default_vehicle_id FROM users WHERE id=?');
   $q->execute([(int)$me['id']]);
   $me       = $q->fetch();
-  $vehicles = allowedVehicles($pdo, $me);
+  $vehicles = $app->auth()->allowedVehicles($me);
   $flash    = getFlash();
 ?>
 <!doctype html>

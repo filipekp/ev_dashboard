@@ -93,3 +93,10 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     KEY idx_prt_expires (expires_at),
     CONSTRAINT fk_prt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    migration VARCHAR(190) NOT NULL UNIQUE,
+    checksum CHAR(64) NOT NULL,
+    applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;

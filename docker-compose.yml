@@ -1,0 +1,21 @@
+services:
+  ev-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ev-dashboard
+    restart: unless-stopped
+
+    ports:
+      - "8090:80"
+
+    volumes:
+      # Při lokálním vývoji se změny projeví okamžitě
+      - ./:/var/www/html
+
+    networks:
+      - proclient
+
+networks:
+  proclient:
+    external: true

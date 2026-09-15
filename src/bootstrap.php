@@ -1,245 +1,53 @@
 <?php
-    
-    declare(strict_types=1);
-    
-    $config = require __DIR__ . '/config.php';
-    
-    /*
-     * --------------------------------------------------------------------------
-     * Error handling
-     * --------------------------------------------------------------------------
-     */
-    
-    $appEnv   = $config['app']['env'] ?? 'production';
-    $appDebug = (bool)($config['app']['debug'] ?? false);
-    
-    error_reporting(E_ALL);
-    
-    if ($appDebug === true || $appEnv !== 'production') {
-        ini_set('display_errors', '1');
-        ini_set('display_startup_errors', '1');
-    } else {
-        ini_set('display_errors', '0');
-        ini_set('display_startup_errors', '0');
-        ini_set('log_errors', '1');
+
+declare(strict_types=1);
+
+use App\Application;
+use App\Http;
+use App\View;
+
+spl_autoload_register(static function (string $class): void {
+    $prefix = 'App\\';
+    if (strpos($class, $prefix) !== 0) {
+        return;
     }
-    
-    /*
-     * --------------------------------------------------------------------------
-     * Session
-     * --------------------------------------------------------------------------
-     */
-    
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        
-        $sessionName = $config['app']['session_name'] ?? 'ev_stats';
-        
-        session_name($sessionName);
-        
-        $isHttps =
-            (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
-        
-        session_set_cookie_params([
-            'httponly' => true,
-            'samesite' => 'Lax',
-            'secure'   => $isHttps,
-            'path'     => '/',
-        ]);
-        
-        session_start();
+    $relative = substr($class, strlen($prefix));
+    $file = __DIR__ . '/App/' . str_replace('\\', '/', $relative) . '.php';
+    if (is_file($file)) {
+        require_once $file;
     }
-    
-    /*
-     * --------------------------------------------------------------------------
-     * Database
-     * --------------------------------------------------------------------------
-     */
-    
-    $dbHost = (string)($config['db']['host'] ?? '');
-    $dbPort = (int)($config['db']['port'] ?? 3306);
-    $dbName = (string)($config['db']['name'] ?? '');
-    $dbUser = (string)($config['db']['user'] ?? '');
-    $dbPass = (string)($config['db']['pass'] ?? '');
-    
-    if ($dbHost === '' || $dbName === '' || $dbUser === '') {
-        throw new RuntimeException(
-            'Chybí konfigurace databáze. Zkontrolujte soubor .env.'
-        );
-    }
-    
-    $dsn = sprintf(
-        'mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
-        $dbHost,
-        $dbPort,
-        $dbName
-    );
-    
-    try {
-        
-        $pdo = new PDO(
-            $dsn,
-            $dbUser,
-            $dbPass,
-            [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
-            ]
-        );
-        
-    } catch (PDOException $e) {
-        
-        /*
-         * Skutečnou chybu zapíšeme do PHP error logu.
-         * Návštěvníkovi produkčního webu ji ale nezobrazujeme.
-         */
-        error_log(
-            'EV Stats database connection error: ' . $e->getMessage()
-        );
-        
-        if ($appDebug === true || $appEnv !== 'production') {
-            throw $e;
-        }
-        
-        http_response_code(500);
-        
-        exit(
-            'Nepodařilo se připojit k databázi. ' .
-            'Zkontrolujte prosím konfiguraci databáze.'
-        );
-    }
-    
-    /*
-     * --------------------------------------------------------------------------
-     * Helper functions
-     * --------------------------------------------------------------------------
-     */
-    
-    function h(?string $value): string
-    {
-        return htmlspecialchars(
-            (string)$value,
-            ENT_QUOTES,
-            'UTF-8'
-        );
-    }
-    
-    function cz($n, int $dec = 1): string
-    {
-        return number_format(
-            (float)$n,
-            $dec,
-            ',',
-            ' '
-        );
-    }
-    
-    function shortAddress(string $s): string
-    {
-        return preg_replace(
-            '/,\s*Czechia$/u',
-            '',
-            $s
-        ) ?? $s;
-    }
-    
-    function routeKey(string $from, string $to): string
-    {
-        return shortAddress($from)
-            . ' → '
-            . shortAddress($to);
-    }
-    
-    function displayRoute(?string $from, ?string $to): string
-    {
-        $from = trim((string)$from);
-        $to   = trim((string)$to);
-        
-        if ($from === '' && $to === '') {
-            return 'Bez údajů o trase';
-        }
-        
-        return routeKey(
-            $from !== '' ? $from : '—',
-            $to !== '' ? $to : '—'
-        );
-    }
-    
-    function parseCoord(?string $s): array
-    {
-        if (!$s || strpos($s, ',') === false) {
-            return [
-                null,
-                null,
-            ];
-        }
-        
-        [$a, $b] = array_map(
-            'trim',
-            explode(',', $s, 2)
-        );
-        
-        return [
-            is_numeric($a) ? (float)$a : null,
-            is_numeric($b) ? (float)$b : null,
-        ];
-    }
-    
-    function redirect(string $url): void
-    {
-        header('Location: ' . $url);
-        exit;
-    }
-    
-    function flash(string $message, string $type = 'ok'): void
-    {
-        $_SESSION['flash'] = [
-            'message' => $message,
-            'type'    => $type,
-        ];
-    }
-    
-    function getFlash(): ?array
-    {
-        $flash = $_SESSION['flash'] ?? null;
-        
-        unset($_SESSION['flash']);
-        
-        return $flash;
-    }
-    
-    function csrfToken(): string
-    {
-        if (empty($_SESSION['csrf'])) {
-            $_SESSION['csrf'] = bin2hex(
-                random_bytes(32)
-            );
-        }
-        
-        return $_SESSION['csrf'];
-    }
-    
-    function verifyCsrf(): void
-    {
-        $sessionToken = (string)($_SESSION['csrf'] ?? '');
-        $requestToken = (string)($_POST['csrf'] ?? '');
-        
-        if (
-            $sessionToken === ''
-            || $requestToken === ''
-            || !hash_equals($sessionToken, $requestToken)
-        ) {
-            throw new RuntimeException(
-                'Neplatný bezpečnostní token.'
-            );
-        }
-    }
-    
-    /*
-     * --------------------------------------------------------------------------
-     * Authentication
-     * --------------------------------------------------------------------------
-     */
-    
-    require_once __DIR__ . '/auth.php';
+});
+
+$config = require __DIR__ . '/config.php';
+$app = new Application($config, dirname(__DIR__));
+$pdo = $app->pdo();
+
+/*
+ * Tenká kompatibilní vrstva pro existující šablony. Veškerá aplikační logika
+ * je nyní ve třídách v src/App; tyto funkce pouze delegují, aby refaktor
+ * nemusel měnit desítky výpisů v HTML najednou.
+ */
+function h(?string $value): string { return View::h($value); }
+function cz($value, int $dec = 1): string { return View::cz($value, $dec); }
+function shortAddress(string $value): string { return View::shortAddress($value); }
+function routeKey(string $from, string $to): string { return View::routeKey($from, $to); }
+function displayRoute(?string $from, ?string $to): string { return View::displayRoute($from, $to); }
+function parseCoord(?string $value): array { return View::parseCoord($value); }
+function redirect(string $url): void { Http::redirect($url); }
+function flash(string $message, string $type = 'ok'): void { global $app; $app->session()->flash($message, $type); }
+function getFlash(): ?array { global $app; return $app->session()->pullFlash(); }
+function csrfToken(): string { global $app; return $app->session()->csrfToken(); }
+function verifyCsrf(): void { global $app; $app->session()->verifyCsrf(); }
+function usersExist(PDO $pdo = null): bool { global $app; return $app->auth()->usersExist(); }
+function currentUser(PDO $pdo = null): ?array { global $app; return $app->auth()->currentUser(); }
+function requireLogin(PDO $pdo = null): array { global $app; return $app->auth()->requireLogin(); }
+function requireAdmin(PDO $pdo = null): array { global $app; return $app->auth()->requireAdmin(); }
+function requireVehicleManager(PDO $pdo = null): array { global $app; return $app->auth()->requireVehicleManager(); }
+function isAdmin(array $user): bool { global $app; return $app->auth()->isAdmin($user); }
+function canManageVehicles(array $user): bool { global $app; return $app->auth()->canManageVehicles($user); }
+function allowedVehicles(PDO $pdo, array $user): array { global $app; return $app->auth()->allowedVehicles($user); }
+function canAccessVehicle(PDO $pdo, array $user, int $vehicleId): bool { global $app; return $app->auth()->canAccessVehicle($user, $vehicleId); }
+function selectVehicle(PDO $pdo, array $user): ?array { global $app; return $app->auth()->selectVehicle($user); }
+function createPasswordResetToken(PDO $pdo, int $userId, int $minutes = 60): string { global $app; return $app->auth()->createPasswordResetToken($userId, $minutes); }
+function resetUrl(string $token): string { global $app; return $app->auth()->resetUrl($token); }
+function sendPasswordResetEmail(string $to, string $name, string $url): bool { global $app; return $app->auth()->sendPasswordResetEmail($to, $name, $url); }

@@ -160,3 +160,51 @@ sql/migrate_v5.sql
 ```
 
 U nové instalace je změna již součástí `sql/schema.sql`.
+
+## Architektura po refaktoringu
+
+Aplikační logika je přesunuta do tříd v `src/App/` a veřejné PHP soubory v `public/` fungují jako tenké entrypointy / view controllery.
+
+Hlavní třídy:
+
+- `Application` – sestavení aplikace a přístup ke službám,
+- `Config` – objektová konfigurace,
+- `Database` – PDO připojení,
+- `Session` – session, flash zprávy a CSRF,
+- `AuthService` – autentizace, role a přístup k vozidlům,
+- `CsvImporter` – detekce a import MyŠkoda CSV,
+- `MigrationManager` – verzované DB migrace a tabulka `schema_migrations`,
+- `GitHubUpdater` – bezpečné stažení releasu z GitHubu, lokální záloha, migrace a nasazení,
+- `View` / `Http` – prezentační a HTTP utility.
+
+`src/bootstrap.php` obsahuje autoloader a sestavení `Application`. Kvůli minimalizaci rizika regresí ve stávajících HTML šablonách obsahuje také malou kompatibilní vrstvu pro prezentační helpery (`h()`, `cz()`, `flash()` apod.); doménová logika už v těchto funkcích není.
+
+## Aktualizace z GitHubu
+
+Administrátor může otevřít `update.php`. Aktualizátor používá repozitář:
+
+```text
+https://github.com/filipekp/ev_dashboard.git
+```
+
+Konfigurace v `.env`:
+
+```dotenv
+UPDATE_REPOSITORY=filipekp/ev_dashboard
+UPDATE_BRANCH=dev
+```
+
+Při aktualizaci aplikace:
+
+1. stáhne ZIP z GitHubu,
+2. zkontroluje strukturu balíčku,
+3. vytvoří zálohu spravovaných souborů do `.updates/`,
+4. spustí dosud neprovedené `sql/migrate_*.sql`,
+5. synchronizuje adresáře `public/`, `src/` a `sql/` a vybrané kořenové soubory,
+6. **nikdy nepřepisuje `.env`**.
+
+Adresář `.updates/` je blokovaný přes `.htaccess` a je v `.gitignore`.
+
+Migrace jsou evidované v tabulce `schema_migrations` včetně SHA-256 checksumu. Již jednou provedenou migraci proto neupravujte; vždy vytvořte nový soubor, např. `sql/migrate_v6.sql`, `sql/migrate_v7.sql` atd. Aktualizátor odmítne pokračovat, pokud zjistí, že již aplikovaná migrace byla zpětně změněna.
+
+Pro aktualizaci musí PHP umět HTTPS spojení na GitHub (cURL nebo `allow_url_fopen`) a mít rozšíření `ZipArchive`. PHP proces také musí mít právo zapisovat do adresáře aplikace.

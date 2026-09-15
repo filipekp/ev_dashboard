@@ -1,7 +1,7 @@
 <?php
   declare(strict_types=1);
   require dirname(__DIR__) . '/src/bootstrap.php';
-  $me = requireAdmin($pdo);
+  $me = $app->auth()->requireAdmin();
   try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       verifyCsrf();
@@ -78,9 +78,9 @@
         if (!$u || !(int)$u['active']) {
           throw new RuntimeException('Uživatel neexistuje nebo není aktivní.');
         }
-        $token = createPasswordResetToken($pdo, $id);
-        $url   = resetUrl($token);
-        $sent  = sendPasswordResetEmail($u['email'], $u['name'], $url);
+        $token = $app->auth()->createPasswordResetToken($id);
+        $url   = $app->auth()->resetUrl($token);
+        $sent  = $app->auth()->sendPasswordResetEmail($u['email'], $u['name'], $url);
         $msg   = $sent ? 'Odkaz pro obnovu hesla byl odeslán.' : 'Resetovací odkaz byl vytvořen, ale e-mail se nepodařilo odeslat.';
         if (!empty($config['app']['debug'])) {
           $msg .= ' ' . $url;
@@ -122,7 +122,7 @@
 <body>
 <header class="topbar"><a class="brand" href="index.php">⚡</a><b>Správa uživatelů</b>
   <div class="spacer"></div>
-  <a class="toplink" href="vehicles.php">Vozidla</a><a class="toplink" href="profile.php">Můj profil</a><a class="toplink"
+  <a class="toplink" href="vehicles.php">Vozidla</a><a class="toplink" href="update.php">Aktualizace</a><a class="toplink" href="profile.php">Můj profil</a><a class="toplink"
                                                                                                            href="index.php">Dashboard</a><a
     class="toplink" href="logout.php">Odhlásit</a></header>
 <main class="wrap narrow"><?php if ($flash): ?>

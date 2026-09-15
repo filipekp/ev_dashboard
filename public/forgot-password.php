@@ -1,7 +1,7 @@
 <?php
   declare(strict_types=1);
   require dirname(__DIR__) . '/src/bootstrap.php';
-  if (!usersExist($pdo)) {
+  if (!$app->auth()->usersExist()) {
     redirect('setup.php');
   }
   $message  = '';
@@ -17,9 +17,9 @@
       $q->execute([$email]);
       $u = $q->fetch();
       if ($u && (int)$u['active']) {
-        $token = createPasswordResetToken($pdo, (int)$u['id']);
-        $url   = resetUrl($token);
-        sendPasswordResetEmail($u['email'], $u['name'], $url);
+        $token = $app->auth()->createPasswordResetToken((int)$u['id']);
+        $url   = $app->auth()->resetUrl($token);
+        $app->auth()->sendPasswordResetEmail($u['email'], $u['name'], $url);
         if (!empty($config['app']['debug'])) {
           $debugUrl = $url;
         }

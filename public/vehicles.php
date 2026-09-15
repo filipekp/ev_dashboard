@@ -1,7 +1,7 @@
 <?php
   declare(strict_types=1);
   require dirname(__DIR__) . '/src/bootstrap.php';
-  $me = requireVehicleManager($pdo);
+  $me = $app->auth()->requireVehicleManager();
   try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       verifyCsrf();
@@ -69,7 +69,7 @@
         $pdo->commit();
         flash('Přiřazení vozidla bylo uloženo.');
       } elseif ($action === 'delete') {
-        if (!isAdmin($me)) {
+        if (!$app->auth()->isAdmin($me)) {
           throw new RuntimeException('Vozidlo může smazat pouze administrátor.');
         }
         $id = (int)$_POST['id'];
@@ -103,7 +103,7 @@
 </head>
 <body>
 <header class="topbar"><a class="brand" href="index.php">⚡</a><b>Správa vozidel</b>
-  <div class="spacer"></div><?php if (isAdmin($me)): ?><a class="toplink" href="users.php">Uživatelé</a><?php endif; ?><a class="toplink"
+  <div class="spacer"></div><?php if ($app->auth()->isAdmin($me)): ?><a class="toplink" href="users.php">Uživatelé</a><a class="toplink" href="update.php">Aktualizace</a><?php endif; ?><a class="toplink"
                                                                                                                           href="profile.php">Můj
     profil</a><a class="toplink" href="index.php">Dashboard</a><a class="toplink" href="logout.php">Odhlásit</a></header>
 <main class="wrap narrow"><?php if ($flash): ?>
@@ -152,7 +152,7 @@
         <button class="btn primary">Uložit přiřazení</button>
       </form>
     </div>
-    <?php if (isAdmin($me)): ?>
+    <?php if ($app->auth()->isAdmin($me)): ?>
       <form method="post" onsubmit="return confirm('Smazat vozidlo včetně všech importovaných jízd?')"><input type="hidden" name="csrf"
                                                                                                               value="<?= h(csrfToken()) ?>"><input
         type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= $v['id'] ?>">

@@ -1,7 +1,7 @@
 <?php
   declare(strict_types=1);
   require dirname(__DIR__) . '/src/bootstrap.php';
-  $user = requireLogin($pdo);
+  $user = $app->auth()->requireLogin();
 
   // Dokončení údajů nově automaticky vytvořeného vozidla. Tuto akci smí
   // provést i běžný uživatel, ale pouze pro vozidlo, které mu právě vzniklo importem.
@@ -10,7 +10,7 @@
       verifyCsrf();
       $vehicleId        = (int)($_POST['vehicle_id'] ?? 0);
       $sessionVehicleId = (int)($_SESSION['new_vehicle_id'] ?? 0);
-      if (!$vehicleId || $vehicleId !== $sessionVehicleId || !canAccessVehicle($pdo, $user, $vehicleId)) {
+      if (!$vehicleId || $vehicleId !== $sessionVehicleId || !$app->auth()->canAccessVehicle($user, $vehicleId)) {
         throw new RuntimeException('Údaje tohoto vozidla nelze upravit.');
       }
       $name    = trim((string)($_POST['name'] ?? ''));
@@ -45,8 +45,8 @@
     }
   }
 
-  $vehicles = allowedVehicles($pdo, $user);
-  $vehicle  = selectVehicle($pdo, $user);
+  $vehicles = $app->auth()->allowedVehicles($user);
+  $vehicle  = $app->auth()->selectVehicle($user);
   if (!$vehicle) {
     $flash = getFlash();
     ?>
@@ -62,8 +62,8 @@
   <header class="topbar">
     <div class="brand">⚡</div>
     <b>EV Stats</b>
-    <div class="spacer"></div><?php if (canManageVehicles($user)): ?><a class="toplink"
-                                                                        href="vehicles.php">Vozidla</a><?php endif; ?><?php if (isAdmin($user)): ?><a
+    <div class="spacer"></div><?php if ($app->auth()->canManageVehicles($user)): ?><a class="toplink"
+                                                                        href="vehicles.php">Vozidla</a><?php endif; ?><?php if ($app->auth()->isAdmin($user)): ?><a
       class="toplink" href="users.php">Uživatelé</a><?php endif; ?><a class="toplink" href="profile.php">👤 Profil</a><span
       class="user-chip"><?= h($user['name']) ?></span><a class="toplink" href="logout.php">Odhlásit</a></header>
   <main class="wrap narrow"><?php if ($flash): ?>
@@ -74,7 +74,7 @@
       <form action="upload.php" method="post" enctype="multipart/form-data" class="empty-upload"><input type="hidden" name="csrf"
                                                                                                         value="<?= h(csrfToken()) ?>"><input
           type="hidden" name="vehicle_id" value="0"><label class="btn primary">⬆ Nahrát CSV<input type="file" name="csv" accept=".csv,text/csv"
-                                                                                                  onchange="this.form.submit()"></label><?php if (canManageVehicles($user)): ?>
+                                                                                                  onchange="this.form.submit()"></label><?php if ($app->auth()->canManageVehicles($user)): ?>
           <a class="btn" href="vehicles.php">Přidat ručně</a><?php endif; ?></form>
     </section>
   </main>
@@ -280,8 +280,8 @@
   <div class="vehicle">
     <b><?= h($vehicle['name']) ?></b><span><?= cz((float)$vehicle['battery_kwh'], 0) ?> kWh</span><small>VIN: <?= h($vehicle['vin']) ?></small></div>
   <div class="spacer"></div>
-  <?php if (canManageVehicles($user)): ?><a class="toplink" href="vehicles.php">🚙 Vozidla</a><?php endif; ?><?php if (isAdmin($user)): ?><a
-    class="toplink" href="users.php">👥 Uživatelé</a><?php endif; ?>
+  <?php if ($app->auth()->canManageVehicles($user)): ?><a class="toplink" href="vehicles.php">🚙 Vozidla</a><?php endif; ?><?php if ($app->auth()->isAdmin($user)): ?><a
+    class="toplink" href="users.php">👥 Uživatelé</a><?php endif; ?><?php if ($app->auth()->isAdmin($user)): ?><a class="toplink" href="update.php">🔄 Aktualizace</a><?php endif; ?>
   <form action="upload.php" method="post" enctype="multipart/form-data" class="upload"><input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>"><input
       type="hidden" name="vehicle_id" value="<?= $vehicle['id'] ?>"><label>⬆ Nahrát CSV<input type="file" name="csv" accept=".csv,text/csv"
                                                                                               onchange="this.form.submit()"></label></form>
@@ -295,8 +295,8 @@
   </div>
   <div class="mobile-menu-account">Přihlášen: <strong><?= h($user['name']) ?></strong></div>
   <nav class="mobile-menu-links" aria-label="Mobilní navigace">
-    <?php if (canManageVehicles($user)): ?><a href="vehicles.php">🚙 <span>Vozidla</span></a><?php endif; ?>
-    <?php if (isAdmin($user)): ?><a href="users.php">👥 <span>Uživatelé</span></a><?php endif; ?>
+    <?php if ($app->auth()->canManageVehicles($user)): ?><a href="vehicles.php">🚙 <span>Vozidla</span></a><?php endif; ?>
+    <?php if ($app->auth()->isAdmin($user)): ?><a href="users.php">👥 <span>Uživatelé</span></a><a href="update.php">🔄 <span>Aktualizace</span></a><?php endif; ?>
     <form action="upload.php" method="post" enctype="multipart/form-data" class="mobile-menu-upload">
       <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
       <input type="hidden" name="vehicle_id" value="<?= $vehicle['id'] ?>">

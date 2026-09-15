@@ -1,7 +1,7 @@
 <?php
   declare(strict_types=1);
   require dirname(__DIR__) . '/src/bootstrap.php';
-  if (usersExist($pdo)) {
+  if ($app->auth()->usersExist()) {
     redirect('login.php');
   }
   $error = '';

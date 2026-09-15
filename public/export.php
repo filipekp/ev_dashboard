@@ -1,10 +1,10 @@
 <?php
   declare(strict_types=1);
   require dirname(__DIR__) . '/src/bootstrap.php';
-  $user = requireLogin($pdo);
+  $user = $app->auth()->requireLogin();
 
   $vehicleId = (int)($_GET['vehicle_id'] ?? 0);
-  if (!$vehicleId || !canAccessVehicle($pdo, $user, $vehicleId)) {
+  if (!$vehicleId || !$app->auth()->canAccessVehicle($user, $vehicleId)) {
     http_response_code(403);
     exit('K tomuto vozidlu nemáte přístup.');
   }

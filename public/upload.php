@@ -1,8 +1,8 @@
 <?php
     declare(strict_types=1);
     require dirname(__DIR__) . '/src/bootstrap.php';
-    require dirname(__DIR__) . '/src/import.php';
-    $user = requireLogin($pdo);
+    $user = $app->auth()->requireLogin();
+    $importer = $app->importer();
     
     if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_FILES['csv'])) {
         redirect('index.php');
@@ -22,7 +22,7 @@
         
         $tmpPath      = (string)$_FILES['csv']['tmp_name'];
         $originalName = (string)($_FILES['csv']['name'] ?? '');
-        $meta         = inspectTripCsv($tmpPath, $originalName);
+        $meta         = $importer->inspect($tmpPath, $originalName);
         $csvVin       = $meta['vin'];
         
         if ($csvVin !== NULL) {
@@ -33,7 +33,7 @@
             $vehicleId = (int)$q->fetchColumn();
             
             if ($vehicleId > 0) {
-                if (!canAccessVehicle($pdo, $user, $vehicleId)) {
+                if (!$app->auth()->canAccessVehicle($user, $vehicleId)) {
                     throw new RuntimeException('CSV patří již existujícímu vozidlu VIN ' . $csvVin . ', ke kterému nemáte přístup. Požádejte správce o přiřazení vozidla.');
                 }
             } else {
@@ -70,12 +70,12 @@
         } else {
             // Starší / ručně přejmenovaný export bez VIN v názvu: zachováme původní chování.
             $vehicleId = $selectedVehicleId;
-            if (!$vehicleId || !canAccessVehicle($pdo, $user, $vehicleId)) {
+            if (!$vehicleId || !$app->auth()->canAccessVehicle($user, $vehicleId)) {
                 throw new RuntimeException('Z názvu CSV se nepodařilo rozpoznat VIN. Vyberte vozidlo, ke kterému má být CSV importováno, nebo ponechte původní název exportu obsahující VIN.');
             }
         }
         
-        $r                      = importCsv($pdo, $vehicleId, $tmpPath, $originalName ?: NULL);
+        $r                      = $importer->import($vehicleId, $tmpPath, $originalName ?: NULL);
         $formatLabel            = ($r['format'] ?? '') === 'citigo_iv' ? 'Citigo iV' : 'MyŠkoda';
         $_SESSION['vehicle_id'] = $vehicleId;
         

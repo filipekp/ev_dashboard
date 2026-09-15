@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__) . '/src/bootstrap.php';
-if (!usersExist($pdo)) redirect('setup.php');
-if (currentUser($pdo)) redirect('index.php');
+if (!$app->auth()->usersExist()) redirect('setup.php');
+if ($app->auth()->currentUser()) redirect('index.php');
 $error=''; $flash=getFlash();
 if ($_SERVER['REQUEST_METHOD']==='POST') {
     try {

@@ -76,6 +76,8 @@
                 FILTER_VALIDATE_BOOLEAN
             ),
             'session_name' => env('SESSION_NAME', 'ev_stats'),
+            'name' => env('APP_NAME', 'EV Stats'),
+            'base_url' => env('APP_BASE_URL', ''),
         ],
         
         'db' => [
@@ -84,5 +86,12 @@
             'name' => env('DB_NAME', ''),
             'user' => env('DB_USER', ''),
             'pass' => env('DB_PASS', ''),
+        ],
+        'mail' => [
+            'from' => env('MAIL_FROM', ''),
+        ],
+        'update' => [
+            'repository' => env('UPDATE_REPOSITORY', 'filipekp/ev_dashboard'),
+            'branch' => env('UPDATE_BRANCH', 'dev'),
         ],
     ];

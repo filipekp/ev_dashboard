@@ -1,3 +1,5 @@
 .env
 .updates/
 VERSION
+storage/service/*
+!storage/service/.gitkeep

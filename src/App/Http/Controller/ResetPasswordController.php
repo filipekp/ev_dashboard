@@ -1,69 +1,10 @@
 <?php
-
-declare(strict_types=1);
-
-namespace App\Http\Controller;
-
-use App\Application;
-use App\Http;
-use RuntimeException;
-use Throwable;
-
+declare(strict_types=1); namespace App\Http\Controller; use App\Application; use App\Http; use RuntimeException; use Throwable;
 /**
- * Validates reset tokens and stores new passwords.
+ * Třída ResetPasswordController.
  *
  * @author    Pavel Filípek <pavel@filipek-czech.cz>
  * @copyright © 2026, Proclient s.r.o.
  * @created   15.09.2026
  */
-final class ResetPasswordController
-{
-    /** @var Application */
-    private $app;
-
-    public function __construct(Application $app)
-    {
-        $this->app = $app;
-    }
-
-    public function handle(): void
-    {
-        $pdo = $this->app->pdo();
-        $token = (string)($_GET['token'] ?? $_POST['token'] ?? '');
-        $row = null;
-        $error = '';
-        if ($token !== '') {
-            $q = $pdo->prepare('SELECT prt.id,prt.user_id,u.email FROM password_reset_tokens prt JOIN users u ON u.id=prt.user_id WHERE prt.token_hash=? AND prt.used_at IS NULL AND prt.expires_at>NOW() AND u.active=1 LIMIT 1');
-            $q->execute([hash('sha256', $token)]);
-            $row = $q->fetch();
-        }
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            try {
-                $this->app->session()->verifyCsrf();
-                if (!$row) {
-                    throw new RuntimeException('Odkaz je neplatný nebo již vypršel.');
-                }
-                $pass = (string)$_POST['password'];
-                $again = (string)$_POST['password_again'];
-                if (strlen($pass) < 8) {
-                    throw new RuntimeException('Heslo musí mít alespoň 8 znaků.');
-                }
-                if ($pass !== $again) {
-                    throw new RuntimeException('Hesla se neshodují.');
-                }
-                $pdo->beginTransaction();
-                $pdo->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash($pass, PASSWORD_DEFAULT), (int)$row['user_id']]);
-                $pdo->prepare('UPDATE password_reset_tokens SET used_at=NOW() WHERE user_id=? AND used_at IS NULL')->execute([(int)$row['user_id']]);
-                $pdo->commit();
-                $this->app->session()->flash('Heslo bylo změněno. Nyní se můžete přihlásit.');
-                Http::redirect('login.php');
-            } catch (Throwable $e) {
-                if ($pdo->inTransaction()) {
-                    $pdo->rollBack();
-                }
-                $error = $e->getMessage();
-            }
-        }
-        $this->app->template()->render('reset-password', ['app' => $this->app, 'token' => $token, 'row' => $row, 'error' => $error]);
-    }
-}
+final class ResetPasswordController { private $app; public function __construct(Application $app){$this->app=$app;} public function handle(): void {$pdo=$this->app->pdo();$token=(string)($_GET['token']??$_POST['token']??'');$row=null;$error='';if($token!==''){$q=$pdo->prepare('SELECT prt.id,prt.user_id,u.email FROM password_reset_tokens prt JOIN users u ON u.id=prt.user_id WHERE prt.token_hash=? AND prt.used_at IS NULL AND prt.expires_at>NOW() AND u.active=1 LIMIT 1');$q->execute([hash('sha256',$token)]);$row=$q->fetch();}if($_SERVER['REQUEST_METHOD']==='POST'){try{$this->app->session()->verifyCsrf();if(!$row)throw new RuntimeException('Odkaz je neplatný nebo již vypršel.');$pass=(string)$_POST['password'];$again=(string)$_POST['password_again'];if(strlen($pass)<8)throw new RuntimeException('Heslo musí mít alespoň 8 znaků.');if($pass!==$again)throw new RuntimeException('Hesla se neshodují.');$pdo->beginTransaction();$pdo->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash($pass,PASSWORD_DEFAULT),(int)$row['user_id']]);$pdo->prepare('UPDATE password_reset_tokens SET used_at=NOW() WHERE user_id=? AND used_at IS NULL')->execute([(int)$row['user_id']]);$pdo->commit();$this->app->session()->flash('Heslo bylo změněno. Nyní se můžete přihlásit.');Http::redirect('login.php');}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();$error=$e->getMessage();}}$this->app->template()->render('reset-password',['app'=>$this->app,'token'=>$token,'row'=>$row,'error'=>$error]);}}

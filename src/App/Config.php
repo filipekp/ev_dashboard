@@ -3,8 +3,9 @@
 declare(strict_types=1);
 
 namespace App;
+
 /**
- * Provides access to nested application configuration values.
+ * Třída Config.
  *
  * @author    Pavel Filípek <pavel@filipek-czech.cz>
  * @copyright © 2026, Proclient s.r.o.
@@ -20,6 +21,7 @@ final class Config
     {
         $this->values = $values;
     }
+
     /** @return mixed */
     public function get(string $key, $default = null)
     {
@@ -32,6 +34,7 @@ final class Config
         }
         return $value;
     }
+
     /** @return array<string,mixed> */
     public function all(): array
     {

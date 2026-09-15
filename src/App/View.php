@@ -3,8 +3,9 @@
 declare(strict_types=1);
 
 namespace App;
+
 /**
- * Contains presentation helpers shared by templates.
+ * Třída View.
  *
  * @author    Pavel Filípek <pavel@filipek-czech.cz>
  * @copyright © 2026, Proclient s.r.o.
@@ -16,6 +17,7 @@ final class View
     {
         return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
     }
+
     /** @param int|float|string|null $number */
     public static function cz($number, int $decimals = 1): string
     {
@@ -39,8 +41,9 @@ final class View
         if ($from === '' && $to === '') {
             return 'Bez údajů o trase';
         }
-        return self::routeKey($from !== ''?$from:'—', $to !== ''?$to:'—');
+        return self::routeKey($from !== '' ? $from : '—', $to !== '' ? $to : '—');
     }
+
     /** @return array{0:?float,1:?float} */
     public static function parseCoord(?string $value): array
     {
@@ -48,6 +51,6 @@ final class View
             return [null, null];
         }
         [$a, $b] = array_map('trim', explode(',', $value, 2));
-        return [is_numeric($a)?(float)$a:null, is_numeric($b)?(float)$b:null];
+        return [is_numeric($a) ? (float)$a : null, is_numeric($b) ? (float)$b : null];
     }
 }

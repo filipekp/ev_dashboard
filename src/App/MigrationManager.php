@@ -9,7 +9,7 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Discovers, validates and applies database migrations.
+ * Třída MigrationManager.
  *
  * @author    Pavel Filípek <pavel@filipek-czech.cz>
  * @copyright © 2026, Proclient s.r.o.
@@ -17,10 +17,8 @@ use Throwable;
  */
 final class MigrationManager
 {
-    /** @var PDO */
-    private $pdo;
-    /** @var string */
-    private $migrationDir;
+    /** @var PDO */ private $pdo;
+    /** @var string */ private $migrationDir;
 
     public function __construct(PDO $pdo, string $migrationDir)
     {
@@ -37,6 +35,7 @@ final class MigrationManager
             applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci");
     }
+
     /** @return array<int,array<string,mixed>> */
     public function status(?string $directory = null): array
     {
@@ -49,7 +48,7 @@ final class MigrationManager
         $result = [];
         foreach ($this->files($directory) as $file) {
             $name = basename($file);
-            $checksum = hash_file('sha256', $file)?:'';
+            $checksum = hash_file('sha256', $file) ?: '';
             $row = $applied[$name] ?? null;
             $result[] = [
                 'migration' => $name,
@@ -62,6 +61,7 @@ final class MigrationManager
         }
         return $result;
     }
+
     /** @return string[] names of applied migrations */
     public function migrate(?string $directory = null): array
     {
@@ -70,6 +70,7 @@ final class MigrationManager
         $done = [];
         $check = $this->pdo->prepare('SELECT checksum FROM schema_migrations WHERE migration=?');
         $insert = $this->pdo->prepare('INSERT INTO schema_migrations(migration,checksum) VALUES(?,?)');
+
         foreach ($this->files($directory) as $file) {
             $name = basename($file);
             $checksum = hash_file('sha256', $file);
@@ -84,6 +85,7 @@ final class MigrationManager
                 }
                 continue;
             }
+
             $sql = file_get_contents($file);
             if ($sql === false) {
                 throw new RuntimeException('Nelze načíst migraci ' . $name . '.');
@@ -101,25 +103,25 @@ final class MigrationManager
         }
         return $done;
     }
+
     /** @return string[] */
     private function files(?string $directory): array
     {
-        $dir = rtrim($directory?:$this->migrationDir, '/\\');
-        $files = glob($dir . '/migrate_*.sql')?: [];
-        usort($files, static function (string $a, string $b): int
-        {
+        $dir = rtrim($directory ?: $this->migrationDir, '/\\');
+        $files = glob($dir . '/migrate_*.sql') ?: [];
+        usort($files, static function (string $a, string $b): int {
             return strnatcasecmp(basename($a), basename($b));
-        }
-        );
+        });
         return $files;
     }
+
     /** @return string[] */
     private function splitStatements(string $sql): array
     {
         // Migrace v projektu neobsahují stored procedury; jednoduché dělení je proto záměrně čitelné.
         $sql = preg_replace('/^\s*USE\s+[^;]+;\s*$/mi', '', $sql) ?? $sql;
         $sql = preg_replace('/^\s*--.*$/m', '', $sql) ?? $sql;
-        $parts = preg_split('/;\s*(?:\r?\n|$)/', $sql)?: [];
+        $parts = preg_split('/;\s*(?:\r?\n|$)/', $sql) ?: [];
         $result = [];
         foreach ($parts as $part) {
             $part = trim($part);
@@ -150,7 +152,7 @@ final class MigrationManager
             }
             $file = $this->migrationDir . '/' . $name;
             if (is_file($file)) {
-                $checksum = hash_file('sha256', $file)?:hash('sha256', $name);
+                $checksum = hash_file('sha256', $file) ?: hash('sha256', $name);
                 $insert->execute([$name, $checksum]);
             }
         }

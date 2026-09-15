@@ -3,8 +3,9 @@
 declare(strict_types=1);
 
 namespace App;
+
 /**
- * Reads metadata about the currently installed application version.
+ * Třída AppVersion.
  *
  * @author    Pavel Filípek <pavel@filipek-czech.cz>
  * @copyright © 2026, Proclient s.r.o.
@@ -12,13 +13,13 @@ namespace App;
  */
 final class AppVersion
 {
-    /** @var string */
-    private $root;
+    /** @var string */ private $root;
 
     public function __construct(string $root)
     {
         $this->root = rtrim($root, '/\\');
     }
+
     /** @return array<string,mixed> */
     public function info(): array
     {
@@ -30,8 +31,8 @@ final class AppVersion
             }
         }
         $versionFile = $this->root . '/VERSION';
-        $version = is_file($versionFile)?trim((string)@file_get_contents($versionFile)): 'local';
-        return ['version' => $version !== ''?$version:'local', 'channel' => 'local'];
+        $version = is_file($versionFile) ? trim((string)@file_get_contents($versionFile)) : 'local';
+        return ['version' => $version !== '' ? $version : 'local', 'channel' => 'local'];
     }
 
     public function label(): string

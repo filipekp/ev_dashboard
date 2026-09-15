@@ -9,7 +9,7 @@ use PDO;
 use PDOException;
 
 /**
- * Handles authentication, authorization and password reset operations.
+ * Třída AuthService.
  *
  * @author    Pavel Filípek <pavel@filipek-czech.cz>
  * @copyright © 2026, Proclient s.r.o.
@@ -17,14 +17,11 @@ use PDOException;
  */
 final class AuthService
 {
-    /** @var PDO */
-    private $pdo;
-    /** @var Config */
-    private $config;
-    /** @var array<string,mixed>|null */
-    private $currentUser;
-    /** @var bool */
-    private $currentUserLoaded = false;
+    /** @var PDO */ private $pdo;
+    /** @var Config */ private $config;
+    /** @var array<string,mixed>|null */ private $currentUser;
+    /** @var bool */ private $currentUserLoaded = false;
+
     public function __construct(PDO $pdo, Config $config)
     {
         $this->pdo = $pdo;
@@ -39,6 +36,7 @@ final class AuthService
             return false;
         }
     }
+
     /** @return array<string,mixed>|null */
     public function currentUser(): ?array
     {
@@ -60,6 +58,7 @@ final class AuthService
         $this->currentUser = $user;
         return $user;
     }
+
     /** @return array<string,mixed> */
     public function requireLogin(): array
     {
@@ -69,6 +68,7 @@ final class AuthService
         }
         return $user;
     }
+
     /** @return array<string,mixed> */
     public function requireAdmin(): array
     {
@@ -79,6 +79,7 @@ final class AuthService
         }
         return $user;
     }
+
     /** @return array<string,mixed> */
     public function requireVehicleManager(): array
     {
@@ -89,16 +90,19 @@ final class AuthService
         }
         return $user;
     }
+
     /** @param array<string,mixed> $user */
     public function isAdmin(array $user): bool
     {
         return ($user['role'] ?? '') === 'admin';
     }
+
     /** @param array<string,mixed> $user */
     public function canManageVehicles(array $user): bool
     {
         return in_array((string)($user['role'] ?? ''), ['admin', 'manager'], true);
     }
+
     /** @param array<string,mixed> $user @return array<int,array<string,mixed>> */
     public function allowedVehicles(array $user): array
     {
@@ -109,6 +113,7 @@ final class AuthService
         $q->execute([(int)$user['id']]);
         return $q->fetchAll();
     }
+
     /** @param array<string,mixed> $user */
     public function canAccessVehicle(array $user, int $vehicleId): bool
     {
@@ -121,6 +126,7 @@ final class AuthService
         $q->execute([(int)$user['id'], $vehicleId]);
         return (bool)$q->fetchColumn();
     }
+
     /** @param array<string,mixed> $user @return array<string,mixed>|null */
     public function selectVehicle(array $user): ?array
     {
@@ -157,7 +163,7 @@ final class AuthService
     {
         $base = rtrim((string)$this->config->get('app.base_url', ''), '/');
         if ($base === '') {
-            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')?'https':'http';
+            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             $path = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
             $base = $scheme . '://' . $host . $path;

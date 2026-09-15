@@ -52,18 +52,15 @@ $navCurrent = static function (string $page) use ($navPage): string {
     <div class="spacer"></div>
 
     <nav class="desktop-nav" aria-label="Hlavní navigace">
-        <a class="toplink<?= $navCurrent('garage.php') ?>" href="garage.php">🚘 Garage</a>
         <a class="toplink<?= $navCurrent('index.php') ?>" href="index.php<?= $navVehicleId ? '?vehicle_id=' . $navVehicleId : '' ?>">📊 Dashboard</a>
-        <?php if ($navHasVehicle): ?>
-            <a class="toplink<?= $navCurrent('operations.php') ?>" href="operations.php?vehicle_id=<?= $navVehicleId ?>">🧾 Provoz</a>
-        <?php endif; ?>
 
         <details class="nav-dropdown">
             <summary class="toplink">🚙 Vozidla <span class="nav-chevron">▾</span></summary>
             <div class="nav-dropdown-menu">
                 <a href="index.php?add_vehicle=1">➕ Přidat vozidlo</a>
+                <?php if ($navHasVehicle): ?><a href="operations.php?vehicle_id=<?= $navVehicleId ?>">🧾 Provoz</a><?php endif; ?>
+                <a class="<?= $navCurrent('garage.php') ?>" href="garage.php">🚘 Garage</a>
                 <?php if ($navCanManageVehicles): ?><a href="vehicles.php">⚙️ Správa vozidel</a><?php endif; ?>
-                <?php if ($navHasVehicle): ?><a href="operations.php?vehicle_id=<?= $navVehicleId ?>">🧾 Provoz aktuálního vozu</a><?php endif; ?>
             </div>
         </details>
 

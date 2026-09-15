@@ -71,6 +71,19 @@ jobs:
           echo "package=dist/${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
           echo "checksum=dist/${PACKAGE_NAME}.sha256" >> "$GITHUB_OUTPUT"
 
+      - name: Generate changelog from commits
+        id: changelog
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          .github/scripts/generate-release-notes.sh "$TAG" "${RUNNER_TEMP}/release-notes.md"
+          echo "notes=${RUNNER_TEMP}/release-notes.md" >> "$GITHUB_OUTPUT"
+
+          echo "Generated release notes:"
+          cat "${RUNNER_TEMP}/release-notes.md"
+
       - name: Decide release type
         id: release_type
         shell: bash
@@ -91,6 +104,7 @@ jobs:
           TAG: ${{ github.ref_name }}
           PACKAGE: ${{ steps.package.outputs.package }}
           CHECKSUM: ${{ steps.package.outputs.checksum }}
+          RELEASE_NOTES: ${{ steps.changelog.outputs.notes }}
           PRERELEASE: ${{ steps.release_type.outputs.prerelease }}
         run: |
           set -euo pipefail
@@ -100,7 +114,7 @@ jobs:
             "$PACKAGE"
             "$CHECKSUM"
             --verify-tag
-            --generate-notes
+            --notes-file "$RELEASE_NOTES"
             --title "EV Stats ${TAG}"
           )
 

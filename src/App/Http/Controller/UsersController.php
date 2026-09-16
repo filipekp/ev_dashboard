@@ -108,7 +108,7 @@ final class UsersController
 
         $pdo = $this->app->pdo();
         $pdo->beginTransaction();
-        $query = $pdo->prepare('INSERT INTO users(name,email,password_hash,role,parent_user_id,active) VALUES(?,?,?,?,?,1)');
+        $query = $pdo->prepare('INSERT INTO users(name,email,password_hash,role,parent_user_id,active,email_verified_at) VALUES(?,?,?,?,?,1,NOW())');
         $query->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $role, $parentId]);
         $userId = (int)$pdo->lastInsertId();
         $this->app->userAccess()->syncAssignments(

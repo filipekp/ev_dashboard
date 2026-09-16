@@ -90,6 +90,17 @@
         'mail' => [
             'from' => env('MAIL_FROM', ''),
         ],
+        'registration' => [
+            'parent_admin_id' => (int)env('REGISTRATION_PARENT_ADMIN_ID', '1'),
+            'admin_notify_email' => env('REGISTRATION_ADMIN_NOTIFY_EMAIL', ''),
+            'verification_minutes' => (int)env('REGISTRATION_VERIFICATION_MINUTES', '1440'),
+        ],
+        'recaptcha' => [
+            'site_key' => env('RECAPTCHA_SITE_KEY', ''),
+            'secret_key' => env('RECAPTCHA_SECRET_KEY', ''),
+            'minimum_score' => (float)env('RECAPTCHA_MINIMUM_SCORE', '0.5'),
+            'expected_hostname' => env('RECAPTCHA_EXPECTED_HOSTNAME', ''),
+        ],
         'update' => [
             'repository' => env('UPDATE_REPOSITORY', 'filipekp/ev_dashboard'),
             'channel' => strtolower((string)env('UPDATE_CHANNEL', 'release')),

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
     role ENUM('admin','manager','user') NOT NULL DEFAULT 'user',
     parent_user_id BIGINT UNSIGNED NULL,
     active TINYINT(1) NOT NULL DEFAULT 1,
+    email_verified_at DATETIME NULL,
     default_vehicle_id BIGINT UNSIGNED NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -109,6 +110,19 @@ CREATE TABLE IF NOT EXISTS trips (
     KEY idx_vehicle_started (vehicle_id, started_at),
     KEY idx_vehicle_route (vehicle_id, start_address(80), end_address(80)),
     CONSTRAINT fk_trips_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
+
+
+CREATE TABLE IF NOT EXISTS registration_verification_tokens (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_registration_token_user (user_id),
+    KEY idx_registration_token_expiry (expires_at, used_at),
+    CONSTRAINT fk_registration_token_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
 
 

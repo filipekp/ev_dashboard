@@ -27,6 +27,7 @@ use App\Service\AnalyticsService;
 use App\Service\DashboardService;
 use App\Service\DocumentImportService;
 use App\Service\ImportService;
+use App\Service\RegistrationService;
 use App\Service\VehicleMediaService;
 use App\Service\VehicleOperationService;
 use App\Service\VehicleTimelineService;
@@ -83,6 +84,9 @@ final class Application
     /** @var UserAccessService|null */
     private $userAccess;
 
+    /** @var RegistrationService|null */
+    private $registration;
+
     /** @var VehicleMediaRepository|null */
     private $vehicleMedia;
 
@@ -125,6 +129,15 @@ final class Application
         }
 
         return $this->userAccess;
+    }
+
+    public function registration(): RegistrationService
+    {
+        if ($this->registration === null) {
+            $this->registration = new RegistrationService($this->pdo(), $this->config);
+        }
+
+        return $this->registration;
     }
 
     public function root(): string

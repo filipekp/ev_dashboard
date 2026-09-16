@@ -4309,3 +4309,32 @@ body.modal-open { overflow: hidden; }
 .privacy-summary-stats b, .privacy-summary-stats small { display: block; }
 .privacy-summary-stats small { margin-top: 4px; opacity: .65; }
 @media (max-width: 760px) { .privacy-summary { align-items: stretch; flex-direction: column; } }
+
+/* v17: veřejná registrace */
+.auth-card-wide {
+  width: min(520px, 100%);
+}
+
+.auth-action {
+  display: block;
+  margin-top: 16px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.registration-honeypot {
+  position: absolute !important;
+  left: -10000px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}
+
+.recaptcha-note {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+

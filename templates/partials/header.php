@@ -27,18 +27,24 @@
     <link rel="stylesheet" href="assets/app.css?v=<?= $stylesheetVersion ?>">
     <meta name="author" content="Pavel Filípek <pavel@filipek-czech.cz>">
 
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-J9STJ7QW39"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
+    <?php
+    $analyticsUser = isset($app) ? $app->auth()->currentUser() : null;
+    $analyticsEnabled = !($analyticsUser && $app->auth()->isAdmin($analyticsUser));
+    ?>
+    <?php if ($analyticsEnabled): ?>
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-J9STJ7QW39"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
 
-        function gtag() {
-            dataLayer.push(arguments);
-        }
+            function gtag() {
+                dataLayer.push(arguments);
+            }
 
-        gtag('js', new Date());
-        gtag('config', 'G-J9STJ7QW39');
-    </script>
+            gtag('js', new Date());
+            gtag('config', 'G-J9STJ7QW39');
+        </script>
+    <?php endif; ?>
 
     <?= $pageHead ?>
 </head>

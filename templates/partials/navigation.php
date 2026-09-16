@@ -57,7 +57,9 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
         <?php if ($navCanManageVehicles || $navIsAdmin): ?>
             <small>SPRÁVA</small>
             <?php if ($navCanManageVehicles): ?><a class="<?= $navCurrent('vehicles.php') ?>" href="vehicles.php"><span>⚙</span> Vozidla</a><?php endif; ?>
-            <?php if ($navCanManageVehicles): ?><a class="<?= $navCurrent('users.php') ?>" href="users.php"><span>♙</span> Uživatelé</a><?php endif; ?><?php if ($navIsAdmin): ?><a class="<?= $navCurrent('update.php') ?>" href="update.php"><span>↻</span> Aktualizace</a><?php endif; ?>
+            <?php if ($navCanManageVehicles): ?><a class="<?= $navCurrent('users.php') ?>" href="users.php"><span>♙</span> Uživatelé</a><?php endif; ?>
+            <?php if ($navIsAdmin): ?><a class="<?= $navCurrent('import-monitoring.php') ?>" href="import-monitoring.php"><span>⌁</span> Monitoring importů</a><?php endif; ?>
+            <?php if ($navIsAdmin): ?><a class="<?= $navCurrent('update.php') ?>" href="update.php"><span>↻</span> Aktualizace</a><?php endif; ?>
         <?php endif; ?>
     </nav>
 
@@ -78,7 +80,7 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
     <a class="<?= $navCurrent('garage.php') ?>" href="garage.php"><span>◈</span><small>Garáž</small></a>
     <a class="mobile-add" href="<?= $navHasVehicle ? 'import.php?vehicle_id=' . $navVehicleId : 'index.php?add_vehicle=1' ?>"><span>＋</span><small>Přidat</small></a>
     <?php if ($navHasVehicle): ?><a class="<?= $navCurrent('operations.php') ?>" href="operations.php?vehicle_id=<?= $navVehicleId ?>"><span>↗</span><small>Provoz</small></a><?php else: ?><a href="index.php?add_vehicle=1"><span>＋</span><small>Vozidlo</small></a><?php endif; ?>
-    <button class="mobile-more-trigger<?= in_array($navPage, ['timeline.php', 'import.php', 'documents.php', 'vehicles.php', 'users.php', 'update.php', 'profile.php'], TRUE) ? ' is-active' : '' ?>" type="button" data-mobile-more-open aria-haspopup="dialog" aria-controls="mobileMoreMenu" aria-expanded="false"><span>☰</span><small>Více</small></button>
+    <button class="mobile-more-trigger<?= in_array($navPage, ['timeline.php', 'import.php', 'documents.php', 'vehicles.php', 'users.php', 'import-monitoring.php', 'update.php', 'profile.php'], TRUE) ? ' is-active' : '' ?>" type="button" data-mobile-more-open aria-haspopup="dialog" aria-controls="mobileMoreMenu" aria-expanded="false"><span>☰</span><small>Více</small></button>
 </nav>
 
 <div class="mobile-more-backdrop" data-mobile-more-backdrop hidden></div>
@@ -100,6 +102,7 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
             <a class="<?= $navCurrent('users.php') ?>" href="users.php"><span>♙</span><div><b>Uživatelé</b><small>Hierarchie a oprávnění</small></div><i>›</i></a>
         <?php endif; ?>
         <?php if ($navIsAdmin): ?>
+            <a class="<?= $navCurrent('import-monitoring.php') ?>" href="import-monitoring.php"><span>⌁</span><div><b>Monitoring importů</b><small>Běhy, chyby a dokumentové importy</small></div><i>›</i></a>
             <a class="<?= $navCurrent('update.php') ?>" href="update.php"><span>↻</span><div><b>Aktualizace</b><small>Verze aplikace a updater</small></div><i>›</i></a>
         <?php endif; ?>
         <a class="<?= $navCurrent('profile.php') ?>" href="profile.php"><span class="avatar-mini"><?= h(mb_strtoupper(mb_substr((string)($navUser['name'] ?? 'U'), 0, 1))) ?></span><div><b>Můj profil</b><small><?= h((string)($navUser['name'] ?? 'Uživatel')) ?></small></div><i>›</i></a>

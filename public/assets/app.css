@@ -4345,3 +4345,50 @@ body.modal-open { overflow: hidden; }
   margin-left: 0;
   padding: 12px 20px 4px;
 }
+
+/* v4.x — admin monitoring importů */
+.import-monitoring-page { max-width: 1500px; }
+.monitoring-hero { display:flex; justify-content:space-between; align-items:flex-end; gap:24px; margin-bottom:18px; }
+.monitoring-hero h1 { margin:5px 0 8px; font-size:32px; }
+.monitoring-hero p { margin:0; max-width:760px; color:var(--muted); }
+.eyebrow { display:block; color:#7fb3df; font-size:10px; font-weight:900; letter-spacing:.16em; }
+.monitoring-period { min-width:230px; padding:14px 16px; border:1px solid var(--line); border-radius:14px; background:var(--panel2); }
+.monitoring-period small,.monitoring-period b,.monitoring-period span { display:block; }
+.monitoring-period small,.monitoring-period span { color:var(--muted); }
+.monitoring-period b { margin:3px 0; font-size:15px; color:#fff; }
+.monitoring-filters { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)) auto; gap:12px; align-items:end; margin-bottom:18px; }
+.monitoring-filters label { display:grid; gap:6px; color:#91a9c5; font-size:11px; font-weight:800; }
+.monitoring-kpis { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:22px; }
+.monitoring-kpi { padding:17px; border:1px solid var(--line); border-radius:16px; background:linear-gradient(180deg,rgba(22,34,56,.95),rgba(13,22,39,.95)); }
+.monitoring-kpi span,.monitoring-kpi small { display:block; color:var(--muted); }
+.monitoring-kpi strong { display:block; margin:7px 0 5px; color:#fff; font-size:29px; line-height:1; }
+.monitoring-kpi small b { display:inline; color:#78e5c0; }
+.monitoring-kpi small em { color:#ff9cab; font-style:normal; font-weight:800; }
+.monitoring-kpi.has-alert { border-color:rgba(251,113,133,.42); box-shadow:inset 0 0 0 1px rgba(251,113,133,.06); }
+.monitoring-kpi.has-warning { border-color:rgba(250,204,21,.35); }
+.monitoring-section { padding:0; overflow:hidden; }
+.monitoring-section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:18px 20px 14px; border-bottom:1px solid var(--line); }
+.monitoring-section-head h2 { margin:3px 0 0; font-size:19px; }
+.monitoring-count { display:inline-flex; min-width:32px; height:32px; align-items:center; justify-content:center; border-radius:999px; background:var(--panel2); border:1px solid var(--line); color:#cfe2f5; font-size:12px; font-weight:900; }
+.monitoring-table { min-width:1120px; }
+.monitoring-table td { vertical-align:top; }
+.monitoring-table td small { display:block; margin-top:4px; color:var(--muted); max-width:260px; overflow:hidden; text-overflow:ellipsis; }
+.monitoring-status { display:inline-flex; align-items:center; padding:5px 9px; border:1px solid var(--line); border-radius:999px; font-size:10px; font-weight:900; white-space:nowrap; }
+.monitoring-status.is-success { color:#75e6bd; border-color:rgba(117,230,189,.25); background:rgba(117,230,189,.07); }
+.monitoring-status.is-error { color:#fda4af; border-color:rgba(253,164,175,.28); background:rgba(253,164,175,.07); }
+.monitoring-status.is-running { color:#93c5fd; border-color:rgba(147,197,253,.25); background:rgba(147,197,253,.07); }
+.monitoring-status.is-warning { color:#fde68a; border-color:rgba(253,230,138,.25); background:rgba(253,230,138,.06); }
+.source-chip { display:inline-block; padding:4px 7px; border-radius:7px; background:#17263c; border:1px solid #2c405d; color:#a8cced; font-size:10px; font-weight:900; }
+.monitoring-error-cell { max-width:480px; }
+.monitoring-error-cell code,.monitoring-inline-error { display:block; max-width:480px; white-space:normal; overflow-wrap:anywhere; color:#ffb1bc; font-size:11px; line-height:1.45; }
+.monitoring-inline-error { margin-bottom:5px; }
+.empty-state-inline { padding:22px 20px; color:var(--muted); }
+@media (max-width: 1150px) {
+  .monitoring-kpis { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .monitoring-filters { grid-template-columns:repeat(2,minmax(160px,1fr)); }
+}
+@media (max-width: 720px) {
+  .monitoring-hero { display:block; }
+  .monitoring-period { margin-top:14px; min-width:0; }
+  .monitoring-kpis,.monitoring-filters { grid-template-columns:1fr; }
+}

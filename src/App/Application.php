@@ -17,6 +17,7 @@ use App\Document\Parser\DocumentParserRegistry;
 use App\Document\Parser\EonDriveInvoiceParser;
 use App\Document\Parser\JsonDocumentParser;
 use App\Document\Parser\PowerpassElliInvoiceParser;
+use App\Repository\AdminImportMonitoringRepository;
 use App\Repository\DocumentRepository;
 use App\Repository\IntegrationImportRunRepository;
 use App\Repository\TripRepository;
@@ -73,6 +74,9 @@ final class Application
 
     /** @var IntegrationImportRunRepository|null */
     private $integrationImportRuns;
+
+    /** @var AdminImportMonitoringRepository|null */
+    private $adminImportMonitoring;
 
     /** @var VehicleRepository|null */
     private $vehicles;
@@ -208,6 +212,15 @@ final class Application
         }
 
         return $this->integrationImportRuns;
+    }
+
+    public function adminImportMonitoring(): AdminImportMonitoringRepository
+    {
+        if ($this->adminImportMonitoring === null) {
+            $this->adminImportMonitoring = new AdminImportMonitoringRepository($this->pdo());
+        }
+
+        return $this->adminImportMonitoring;
     }
 
     public function vehicleOperations(): VehicleOperationRepository

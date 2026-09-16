@@ -84,7 +84,7 @@ $powertrainLabels = [
         ?>
           <tr>
             <td><div class="table-primary"><strong><?= h($v['name']) ?></strong><small><?= h($manufacturerLabels[strtoupper((string)($v['manufacturer'] ?? 'OTHER'))] ?? (string)$v['manufacturer']) ?></small></div></td>
-            <td><span class="powertrain-badge"><?= h($powertrainLabels[$powertrain] ?? $powertrain) ?></span></td>
+            <td style="position: relative;"><span class="powertrain-badge"><?= h($powertrainLabels[$powertrain] ?? $powertrain) ?></span></td>
             <td><div class="table-primary"><span><?= h($v['vin']) ?></span><small><?= h((string)($v['registration_plate'] ?? '')) ?: 'Bez SPZ' ?></small></div></td>
             <td><span class="count-badge"><?= count($assigned[$vehicleId] ?? []) ?></span></td>
             <td><span class="count-badge"><?= (int)$v['trip_count'] ?></span></td>

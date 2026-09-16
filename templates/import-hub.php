@@ -1,4 +1,10 @@
-<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><?php require __DIR__ . '/partials/pwa-head.php'; ?><title>Import Hub – EV Stats</title><link rel="stylesheet" href="assets/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/app.css') ?>"></head><body><?php $navTitle='Import Hub'; require __DIR__.'/partials/navigation.php';?><main class="wrap revolution-wrap">
+<?php
+$pageTitle = 'Import Hub';
+$showNavigation = true;
+$navTitle = 'Import Hub';
+require __DIR__ . '/partials/header.php';
+?>
+<main class="wrap revolution-wrap">
 <section class="page-hero"><div><span class="eyebrow">UNIVERZÁLNÍ VSTUP DAT</span><h1>Import Hub</h1><p>Jedno místo pro telemetrii, faktury, účtenky a ruční záznamy. Vše se zapisuje k aktivnímu vozidlu <b><?=h($vehicle['name'])?></b>.</p></div></section>
 <?php if($flash):?><div class="<?=$flash['type']==='error'?'error':'notice'?>"><?=h($flash['message'])?></div><?php endif;?>
 <section class="import-grid"><article class="import-tile featured"><span>↗</span><h2>Jízdy z auta</h2><p>CSV/XLS/XLSX z podporovaných pluginů. Vozidlo je ověřeno podle VIN a zdroje.</p><form action="upload.php" method="post" enctype="multipart/form-data"><input type="hidden" name="csrf" value="<?=h(csrfToken())?>"><input type="hidden" name="vehicle_id" value="<?=(int)$vehicle['id']?>"><label class="dropzone"><b>Vyber CSV / XLSX</b><small>nebo soubor přetáhněte sem</small><input type="file" name="csv" accept=".csv,.xls,.xlsx" required></label><button class="btn primary">Importovat jízdy</button></form></article>
@@ -6,4 +12,6 @@
 <article class="import-tile"><span>✎</span><h2>Ruční jízda</h2><p>Zapište vlastní položku knihy jízd nebo ji předvyplňte z importované telemetrie.</p><a class="btn" href="operations.php#trip-book">Otevřít knihu jízd</a></article>
 <article class="import-tile"><span>⚡</span><h2>Nabíjení / tankování</h2><p>Rychlý ruční záznam energie nebo paliva pro aktivní vozidlo.</p><a class="btn" href="operations.php#energy">Přidat záznam</a></article>
 <article class="import-tile"><span>🔧</span><h2>Servis a náklady</h2><p>Servisní zásah, pojištění, pneumatiky, dálniční známka nebo jiný výdaj.</p><a class="btn" href="operations.php#service">Přidat provozní položku</a></article>
-<article class="import-tile ai-tile"><span>✦</span><h2>AI dokumentové vytěžení</h2><p>Pokud lokální parser dokument nepozná, nakonfigurovaný OpenAI/Gemini extractor připraví strukturovaný návrh. Před zápisem jej vždy potvrzujete.</p><a class="btn" href="documents.php">Dokumenty & AI</a></article></section></main></body></html>
+<article class="import-tile ai-tile"><span>✦</span><h2>AI dokumentové vytěžení</h2><p>Pokud lokální parser dokument nepozná, nakonfigurovaný OpenAI/Gemini extractor připraví strukturovaný návrh. Před zápisem jej vždy potvrzujete.</p><a class="btn" href="documents.php">Dokumenty & AI</a></article></section></main>
+
+<?php require __DIR__ . '/partials/footer.php'; ?>

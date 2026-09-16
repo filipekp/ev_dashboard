@@ -4338,3 +4338,10 @@ body.modal-open { overflow: hidden; }
   text-align: center;
 }
 
+
+/* Shared footer inside authentication layouts. */
+.auth-body .site-footer {
+  width: 100%;
+  margin-left: 0;
+  padding: 12px 20px 4px;
+}

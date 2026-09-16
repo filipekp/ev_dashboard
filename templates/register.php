@@ -1,16 +1,13 @@
-<!doctype html>
-<html lang="cs">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <?php require __DIR__ . '/partials/pwa-head.php'; ?>
-  <title>Registrace – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/app.css') ?>">
-  <?php if ($recaptchaSiteKey !== ''): ?>
-    <script src="https://www.google.com/recaptcha/api.js?render=<?= h($recaptchaSiteKey) ?>"></script>
-  <?php endif; ?>
-</head>
-<body class="auth-body">
+<?php
+$pageTitle = 'Registrace';
+$bodyClass = 'auth-body';
+$showNavigation = false;
+$pageHead = '';
+if ($recaptchaSiteKey !== '') {
+    $pageHead = '<script src="https://www.google.com/recaptcha/api.js?render=' . h($recaptchaSiteKey) . '"></script>';
+}
+require __DIR__ . '/partials/header.php';
+?>
 <main class="auth-card auth-card-wide">
   <div class="auth-logo">👤</div>
   <h1>Vytvořit účet</h1>
@@ -87,5 +84,5 @@
     <a class="btn primary auth-action" href="login.php">Přejít na přihlášení</a>
   <?php endif; ?>
 </main>
-</body>
-</html>
+
+<?php require __DIR__ . '/partials/footer.php'; ?>

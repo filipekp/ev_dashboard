@@ -1,13 +1,9 @@
-<!doctype html>
-<html lang="cs">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1"><?php require __DIR__ . '/partials/pwa-head.php'; ?>
-  <title>Dokumenty – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/app.css') ?>">
-</head>
-<body>
-<?php $navTitle='Dokumenty'; require __DIR__.'/partials/navigation.php'; ?>
+<?php
+$pageTitle = 'Dokumenty';
+$showNavigation = true;
+$navTitle = 'Dokumenty';
+require __DIR__ . '/partials/header.php';
+?>
 <main class="wrap documents-page">
   <?php if($flash): ?><div class="<?= $flash['type']==='error'?'error':'notice' ?>"><?= h($flash['message']) ?></div><?php endif; ?>
 
@@ -61,4 +57,5 @@
     </tbody></table></div>
   </section>
 </main>
-</body></html>
+
+<?php require __DIR__ . '/partials/footer.php'; ?>

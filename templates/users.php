@@ -1,22 +1,9 @@
 <?php
-$roleLabels = [
-    'user' => 'Řidič',
-    'manager' => 'Správce vozidel',
-    'admin' => 'Administrátor',
-];
+$pageTitle = 'Uživatelé';
+$showNavigation = true;
+$navTitle = 'Správa uživatelů';
+require __DIR__ . '/partials/header.php';
 ?>
-<!doctype html>
-<html lang="cs">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <?php require __DIR__ . '/partials/pwa-head.php'; ?>
-  <title>Uživatelé – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/app.css') ?>">
-</head>
-<body>
-<?php $navTitle = 'Správa uživatelů'; require __DIR__ . '/partials/navigation.php'; ?>
-
 <main class="wrap narrow admin-list-page">
   <?php if ($flash): ?>
     <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div>
@@ -248,5 +235,5 @@ $roleLabels = [
   });
 })();
 </script>
-</body>
-</html>
+
+<?php require __DIR__ . '/partials/footer.php'; ?>

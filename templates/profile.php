@@ -1,13 +1,9 @@
-<!doctype html>
-<html lang="cs">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1"><?php require __DIR__ . '/partials/pwa-head.php'; ?>
-  <title>Můj profil – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/app.css') ?>">
-</head>
-<body>
-<?php $navTitle = 'Můj profil'; require __DIR__ . '/partials/navigation.php'; ?>
+<?php
+$pageTitle = 'Můj profil';
+$showNavigation = true;
+$navTitle = 'Můj profil';
+require __DIR__ . '/partials/header.php';
+?>
 <main class="wrap profile-wrap"><?php if ($flash): ?>
     <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div><?php endif; ?>
   <div class="grid2">
@@ -46,5 +42,5 @@
     </section>
   </div>
 </main>
-</body>
-</html>
+
+<?php require __DIR__ . '/partials/footer.php'; ?>

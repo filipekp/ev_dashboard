@@ -1,12 +1,9 @@
-<!doctype html>
-<html lang="cs">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1"><?php require __DIR__ . '/partials/pwa-head.php'; ?>
-  <title>Nové heslo – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/app.css') ?>">
-</head>
-<body class="auth-body">
+<?php
+$pageTitle = 'Nové heslo';
+$bodyClass = 'auth-body';
+$showNavigation = false;
+require __DIR__ . '/partials/header.php';
+?>
 <main class="auth-card">
   <div class="auth-logo">🔐</div>
   <h1>Nastavení nového hesla</h1><?php if ($error): ?>
@@ -18,5 +15,5 @@
         type="password" name="password" minlength="8" required autofocus></label><label>Nové heslo znovu<input type="password" name="password_again"
                                                                                                                minlength="8" required></label>
     <button class="btn primary">Uložit nové heslo</button></form><?php endif; ?></main>
-</body>
-</html>
+
+<?php require __DIR__ . '/partials/footer.php'; ?>

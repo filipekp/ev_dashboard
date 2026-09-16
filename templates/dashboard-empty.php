@@ -1,13 +1,9 @@
-<!doctype html>
-<html lang="cs">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1"><?php require __DIR__ . '/partials/pwa-head.php'; ?>
-  <title>EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/app.css') ?>">
-</head>
-<body>
-<?php $navTitle = 'EV Stats'; require __DIR__ . '/partials/navigation.php'; ?>
+<?php
+$pageTitle = 'Dashboard';
+$showNavigation = true;
+$navTitle = 'Dashboard';
+require __DIR__ . '/partials/header.php';
+?>
 <main class="wrap narrow">
   <?php if ($flash): ?>
     <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div>
@@ -31,6 +27,5 @@
     </div>
   </section>
 </main>
-<footer class="site-footer">created by: &copy; 2026 Pavel Filípek (<a href="https://www.filipek-czech.cz" target="_blank" rel="noopener noreferrer">www.filipek-czech.cz</a>) · verze <?= h($app->version()->label()) ?></footer>
-</body>
-</html>
+
+<?php require __DIR__ . '/partials/footer.php'; ?>

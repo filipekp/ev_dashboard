@@ -1,20 +1,15 @@
-<!doctype html>
-<html lang="cs">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1"><?php require __DIR__ . '/partials/pwa-head.php'; ?>
-    <title>EV Stats</title>
-    <link rel="stylesheet" href="assets/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/app.css') ?>">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-</head>
-<body>
+<?php
+$pageTitle = 'Dashboard';
+$showNavigation = true;
+$pageHead = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>';
+require __DIR__ . '/partials/header.php';
+?>
 <?php
     $powertrain = strtoupper((string)($vehicle['powertrain_type'] ?? 'BEV'));
     $hasTractionBattery = in_array($powertrain, ['BEV', 'PHEV'], TRUE);
     $hasFuelSystem = in_array($powertrain, ['PHEV', 'HEV', 'PETROL', 'DIESEL', 'LPG', 'CNG'], TRUE);
     $combustionOnly = !$hasTractionBattery;
 ?>
-<?php $navTitle = ''; require __DIR__ . '/partials/navigation.php'; ?>
 <main class="wrap dashboard-wrap">
     <section class="vehicle-hero">
         <div class="vehicle-hero-copy">
@@ -229,7 +224,7 @@
                         <th>SPOTŘEBOVÁNO</th>
                         <th>NABÍJENÍ</th>
                     <?php endif; ?>
-                    
+
                 </tr>
                 </thead>
                 <tbody><?php foreach ($longTrips as $t): ?>
@@ -387,9 +382,6 @@ foreach ($historyTrips as $tripRow) {
   <div class="card mini-timeline"><div class="section-head"><div><span class="eyebrow">POSLEDNÍ UDÁLOSTI</span><h2>◷ Timeline</h2></div><a href="timeline.php">Celá historie →</a></div><?php foreach($timelineEvents as $e):?><div class="mini-event"><span><?=['trip'=>'🚗','energy'=>'⚡','service'=>'🔧','expense'=>'💳'][$e['type']]?></span><div><b><?=h((string)($e['label']?:ucfirst($e['type'])))?></b><small><?=h(date('d.m.Y H:i',strtotime($e['event_at'])))?> · <?=h((string)($e['detail']??''))?></small></div></div><?php endforeach;?><?php if(!$timelineEvents):?><p>Zatím žádné provozní události.</p><?php endif;?></div>
 </section>
 </main>
-<footer class="site-footer">created by: &copy; 2026 Pavel Filípek (<a href="https://www.filipek-czech.cz" target="_blank" rel="noopener noreferrer">www.filipek-czech.cz</a>)
-    · verze <?= h($app->version()->label()) ?>
-</footer>
 <script>
     const monthlyLabels = <?=json_encode($monthLabels, JSON_UNESCAPED_UNICODE)?>, monthlyKm = <?=json_encode($monthKm)?>,
         monthlyCons = <?=json_encode($monthCons)?>;
@@ -514,5 +506,5 @@ foreach ($historyTrips as $tripRow) {
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) close(); });
 })();
 </script>
-</body>
-</html>
+
+<?php require __DIR__ . '/partials/footer.php'; ?>

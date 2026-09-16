@@ -1,13 +1,9 @@
-<!doctype html>
-<html lang="cs">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1"><?php require __DIR__ . '/partials/pwa-head.php'; ?>
-  <title>Aktualizace – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/app.css') ?>">
-</head>
-<body>
-<?php $navTitle = 'Aktualizace aplikace'; require __DIR__ . '/partials/navigation.php'; ?>
+<?php
+$pageTitle = 'Aktualizace';
+$showNavigation = true;
+$navTitle = 'Aktualizace aplikace';
+require __DIR__ . '/partials/header.php';
+?>
 <main class="wrap narrow update-page">
   <?php if ($message): ?>
     <div class="notice"><?= h($message) ?></div>
@@ -172,5 +168,5 @@
     </form>
   </section>
 </main>
-</body>
-</html>
+
+<?php require __DIR__ . '/partials/footer.php'; ?>

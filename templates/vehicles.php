@@ -1,35 +1,9 @@
 <?php
-$manufacturerLabels = [
-    'SKODA' => 'Škoda',
-    'KIA' => 'Kia',
-    'HYUNDAI' => 'Hyundai',
-    'VOLKSWAGEN' => 'Volkswagen',
-    'AUDI' => 'Audi',
-    'TESLA' => 'Tesla',
-    'OTHER' => 'Jiný',
-];
-$powertrainLabels = [
-    'BEV' => 'BEV – elektromobil',
-    'PHEV' => 'PHEV – plug-in hybrid',
-    'HEV' => 'HEV – hybrid',
-    'PETROL' => 'Benzín',
-    'DIESEL' => 'Nafta',
-    'LPG' => 'LPG',
-    'CNG' => 'CNG',
-];
+$pageTitle = 'Vozidla';
+$showNavigation = true;
+$navTitle = 'Správa vozidel';
+require __DIR__ . '/partials/header.php';
 ?>
-<!doctype html>
-<html lang="cs">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <?php require __DIR__ . '/partials/pwa-head.php'; ?>
-  <title>Vozidla – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/app.css') ?>">
-</head>
-<body>
-<?php $navTitle = 'Správa vozidel'; require __DIR__ . '/partials/navigation.php'; ?>
-
 <main class="wrap narrow admin-list-page">
   <?php if ($flash): ?>
     <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div>
@@ -278,5 +252,5 @@ $powertrainLabels = [
   });
 })();
 </script>
-</body>
-</html>
+
+<?php require __DIR__ . '/partials/footer.php'; ?>

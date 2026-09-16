@@ -1,12 +1,9 @@
-<!doctype html>
-<html lang="cs">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1"><?php require __DIR__ . '/partials/pwa-head.php'; ?>
-  <title>Provoz vozidla – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/app.css') ?>">
-</head>
-<body>
+<?php
+$pageTitle = 'Provoz vozidla';
+$showNavigation = true;
+$navTitle = 'Provoz vozidla';
+require __DIR__ . '/partials/header.php';
+?>
 <?php
 $powertrain = strtoupper((string)($vehicle['powertrain_type'] ?? 'BEV'));
 $hasTractionBattery = in_array($powertrain, ['BEV', 'PHEV'], TRUE);
@@ -17,7 +14,6 @@ $fuelEnergyType = [
     'CNG' => 'cng',
 ][$powertrain] ?? 'petrol';
 ?>
-<?php $navTitle = 'Provoz vozidla'; require __DIR__ . '/partials/navigation.php'; ?>
 <main class="wrap operations-page">
   <?php if ($flash): ?>
     <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div>
@@ -298,5 +294,4 @@ $fuelEnergyType = [
 })();
 </script>
 
-</body>
-</html>
+<?php require __DIR__ . '/partials/footer.php'; ?>

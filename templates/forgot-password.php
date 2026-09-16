@@ -1,12 +1,9 @@
-<!doctype html>
-<html lang="cs">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1"><?php require __DIR__ . '/partials/pwa-head.php'; ?>
-  <title>Zapomenuté heslo – EV Stats</title>
-  <link rel="stylesheet" href="assets/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/app.css') ?>">
-</head>
-<body class="auth-body">
+<?php
+$pageTitle = 'Zapomenuté heslo';
+$bodyClass = 'auth-body';
+$showNavigation = false;
+require __DIR__ . '/partials/header.php';
+?>
 <main class="auth-card">
   <div class="auth-logo">🔑</div>
   <h1>Zapomenuté heslo</h1>
@@ -18,5 +15,5 @@
     <button class="btn primary">Odeslat odkaz</button>
     <a class="auth-link" href="login.php">← Zpět na přihlášení</a></form>
 </main>
-</body>
-</html>
+
+<?php require __DIR__ . '/partials/footer.php'; ?>

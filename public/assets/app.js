@@ -86,6 +86,20 @@
         });
     };
 
+    const initConfirmationForms = () => {
+        document.addEventListener('submit', (event) => {
+            const form = event.target instanceof HTMLFormElement ? event.target : null;
+            if (!form || !form.hasAttribute('data-confirm')) {
+                return;
+            }
+
+            const message = form.getAttribute('data-confirm') || 'Pokračovat?';
+            if (!window.confirm(message)) {
+                event.preventDefault();
+            }
+        });
+    };
+
     const initSelfVehicleForm = () => {
         const powertrain = document.getElementById('selfVehiclePowertrain');
         if (!powertrain) {
@@ -112,5 +126,6 @@
     initPwa();
     initVehiclePickers();
     initMobileMoreMenu();
+    initConfirmationForms();
     initSelfVehicleForm();
 })();

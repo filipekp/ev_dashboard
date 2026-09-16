@@ -6152,3 +6152,141 @@ body.modal-open {
         grid-template-columns: 1fr;
     }
 }
+
+/* Document re-extraction and extraction history */
+.document-ai-badge small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 10px;
+    text-align: right;
+}
+
+.document-review-head {
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.document-review-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.document-reextract-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}
+
+.document-reextract-form select {
+    width: auto;
+    min-width: 130px;
+    min-height: 34px;
+    padding: 7px 30px 7px 9px;
+    border-radius: 9px;
+    font-size: 12px;
+}
+
+.document-reextract-inline {
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.document-reextract-inline select {
+    min-width: 86px;
+    max-width: 108px;
+}
+
+.document-reextract-inline .link-button {
+    display: inline-block;
+    padding: 0;
+    white-space: nowrap;
+}
+
+.document-row-actions {
+    display: grid;
+    justify-items: end;
+    gap: 7px;
+    min-width: 190px;
+}
+
+.document-row-links {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.extraction-replace-note {
+    margin-top: 18px;
+}
+
+.extraction-history {
+    margin-top: 20px;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+}
+
+.extraction-history > summary {
+    width: fit-content;
+    cursor: pointer;
+    color: var(--cyan);
+    font-weight: 800;
+    user-select: none;
+}
+
+.extraction-history .table-scroll {
+    margin-top: 12px;
+}
+
+.extraction-history tr.is-current-run td {
+    background: rgba(94, 234, 212, .035);
+}
+
+.status-processing {
+    color: #93c5fd;
+}
+
+.status-uploaded {
+    color: #c4b5fd;
+}
+
+.document-archive-table td:last-child,
+.document-archive-table th:last-child {
+    text-align: right;
+}
+
+@media (max-width: 760px) {
+    .document-review-head,
+    .document-review-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .document-review-actions {
+        display: flex;
+    }
+
+    .document-reextract-form {
+        width: 100%;
+    }
+
+    .document-reextract-form select {
+        flex: 1 1 auto;
+        width: 100%;
+    }
+
+    .document-reextract-inline {
+        width: auto;
+    }
+
+    .document-reextract-inline select {
+        width: auto;
+        flex: 0 0 auto;
+    }
+}

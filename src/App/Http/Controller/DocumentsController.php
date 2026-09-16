@@ -6,6 +6,7 @@ namespace App\Http\Controller;
 
 use App\Application;
 use App\Http;
+use App\Service\DocumentImportService;
 use Throwable;
 
 /** Dokumentové centrum vozidla a AI inbox. */
@@ -55,6 +56,23 @@ final class DocumentsController
             $run = null;
         }
 
+        $runHistory = [];
+        $linkedOperationCount = 0;
+        if ($run) {
+            $documentId = (int)$run['document_id'];
+            $runHistory = $this->app->documents()->runsForDocument(
+                $documentId,
+                $scope['from'],
+                25
+            );
+            $linkedOperationCount = $this->app->documents()->linkedOperationCount(
+                $documentId,
+                $vehicleId
+            );
+        }
+
+        $aiProvider = strtolower((string)$this->app->config()->get('ai.provider', 'none'));
+
         $this->app->template()->render('documents', [
             'app' => $this->app,
             'user' => $user,
@@ -62,8 +80,11 @@ final class DocumentsController
             'vehicle' => $vehicle,
             'documents' => $this->app->documents()->listForVehicle($vehicleId, 100, $scope['from']),
             'run' => $run,
+            'runHistory' => $runHistory,
+            'linkedOperationCount' => $linkedOperationCount,
             'flash' => $this->app->session()->pullFlash(),
-            'aiProvider' => (string)$this->app->config()->get('ai.provider', 'none'),
+            'aiProvider' => $aiProvider,
+            'aiAvailable' => $this->isAiAvailable($aiProvider),
         ]);
     }
 
@@ -80,21 +101,29 @@ final class DocumentsController
                     (int)$user['id'],
                     $_FILES['document'] ?? []
                 );
-                $run = $this->app->documents()->run($runId);
-                $isReview = $run && $run['status'] === 'review';
-                $this->app->session()->flash(
-                    $isReview
-                        ? 'Dokument byl vytěžen. Zkontrolujte údaje před potvrzením.'
-                        : 'Dokument byl uložen, ale vytěžení vyžaduje pozornost.',
-                    $isReview ? 'ok' : 'error'
+                $this->redirectAfterExtraction($vehicleId, $runId, false);
+            }
+
+            if ($action === 'reextract_document') {
+                $runId = $this->app->documentImportService()->reExtract(
+                    $vehicleId,
+                    (int)$user['id'],
+                    (int)($_POST['document_id'] ?? 0),
+                    (string)($_POST['extraction_mode'] ?? DocumentImportService::EXTRACTION_AUTO)
                 );
-                Http::redirect('documents.php?vehicle_id=' . $vehicleId . '&run_id=' . $runId);
+                $this->redirectAfterExtraction($vehicleId, $runId, true);
             }
 
             if ($action === 'confirm_import') {
-                $this->app->documentImportService()->confirm((int)($_POST['run_id'] ?? 0), $vehicleId);
+                $replaced = $this->app->documentImportService()->confirm(
+                    (int)($_POST['run_id'] ?? 0),
+                    $vehicleId
+                );
+
                 $this->app->session()->flash(
-                    'Vytěžené údaje byly potvrzeny a zapsány do provozní evidence.'
+                    $replaced > 0
+                        ? 'Nové vytěžení bylo potvrzeno. Dřívější položky vytvořené tímto dokumentem byly nahrazeny aktuálními daty.'
+                        : 'Vytěžené údaje byly potvrzeny a zapsány do provozní evidence.'
                 );
                 Http::redirect('documents.php?vehicle_id=' . $vehicleId);
             }
@@ -102,5 +131,44 @@ final class DocumentsController
             $this->app->session()->flash($e->getMessage(), 'error');
             Http::redirect('documents.php?vehicle_id=' . $vehicleId);
         }
+    }
+
+    private function redirectAfterExtraction(int $vehicleId, int $runId, bool $reExtraction): void
+    {
+        $run = $this->app->documents()->run($runId);
+        $isReview = $run && $run['status'] === 'review';
+        $extractor = $run ? trim((string)($run['extractor'] ?? '')) : '';
+
+        if ($isReview) {
+            $message = $reExtraction
+                ? 'Dokument byl znovu vytěžen. Zkontrolujte nové údaje před potvrzením.'
+                : 'Dokument byl vytěžen. Zkontrolujte údaje před potvrzením.';
+            if ($extractor !== '') {
+                $message .= ' Použitý extraktor: ' . $extractor . '.';
+            }
+            $this->app->session()->flash($message, 'ok');
+        } else {
+            $this->app->session()->flash(
+                $reExtraction
+                    ? 'Opakované vytěžení bylo spuštěno, ale skončilo chybou. Otevřete detail běhu.'
+                    : 'Dokument byl uložen, ale vytěžení vyžaduje pozornost.',
+                'error'
+            );
+        }
+
+        Http::redirect('documents.php?vehicle_id=' . $vehicleId . '&run_id=' . $runId);
+    }
+
+    private function isAiAvailable(string $provider): bool
+    {
+        if ($provider === 'openai') {
+            return trim((string)$this->app->config()->get('ai.openai_api_key', '')) !== '';
+        }
+
+        if ($provider === 'gemini') {
+            return trim((string)$this->app->config()->get('ai.gemini_api_key', '')) !== '';
+        }
+
+        return false;
     }
 }

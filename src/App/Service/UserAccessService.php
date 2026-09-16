@@ -173,6 +173,55 @@ final class UserAccessService
         }
     }
 
+    /**
+     * Přiřadí právě založené vozidlo jeho správci a založí historii přístupu.
+     *
+     * Tato metoda je určena pro samoobslužné založení vozidla managerem. Nové
+     * vozidlo ještě není součástí jeho vozového parku, proto zde nelze použít
+     * obecný syncAssignments(), který záměrně povoluje jen již dostupná auta.
+     *
+     * @param array<string,mixed> $actor
+     */
+    public function assignCreatedVehicle(array $actor, int $vehicleId, string $effectiveDate): void
+    {
+        if ((string)($actor['role'] ?? '') !== 'manager') {
+            throw new RuntimeException('Automatické přiřazení nového vozidla je určeno správci vozidel.');
+        }
+        if ($vehicleId <= 0) {
+            throw new RuntimeException('Neplatné vozidlo pro přiřazení.');
+        }
+
+        $userId = (int)$actor['id'];
+        $effectiveAt = $this->normaliseDate($effectiveDate);
+
+        $vehicleQuery = $this->pdo->prepare('SELECT 1 FROM vehicles WHERE id=?');
+        $vehicleQuery->execute([$vehicleId]);
+        if (!$vehicleQuery->fetchColumn()) {
+            throw new RuntimeException('Vozidlo pro přiřazení nebylo nalezeno.');
+        }
+
+        $insertCurrent = $this->pdo->prepare(
+            'INSERT IGNORE INTO user_vehicles(user_id,vehicle_id) VALUES(?,?)'
+        );
+        $insertCurrent->execute([$userId, $vehicleId]);
+
+        $activeAccess = $this->pdo->prepare(
+            'SELECT 1 FROM user_vehicle_access WHERE user_id=? AND vehicle_id=? AND valid_to IS NULL LIMIT 1'
+        );
+        $activeAccess->execute([$userId, $vehicleId]);
+        if (!$activeAccess->fetchColumn()) {
+            $insertHistory = $this->pdo->prepare(
+                'INSERT INTO user_vehicle_access(user_id,vehicle_id,assigned_by_user_id,valid_from,valid_to) '
+                . 'VALUES(?,?,?,?,NULL)'
+            );
+            $insertHistory->execute([$userId, $vehicleId, $userId, $effectiveAt]);
+        }
+
+        $this->pdo->prepare(
+            'UPDATE users SET default_vehicle_id=COALESCE(default_vehicle_id, ?) WHERE id=?'
+        )->execute([$vehicleId, $userId]);
+    }
+
     /** @param array<string,mixed> $user @return array{from:?string,to:?string,restricted:bool} */
     public function vehicleDetailScope(array $user, int $vehicleId): array
     {

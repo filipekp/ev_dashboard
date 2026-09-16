@@ -36,7 +36,7 @@ $powertrainLabels = [
         <h2>🚙 Vozidla</h2>
         <p>Přehled všech vozidel. Detaily a přiřazení uživatelů upravíte v jednom okně.</p>
       </div>
-      <?php if ($app->auth()->isAdmin($me)): ?><button class="btn primary" type="button" data-vehicle-create>＋ Přidat vozidlo</button><?php endif; ?>
+      <?php if ($app->auth()->canManageVehicles($me)): ?><button class="btn primary" type="button" data-vehicle-create>＋ Přidat vozidlo</button><?php endif; ?>
     </div>
 
     <div class="table-wrap">

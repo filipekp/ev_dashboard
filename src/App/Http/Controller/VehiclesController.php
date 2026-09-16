@@ -83,10 +83,15 @@ final class VehiclesController
     {
         $action = (string)($_POST['action'] ?? '');
         if ($action === 'create') {
-            if (!$this->app->auth()->isAdmin($me)) {
-                throw new RuntimeException('Nové vozidlo může založit pouze administrátor.');
-            }
             $vehicleId = $this->saveVehicle($action, $me);
+            if (!$this->app->auth()->isAdmin($me)) {
+                $this->app->userAccess()->assignCreatedVehicle(
+                    $me,
+                    $vehicleId,
+                    (string)($_POST['assignment_effective_date'] ?? '')
+                );
+                $_SESSION['vehicle_id'] = $vehicleId;
+            }
             $this->syncVehicleAssignments($me, $vehicleId, $_POST['user_ids'] ?? []);
             return;
         }

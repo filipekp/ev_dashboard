@@ -101,7 +101,9 @@ final class AuthService
         }
 
         $demoEmail = strtolower(trim((string)$this->config->get('demo.email', 'demo@evstats.local')));
-        return $demoEmail !== '' && strtolower((string)($user['email'] ?? '')) === $demoEmail;
+        return $demoEmail !== ''
+            && (string)($user['role'] ?? '') === 'user'
+            && strtolower((string)($user['email'] ?? '')) === $demoEmail;
     }
 
     public function assertWritable(): void
@@ -218,11 +220,23 @@ final class AuthService
     {
         $base = rtrim((string)$this->config->get('app.base_url', ''), '/');
         if ($base === '') {
-            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            $path = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
+            if ((string)$this->config->get('app.env', 'production') === 'production') {
+                throw new \RuntimeException('V produkci musí být nastaveno APP_BASE_URL.');
+            }
+
+            $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+            if (!preg_match('/^(?:localhost|127\.0\.0\.1)(?::\d+)?$/', $host)) {
+                $host = 'localhost';
+            }
+            $scheme = SecurityHeaders::isHttps() ? 'https' : 'http';
+            $path = rtrim(str_replace('\\', '/', dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/'))), '/');
             $base = $scheme . '://' . $host . $path;
         }
+
+        if (!filter_var($base, FILTER_VALIDATE_URL)) {
+            throw new \RuntimeException('APP_BASE_URL není platná URL.');
+        }
+
         return $base . '/reset-password.php?token=' . rawurlencode($token);
     }
 

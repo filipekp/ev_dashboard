@@ -54,8 +54,9 @@ final class RegistrationService
         if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 190) {
             throw new RuntimeException('Zadejte platný e-mail.');
         }
-        if (strlen($password) < 8) {
-            throw new RuntimeException('Heslo musí mít alespoň 8 znaků.');
+        $minimumLength = max(8, (int)$this->config->get('security.minimum_password_length', 12));
+        if (strlen($password) < $minimumLength) {
+            throw new RuntimeException('Heslo musí mít alespoň ' . $minimumLength . ' znaků.');
         }
         if ($password !== $passwordAgain) {
             throw new RuntimeException('Zadaná hesla se neshodují.');
@@ -73,7 +74,7 @@ final class RegistrationService
         $existing->execute([$email]);
         $existingUser = $existing->fetch();
         if ($existingUser) {
-            throw new RuntimeException('Účet s tímto e-mailem již existuje.');
+            throw new RuntimeException('Registraci s těmito údaji nelze dokončit.');
         }
 
         $token = bin2hex(random_bytes(32));
@@ -267,14 +268,25 @@ final class RegistrationService
     private function baseUrl(): string
     {
         $base = rtrim((string)$this->config->get('app.base_url', ''), '/');
-        if ($base !== '') {
-            return $base;
+        if ($base === '') {
+            if ((string)$this->config->get('app.env', 'production') === 'production') {
+                throw new RuntimeException('V produkci musí být nastaveno APP_BASE_URL.');
+            }
+
+            $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+            if (!preg_match('/^(?:localhost|127\.0\.0\.1)(?::\d+)?$/', $host)) {
+                $host = 'localhost';
+            }
+            $scheme = \App\SecurityHeaders::isHttps() ? 'https' : 'http';
+            $path = rtrim(str_replace('\\', '/', dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/'))), '/');
+            $base = $scheme . '://' . $host . $path;
         }
 
-        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
-        $path = rtrim(str_replace('\\', '/', dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/'))), '/');
-        return $scheme . '://' . $host . $path;
+        if (!filter_var($base, FILTER_VALIDATE_URL)) {
+            throw new RuntimeException('APP_BASE_URL není platná URL.');
+        }
+
+        return $base;
     }
 
     private function sendVerificationEmail(string $to, string $name, string $url, int $validMinutes): bool

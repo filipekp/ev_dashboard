@@ -73,20 +73,5 @@
       </form>
     </section>
   </div>
-  <script>
-    (() => {
-      const powertrain = document.getElementById('selfVehiclePowertrain');
-      if (!powertrain) return;
-      const electricFields = document.querySelectorAll('#addVehicleModal [data-electric-field]');
-      const fuelFields = document.querySelectorAll('#addVehicleModal [data-fuel-field]');
-      const updateFields = () => {
-        const electric = ['BEV', 'PHEV'].includes(powertrain.value);
-        const fuel = ['PHEV', 'HEV', 'PETROL', 'DIESEL', 'LPG', 'CNG'].includes(powertrain.value);
-        electricFields.forEach((field) => field.hidden = !electric);
-        fuelFields.forEach((field) => field.hidden = !fuel);
-      };
-      powertrain.addEventListener('change', updateFields);
-      updateFields();
-    })();
-  </script>
+
 <?php endif; ?>

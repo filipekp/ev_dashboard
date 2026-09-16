@@ -53,7 +53,5 @@ $rows=$preview['rows'] ?? [];
     <div class="form-actions"><a class="btn" href="import.php">Zrušit</a><button class="btn primary" type="submit">Importovat podle mapování</button></div>
   </form>
 </main>
-<style>
-.generic-preview-table{min-width:max-content}.generic-preview-table th,.generic-preview-table td{max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mapping-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 20px}.mapping-row,.mapping-options label{display:grid;gap:6px}.mapping-row span,.mapping-options label>span{font-weight:700}.mapping-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:24px;padding-top:20px;border-top:1px solid var(--border,#d8dde6)}.mapping-options .check-row{display:flex;align-items:center;gap:10px}.form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}@media(max-width:760px){.mapping-grid,.mapping-options{grid-template-columns:1fr}}
-</style>
+
 <?php require __DIR__.'/partials/footer.php'; ?>

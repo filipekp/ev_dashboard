@@ -41,7 +41,7 @@ final class DemoLoginController
             }
 
             $email = strtolower(trim((string)$this->app->config()->get('demo.email', 'demo@evstats.local')));
-            $query = $this->app->pdo()->prepare('SELECT id, active FROM users WHERE email=? LIMIT 1');
+            $query = $this->app->pdo()->prepare("SELECT id,active,role FROM users WHERE email=? AND role='user' LIMIT 1");
             $query->execute([$email]);
             $user = $query->fetch();
 
@@ -49,9 +49,11 @@ final class DemoLoginController
                 throw new RuntimeException('Demo účet zatím není připraven. Spusťte databázovou migraci v19.');
             }
 
-            $_SESSION['user_id'] = (int)$user['id'];
-            unset($_SESSION['vehicle_id']);
             session_regenerate_id(true);
+            $this->app->session()->rotateCsrf();
+            $_SESSION['user_id'] = (int)$user['id'];
+            $_SESSION['_last_regenerated'] = time();
+            unset($_SESSION['vehicle_id']);
             Http::redirect('index.php');
         } catch (Throwable $e) {
             $this->app->session()->flash($e->getMessage(), 'error');

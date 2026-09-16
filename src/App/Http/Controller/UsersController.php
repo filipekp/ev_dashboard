@@ -102,8 +102,9 @@ final class UsersController
         $parentId = $this->nullableInt($_POST['parent_user_id'] ?? null);
         $parentId = $this->app->userAccess()->validateParent($me, $role, $parentId);
 
-        if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 8) {
-            throw new RuntimeException('Zkontrolujte údaje. Heslo musí mít alespoň 8 znaků.');
+        $minimumLength = max(8, (int)$this->app->config()->get('security.minimum_password_length', 12));
+        if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < $minimumLength) {
+            throw new RuntimeException('Zkontrolujte údaje. Heslo musí mít alespoň ' . $minimumLength . ' znaků.');
         }
 
         $pdo = $this->app->pdo();

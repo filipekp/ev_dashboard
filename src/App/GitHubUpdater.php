@@ -146,6 +146,7 @@ final class GitHubUpdater
             if ($zip->open($zipFile) !== true) {
                 throw new RuntimeException('Stažený ZIP nelze otevřít.');
             }
+            $this->validateUpdateArchive($zip);
             if (!$zip->extractTo($stageDir)) {
                 $zip->close();
                 throw new RuntimeException('Stažený ZIP nelze rozbalit.');
@@ -409,6 +410,8 @@ final class GitHubUpdater
     /** @param array<int,string> $extraHeaders */
     private function downloadString(string $url, array $extraHeaders = []): string
     {
+        $this->assertAllowedRemoteUrl($url);
+
         if (function_exists('curl_init')) {
             $ch = curl_init($url);
             $headers = array_merge(['User-Agent: EV-Stats-Updater'], $extraHeaders);
@@ -417,11 +420,18 @@ final class GitHubUpdater
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_TIMEOUT => 30,
                 CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+                CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
             ]);
             $body = curl_exec($ch);
             $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $effectiveUrl = (string)curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
             $error = curl_error($ch);
             curl_close($ch);
+
+            if ($effectiveUrl !== '') {
+                $this->assertAllowedRemoteUrl($effectiveUrl);
+            }
 
             if (!is_string($body) || $status < 200 || $status >= 300) {
                 throw new RuntimeException(
@@ -450,6 +460,72 @@ final class GitHubUpdater
         }
 
         return $body;
+    }
+
+    private function assertAllowedRemoteUrl(string $url): void
+    {
+        $parts = parse_url($url);
+        $host = strtolower((string)($parts['host'] ?? ''));
+        $scheme = strtolower((string)($parts['scheme'] ?? ''));
+        $allowedHosts = [
+            'api.github.com',
+            'codeload.github.com',
+            'github.com',
+            'objects.githubusercontent.com',
+        ];
+
+        if ($scheme !== 'https' || !in_array($host, $allowedHosts, true)) {
+            throw new RuntimeException('Updater odmítl nedůvěryhodnou URL.');
+        }
+    }
+
+    private function validateUpdateArchive(ZipArchive $zip): void
+    {
+        $maxFiles = 10000;
+        $maxTotalUncompressed = 250 * 1024 * 1024;
+        $totalUncompressed = 0;
+
+        if ($zip->numFiles <= 0 || $zip->numFiles > $maxFiles) {
+            throw new RuntimeException('Aktualizační ZIP má neplatný počet souborů.');
+        }
+
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $stat = $zip->statIndex($index);
+            if (!is_array($stat)) {
+                throw new RuntimeException('Aktualizační ZIP obsahuje nečitelnou položku.');
+            }
+
+            $name = str_replace('\\', '/', (string)($stat['name'] ?? ''));
+            if (
+                $name === ''
+                || strpos($name, "\0") !== false
+                || $name[0] === '/'
+                || preg_match('#(^|/)\.\.(?:/|$)#', $name)
+                || preg_match('/^[A-Za-z]:\//', $name)
+            ) {
+                throw new RuntimeException('Aktualizační ZIP obsahuje nebezpečnou cestu.');
+            }
+
+            $size = (int)($stat['size'] ?? 0);
+            if ($size < 0 || $size > 50 * 1024 * 1024) {
+                throw new RuntimeException('Aktualizační ZIP obsahuje příliš velký soubor.');
+            }
+            $totalUncompressed += $size;
+            if ($totalUncompressed > $maxTotalUncompressed) {
+                throw new RuntimeException('Aktualizační ZIP překračuje bezpečnostní limit velikosti.');
+            }
+
+            if (method_exists($zip, 'getExternalAttributesIndex')) {
+                $opsys = 0;
+                $attributes = 0;
+                if ($zip->getExternalAttributesIndex($index, $opsys, $attributes)) {
+                    $mode = ($attributes >> 16) & 0xF000;
+                    if ($mode === 0xA000) {
+                        throw new RuntimeException('Aktualizační ZIP obsahuje symbolický odkaz.');
+                    }
+                }
+            }
+        }
     }
 
     private function downloadFile(string $url, string $target): void

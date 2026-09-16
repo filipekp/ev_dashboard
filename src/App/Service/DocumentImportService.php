@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Document\Ai\AiDocumentExtractorInterface;
 use App\Document\Parser\DocumentParserRegistry;
 use App\Repository\DocumentRepository;
+use App\UploadValidator;
 use App\Repository\VehicleOperationRepository;
 use PDO;
 use RuntimeException;
@@ -34,20 +35,42 @@ final class DocumentImportService
     /** @param array<string,mixed> $file */
     public function uploadAndExtract(int $vehicleId, int $userId, array $file): int
     {
-        if ((int)($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) throw new RuntimeException('Dokument se nepodařilo nahrát.');
-        $size=(int)($file['size'] ?? 0); if ($size<=0 || $size>20*1024*1024) throw new RuntimeException('Dokument může mít maximálně 20 MB.');
-        $tmp=(string)($file['tmp_name'] ?? '');
-        $mime=(new \finfo(FILEINFO_MIME_TYPE))->file($tmp) ?: 'application/octet-stream';
-        $allowed=['application/pdf'=>'pdf','image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp','application/json'=>'json','text/plain'=>'txt'];
-        if (!isset($allowed[$mime])) throw new RuntimeException('Podporujeme PDF, JPG, PNG, WebP, JSON a TXT.');
+        $tmp = UploadValidator::uploadedPath($file, 20 * 1024 * 1024);
+        $size = (int)$file['size'];
+        $mime = UploadValidator::mime($tmp);
+        $allowed = [
+            'application/pdf' => 'pdf',
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            'application/json' => 'json',
+            'text/plain' => 'txt',
+        ];
+        if (!isset($allowed[$mime])) {
+            throw new RuntimeException('Podporujeme PDF, JPG, PNG, WebP, JSON a TXT.');
+        }
+        if (strpos($mime, 'image/') === 0) {
+            UploadValidator::assertImageDimensions($tmp);
+        }
+        if ($mime === 'application/pdf') {
+            $handle = fopen($tmp, 'rb');
+            $magic = $handle ? fread($handle, 5) : false;
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
+            if ($magic !== '%PDF-') {
+                throw new RuntimeException('Soubor není platný PDF dokument.');
+            }
+        }
         $sha=hash_file('sha256',$tmp) ?: ''; if ($sha==='') throw new RuntimeException('Nelze ověřit kontrolní součet dokumentu.');
         $duplicate=$this->documents->findDuplicate($vehicleId,$sha);
         if ($duplicate) throw new RuntimeException('Tento dokument už je u vozidla uložen.');
         $dir=$this->storageRoot . '/documents'; if (!is_dir($dir) && !mkdir($dir,0775,true) && !is_dir($dir)) throw new RuntimeException('Nelze vytvořit úložiště dokumentů.');
         $stored=bin2hex(random_bytes(20)).'.'.$allowed[$mime];
-        if (!move_uploaded_file($tmp,$dir.'/'.$stored)) throw new RuntimeException('Dokument nelze uložit.');
+        if (!move_uploaded_file($tmp, $dir . '/' . $stored)) throw new RuntimeException('Dokument nelze uložit.');
+        @chmod($dir . '/' . $stored, 0640);
         $documentId=$this->documents->createDocument($vehicleId,$userId,[
-            'document_type'=>'unknown','original_name'=>(string)($file['name'] ?? 'document'),'stored_name'=>$stored,'mime_type'=>$mime,'file_size'=>$size,'sha256'=>$sha,'provider'=>null,'document_date'=>null,
+            'document_type'=>'unknown','original_name'=>UploadValidator::safeOriginalName((string)($file['name'] ?? ''), 'document'),'stored_name'=>$stored,'mime_type'=>$mime,'file_size'=>$size,'sha256'=>$sha,'provider'=>null,'document_date'=>null,
         ]);
         $runId=$this->documents->createRun($documentId,$vehicleId,$userId);
         $path=$dir.'/'.$stored; $name=(string)($file['name'] ?? 'document');

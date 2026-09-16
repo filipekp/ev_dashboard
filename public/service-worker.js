@@ -1,6 +1,7 @@
 const CACHE_NAME = 'ev-stats-static-v2';
 const STATIC_ASSETS = [
   './assets/app.css',
+  './assets/app.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png'
 ];

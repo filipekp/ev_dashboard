@@ -110,47 +110,4 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
     </div>
 </section>
 
-<script>
-document.querySelectorAll('[data-vehicle-picker]').forEach((picker) => {
-  const trigger = picker.querySelector('.vehicle-picker-trigger');
-  const menu = picker.querySelector('.vehicle-picker-menu');
-  if (!trigger || !menu) return;
-  trigger.addEventListener('click', () => {
-    const open = !menu.hidden;
-    document.querySelectorAll('.vehicle-picker-menu').forEach((item) => { item.hidden = true; });
-    menu.hidden = open;
-    trigger.setAttribute('aria-expanded', open ? 'false' : 'true');
-  });
-});
-document.addEventListener('click', (event) => {
-  document.querySelectorAll('[data-vehicle-picker]').forEach((picker) => {
-    if (!picker.contains(event.target)) {
-      const menu = picker.querySelector('.vehicle-picker-menu');
-      const trigger = picker.querySelector('.vehicle-picker-trigger');
-      if (menu) menu.hidden = true;
-      if (trigger) trigger.setAttribute('aria-expanded', 'false');
-    }
-  });
-});
-const mobileMoreMenu = document.querySelector('[data-mobile-more-menu]');
-const mobileMoreBackdrop = document.querySelector('[data-mobile-more-backdrop]');
-const mobileMoreOpen = document.querySelector('[data-mobile-more-open]');
-const mobileMoreClose = document.querySelector('[data-mobile-more-close]');
 
-const setMobileMoreOpen = (open) => {
-  if (!mobileMoreMenu || !mobileMoreBackdrop || !mobileMoreOpen) return;
-  mobileMoreMenu.hidden = !open;
-  mobileMoreBackdrop.hidden = !open;
-  mobileMoreOpen.setAttribute('aria-expanded', open ? 'true' : 'false');
-  document.body.classList.toggle('mobile-more-open', open);
-  if (open && mobileMoreClose) mobileMoreClose.focus();
-};
-
-if (mobileMoreOpen) mobileMoreOpen.addEventListener('click', () => setMobileMoreOpen(true));
-if (mobileMoreClose) mobileMoreClose.addEventListener('click', () => setMobileMoreOpen(false));
-if (mobileMoreBackdrop) mobileMoreBackdrop.addEventListener('click', () => setMobileMoreOpen(false));
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && mobileMoreMenu && !mobileMoreMenu.hidden) setMobileMoreOpen(false);
-});
-
-</script>

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\UploadValidator;
+
 use App\Repository\VehicleOperationRepository;
 use RuntimeException;
 
@@ -230,16 +232,8 @@ final class VehicleOperationService
     /** @param array<string,mixed> $file */
     private function storeAttachment(int $serviceRecordId, array $file): void
     {
-        if ((int)($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
-            throw new RuntimeException('Přílohu se nepodařilo nahrát.');
-        }
-        if ((int)($file['size'] ?? 0) > 10 * 1024 * 1024) {
-            throw new RuntimeException('Příloha může mít maximálně 10 MB.');
-        }
-
-        $tmpName = (string)($file['tmp_name'] ?? '');
-        $finfo = new \finfo(FILEINFO_MIME_TYPE);
-        $mime = (string)$finfo->file($tmpName);
+        $tmpName = UploadValidator::uploadedPath($file, 10 * 1024 * 1024);
+        $mime = UploadValidator::mime($tmpName);
         $allowed = [
             'application/pdf' => 'pdf',
             'image/jpeg' => 'jpg',
@@ -249,9 +243,12 @@ final class VehicleOperationService
         if (!isset($allowed[$mime])) {
             throw new RuntimeException('Povolené přílohy jsou PDF, JPG, PNG a WEBP.');
         }
+        if (strpos($mime, 'image/') === 0) {
+            UploadValidator::assertImageDimensions($tmpName);
+        }
 
         $directory = $this->storageRoot . '/service';
-        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+        if (!is_dir($directory) && !mkdir($directory, 0770, true) && !is_dir($directory)) {
             throw new RuntimeException('Nelze vytvořit adresář pro servisní přílohy.');
         }
 
@@ -260,10 +257,14 @@ final class VehicleOperationService
         if (!move_uploaded_file($tmpName, $destination)) {
             throw new RuntimeException('Přílohu se nepodařilo uložit.');
         }
+        @chmod($destination, 0640);
 
         $this->repository->addAttachment(
             $serviceRecordId,
-            basename((string)($file['name'] ?? 'priloha.' . $allowed[$mime])),
+            UploadValidator::safeOriginalName(
+                (string)($file['name'] ?? ''),
+                'priloha.' . $allowed[$mime]
+            ),
             $storedName,
             $mime,
             (int)$file['size']

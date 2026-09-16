@@ -51,7 +51,7 @@ require __DIR__ . '/partials/header.php';
 
     <?php if ($recaptchaSiteKey !== ''): ?>
       <p class="recaptcha-note">Tento web je chráněn službou reCAPTCHA a platí zásady ochrany soukromí a smluvní podmínky Google.</p>
-      <script>
+      <script nonce="<?= h(cspNonce()) ?>">
         (() => {
           const form = document.getElementById('registrationForm');
           const tokenInput = document.getElementById('recaptchaToken');

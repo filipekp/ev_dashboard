@@ -20,6 +20,10 @@ use ZipArchive;
  */
 final class XlsxArchive
 {
+    private const MAX_ENTRY_BYTES = 16 * 1024 * 1024;
+    private const MAX_COMPRESSION_RATIO = 200;
+    private const MAX_ENTRIES = 2000;
+
     /** @var string */
     private $path;
 
@@ -45,9 +49,33 @@ final class XlsxArchive
         }
 
         try {
-            $content = $zip->getFromName($name);
+            if ($zip->numFiles > self::MAX_ENTRIES) {
+                throw new RuntimeException('XLSX obsahuje příliš mnoho ZIP položek.');
+            }
 
-            return $content === false ? null : $content;
+            $index = $zip->locateName($name);
+            if ($index === false) {
+                return null;
+            }
+
+            $stat = $zip->statIndex($index);
+            if (!is_array($stat)) {
+                throw new RuntimeException('Nelze ověřit XLSX položku.');
+            }
+            $this->assertSafeEntry(
+                (int)($stat['size'] ?? 0),
+                (int)($stat['comp_size'] ?? 0)
+            );
+
+            $content = $zip->getFromIndex($index);
+            if ($content === false) {
+                return null;
+            }
+            if (strlen($content) > self::MAX_ENTRY_BYTES) {
+                throw new RuntimeException('XLSX položka překračuje bezpečnostní limit.');
+            }
+
+            return $content;
         } finally {
             $zip->close();
         }
@@ -101,6 +129,9 @@ final class XlsxArchive
                 if ($content === false) {
                     throw new RuntimeException('XLSX položku se nepodařilo dekomprimovat.');
                 }
+                if (strlen($content) > self::MAX_ENTRY_BYTES) {
+                    throw new RuntimeException('XLSX položka překračuje bezpečnostní limit.');
+                }
 
                 return $content;
             }
@@ -115,7 +146,7 @@ final class XlsxArchive
 
     /**
      * @param resource $handle
-     * @return array{flags:int,method:int,compressed_size:int,local_offset:int}|null
+     * @return array{flags:int,method:int,compressed_size:int,uncompressed_size:int,local_offset:int}|null
      */
     private function findEntry($handle, string $wantedName): ?array
     {
@@ -145,6 +176,9 @@ final class XlsxArchive
 
         $centralOffset = (int)$eocd['central_offset'];
         $entries = (int)$eocd['entries'];
+        if ($entries > self::MAX_ENTRIES) {
+            throw new RuntimeException('XLSX obsahuje příliš mnoho ZIP položek.');
+        }
         if ($centralOffset === 0xffffffff || $entries === 0xffff) {
             throw new RuntimeException('ZIP64 XLSX není tímto fallbackem podporován.');
         }
@@ -171,16 +205,39 @@ final class XlsxArchive
             }
 
             if ($name === $wantedName) {
+                $this->assertSafeEntry(
+                    (int)$entry['uncompressed_size'],
+                    (int)$entry['compressed_size']
+                );
+
                 return [
                     'flags' => (int)$entry['flags'],
                     'method' => (int)$entry['method'],
                     'compressed_size' => (int)$entry['compressed_size'],
+                    'uncompressed_size' => (int)$entry['uncompressed_size'],
                     'local_offset' => (int)$entry['local_offset'],
                 ];
             }
         }
 
         return null;
+    }
+
+    private function assertSafeEntry(int $uncompressedSize, int $compressedSize): void
+    {
+        if ($uncompressedSize < 0 || $uncompressedSize > self::MAX_ENTRY_BYTES) {
+            throw new RuntimeException('XLSX položka je příliš velká.');
+        }
+        if ($compressedSize < 0) {
+            throw new RuntimeException('XLSX obsahuje neplatnou ZIP položku.');
+        }
+        if (
+            $compressedSize > 0
+            && $uncompressedSize > 1024 * 1024
+            && ($uncompressedSize / $compressedSize) > self::MAX_COMPRESSION_RATIO
+        ) {
+            throw new RuntimeException('XLSX byl odmítnut kvůli podezřelému kompresnímu poměru.');
+        }
     }
 
     /** @param resource $handle */

@@ -15,6 +15,7 @@ use RuntimeException;
  */
 final class PdfTextExtractor
 {
+    private const MAX_DECODED_STREAM_BYTES = 16 * 1024 * 1024;
     /**
      * @var array<int,string>
      */
@@ -238,11 +239,14 @@ final class PdfTextExtractor
 
         $stream = $match[1];
         if (strpos($object, '/FlateDecode') !== false) {
-            $decoded = @gzuncompress($stream);
+            $decoded = @gzuncompress($stream, self::MAX_DECODED_STREAM_BYTES);
             if ($decoded === false) {
-                $decoded = @gzinflate($stream);
+                $decoded = @gzinflate($stream, self::MAX_DECODED_STREAM_BYTES);
             }
             if ($decoded === false) {
+                return null;
+            }
+            if (strlen($decoded) > self::MAX_DECODED_STREAM_BYTES) {
                 return null;
             }
             $stream = $decoded;

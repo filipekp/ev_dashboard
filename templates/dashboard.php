@@ -376,13 +376,13 @@ foreach ($historyTrips as $tripRow) {
         </form>
     </section>
 </div>
-<script type="application/json" id="tripEditorData"><?= json_encode($tripEditorData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
+<script nonce="<?= h(cspNonce()) ?>" type="application/json" id="tripEditorData"><?= json_encode($tripEditorData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
 <section class="dashboard-revolution-grid">
   <div class="card insight-panel"><div class="section-head"><div><span class="eyebrow">SMART LAYER</span><h2>✦ Insights</h2></div></div><div class="insight-strip stacked"><?php foreach($insights as $i):?><article class="insight-card"><span><?=$i['icon']?></span><div><b><?=h($i['title'])?></b><p><?=h($i['text'])?></p></div></article><?php endforeach;?></div></div>
   <div class="card mini-timeline"><div class="section-head"><div><span class="eyebrow">POSLEDNÍ UDÁLOSTI</span><h2>◷ Timeline</h2></div><a href="timeline.php">Celá historie →</a></div><?php foreach($timelineEvents as $e):?><div class="mini-event"><span><?=['trip'=>'🚗','energy'=>'⚡','service'=>'🔧','expense'=>'💳'][$e['type']]?></span><div><b><?=h((string)($e['label']?:ucfirst($e['type'])))?></b><small><?=h(date('d.m.Y H:i',strtotime($e['event_at'])))?> · <?=h((string)($e['detail']??''))?></small></div></div><?php endforeach;?><?php if(!$timelineEvents):?><p>Zatím žádné provozní události.</p><?php endif;?></div>
 </section>
 </main>
-<script>
+<script nonce="<?= h(cspNonce()) ?>">
     const monthlyLabels = <?=json_encode($monthLabels, JSON_UNESCAPED_UNICODE)?>, monthlyKm = <?=json_encode($monthKm)?>,
         monthlyCons = <?=json_encode($monthCons)?>;
     const hours = <?=json_encode(array_values($hourData))?>, speedLabels = <?=json_encode($bandLabels, JSON_UNESCAPED_UNICODE)?>,
@@ -478,7 +478,7 @@ foreach ($historyTrips as $tripRow) {
     });
 </script>
 
-<script>
+<script nonce="<?= h(cspNonce()) ?>">
 (() => {
     const modal = document.getElementById('tripEditorModal');
     const form = document.getElementById('tripEditorForm');

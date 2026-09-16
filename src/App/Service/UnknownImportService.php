@@ -12,6 +12,7 @@ use App\Repository\IntegrationImportRunRepository;
 use App\Repository\TripRepository;
 use App\Repository\UnknownImportRepository;
 use App\Repository\VehicleRepository;
+use App\UploadValidator;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -115,9 +116,13 @@ final class UnknownImportService
             $extension = 'dat';
         }
 
+        if (!is_uploaded_file($tmpPath)) {
+            throw new RuntimeException('Importní soubor není platný HTTP upload.');
+        }
+
         $storedName = $token . '.' . $extension;
         $target = $directory . '/' . $storedName;
-        if (!@move_uploaded_file($tmpPath, $target) && !@copy($tmpPath, $target)) {
+        if (!move_uploaded_file($tmpPath, $target)) {
             throw new RuntimeException('Nepodařilo se archivovat původní importovaný soubor.');
         }
         @chmod($target, 0640);
@@ -130,7 +135,7 @@ final class UnknownImportService
             'token' => $token,
             'user_id' => (int)$user['id'],
             'vehicle_id' => $vehicleId,
-            'original_name' => basename($originalName),
+            'original_name' => UploadValidator::safeOriginalName($originalName, 'import.dat'),
             'stored_name' => $storedName,
             'mime_type' => $mimeType !== '' ? $mimeType : 'application/octet-stream',
             'file_size' => (int)filesize($target),

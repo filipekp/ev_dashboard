@@ -18,6 +18,9 @@ final class Session
     /** @var Config */
     private $config;
 
+    /** @var string|null */
+    private $cspNonce;
+
     public function __construct(Config $config)
     {
         $this->config = $config;
@@ -28,9 +31,17 @@ final class Session
         if (session_status() === PHP_SESSION_ACTIVE) {
             return;
         }
+
+        $isHttps = SecurityHeaders::isHttps();
+        ini_set('session.use_only_cookies', '1');
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.cookie_httponly', '1');
+        ini_set('session.cookie_samesite', 'Lax');
+        ini_set('session.cookie_secure', $isHttps ? '1' : '0');
+        ini_set('session.sid_length', '48');
+        ini_set('session.sid_bits_per_character', '6');
+
         session_name((string)$this->config->get('app.session_name', 'ev_stats'));
-        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
         session_set_cookie_params([
             'httponly' => true,
             'samesite' => 'Lax',
@@ -38,6 +49,30 @@ final class Session
             'path' => '/',
         ]);
         session_start();
+
+        $now = time();
+        $lastActivity = (int)($_SESSION['_last_activity'] ?? $now);
+        $idleTimeout = max(900, (int)$this->config->get('security.session_idle_seconds', 43200));
+        if (($now - $lastActivity) > $idleTimeout) {
+            $_SESSION = [];
+            session_regenerate_id(true);
+        }
+        $_SESSION['_last_activity'] = $now;
+
+        $lastRegenerated = (int)($_SESSION['_last_regenerated'] ?? 0);
+        if ($lastRegenerated === 0 || ($now - $lastRegenerated) > 1800) {
+            session_regenerate_id(true);
+            $_SESSION['_last_regenerated'] = $now;
+        }
+    }
+
+    public function cspNonce(): string
+    {
+        if ($this->cspNonce === null) {
+            $this->cspNonce = base64_encode(random_bytes(24));
+        }
+
+        return $this->cspNonce;
     }
 
     public function csrfToken(): string
@@ -45,6 +80,13 @@ final class Session
         if (empty($_SESSION['csrf'])) {
             $_SESSION['csrf'] = bin2hex(random_bytes(32));
         }
+        return (string)$_SESSION['csrf'];
+    }
+
+    public function rotateCsrf(): string
+    {
+        $_SESSION['csrf'] = bin2hex(random_bytes(32));
+
         return (string)$_SESSION['csrf'];
     }
 

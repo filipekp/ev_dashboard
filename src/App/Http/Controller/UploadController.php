@@ -7,6 +7,7 @@ namespace App\Http\Controller;
 use App\Application;
 use App\Http;
 use App\Import\UnsupportedImportFormatException;
+use App\UploadValidator;
 use RuntimeException;
 use Throwable;
 
@@ -39,17 +40,13 @@ final class UploadController
             $this->app->session()->verifyCsrf();
             $file = $_FILES['csv'];
 
-            if ((int)$file['error'] !== UPLOAD_ERR_OK) {
-                throw new RuntimeException('Upload souboru selhal.');
-            }
-            if ((int)$file['size'] > 20 * 1024 * 1024) {
-                throw new RuntimeException('Soubor je příliš velký (max. 20 MB).');
-            }
+            $uploadedPath = UploadValidator::uploadedPath($file, 20 * 1024 * 1024);
+            $originalName = UploadValidator::safeOriginalName((string)($file['name'] ?? ''), 'import.dat');
 
             $result = $this->app->importService()->importUploaded(
                 $user,
-                (string)$file['tmp_name'],
-                (string)($file['name'] ?? ''),
+                $uploadedPath,
+                $originalName,
                 (int)($_POST['vehicle_id'] ?? 0)
             );
 
@@ -78,8 +75,8 @@ final class UploadController
                 $staged = $this->app->unknownImportService()->stage(
                     $user,
                     (int)($_POST['vehicle_id'] ?? 0),
-                    (string)$file['tmp_name'],
-                    (string)($file['name'] ?? '')
+                    $uploadedPath,
+                    $originalName
                 );
                 Http::redirect('generic-import.php?token=' . rawurlencode((string)$staged['token']));
             } catch (Throwable $fallbackError) {

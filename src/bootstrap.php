@@ -45,6 +45,7 @@ function redirect(string $url): void { Http::redirect($url); }
 function flash(string $message, string $type = 'ok'): void { global $app; $app->session()->flash($message, $type); }
 function getFlash(): ?array { global $app; return $app->session()->pullFlash(); }
 function csrfToken(): string { global $app; return $app->session()->csrfToken(); }
+function cspNonce(): string { global $app; return $app->session()->cspNonce(); }
 function verifyCsrf(): void { global $app; $app->session()->verifyCsrf(); }
 function usersExist(PDO $pdo = null): bool { global $app; return $app->auth()->usersExist(); }
 function currentUser(PDO $pdo = null): ?array { global $app; return $app->auth()->currentUser(); }

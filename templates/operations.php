@@ -235,7 +235,7 @@ $fuelEnergyType = [
   <section class="card operations-section"><h2>💸 Historie ostatních nákladů</h2><div class="table-scroll"><table class="data-table"><thead><tr><th>Datum</th><th>Kategorie</th><th>Název</th><th>Částka</th><th>Km</th></tr></thead><tbody><?php foreach ($expenses as $row): ?><tr><td><?= h(date('d.m.Y', strtotime($row['occurred_at']))) ?></td><td><?= h($row['category']) ?></td><td><?= h($row['title']) ?></td><td><?= cz((float)$row['amount'], 0) ?> Kč</td><td><?= $row['odometer_km'] !== null ? cz((float)$row['odometer_km'], 0) : '—' ?></td></tr><?php endforeach; ?></tbody></table></div></section>
 </main>
 <?php if ($hasTractionBattery && $hasFuelSystem): ?>
-<script>
+<script nonce="<?= h(cspNonce()) ?>">
   const operationEntryType = document.getElementById('operationEntryType');
   const operationEnergyType = document.getElementById('operationEnergyType');
   if (operationEntryType && operationEnergyType) {
@@ -246,7 +246,7 @@ $fuelEnergyType = [
 </script>
 <?php endif; ?>
 
-<script>
+<script nonce="<?= h(cspNonce()) ?>">
 (() => {
   const modal = document.getElementById('tripModal');
   const form = document.getElementById('tripModalForm');

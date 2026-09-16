@@ -99,6 +99,9 @@ final class Application
     /** @var VehicleMediaRepository|null */
     private $vehicleMedia;
 
+    /** @var RateLimiter|null */
+    private $rateLimiter;
+
     /** @param array<string,mixed> $config */
     public function __construct(array $config, string $root)
     {
@@ -107,6 +110,7 @@ final class Application
         $this->configureErrors();
         $this->session = new Session($this->config);
         $this->session->start();
+        SecurityHeaders::send($this->config, $this->session);
         $this->database = new Database($this->config);
         $this->auth = new AuthService($this->database->pdo(), $this->config);
     }
@@ -129,6 +133,16 @@ final class Application
     public function auth(): AuthService
     {
         return $this->auth;
+    }
+
+
+    public function rateLimiter(): RateLimiter
+    {
+        if ($this->rateLimiter === null) {
+            $this->rateLimiter = new RateLimiter($this->root . '/storage');
+        }
+
+        return $this->rateLimiter;
     }
 
     public function userAccess(): UserAccessService

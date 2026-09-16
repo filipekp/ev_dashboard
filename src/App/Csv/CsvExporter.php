@@ -55,11 +55,26 @@
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, $plugin->exportHeaders());
             foreach ($this->trips->findForExport($vehicleId, $from, $to) as $trip) {
-                fputcsv($out, $plugin->exportRow($trip));
+                fputcsv($out, array_map([$this, 'safeCell'], $plugin->exportRow($trip)));
             }
             fclose($out);
         }
         
+        /** @param mixed $value @return mixed */
+        private function safeCell($value)
+        {
+            if (!is_string($value)) {
+                return $value;
+            }
+
+            // Ochrana proti CSV/Excel formula injection u hodnot pocházejících z uživatelských dat.
+            if (preg_match('/^[\s]*[=+\-@]/u', $value)) {
+                return "'" . $value;
+            }
+
+            return $value;
+        }
+
         /** @return array{0:string,1:?string,2:?string,3:string} */
         private function period(string $period, string $year): array {
             if (preg_match('/^\d{4}-\d{2}$/', $period)) {

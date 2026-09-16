@@ -21,6 +21,8 @@
     }
     $stylesheetPath    = __DIR__ . '/../../public/assets/app.css';
     $stylesheetVersion = (int)@filemtime($stylesheetPath);
+    $scriptPath = __DIR__ . '/../../public/assets/app.js';
+    $scriptVersion = (int)@filemtime($scriptPath);
 ?>
 <!doctype html>
 <html lang="cs">
@@ -39,7 +41,7 @@
     <?php if ($analyticsEnabled): ?>
         <!-- Google tag (gtag.js) -->
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-J9STJ7QW39"></script>
-        <script>
+        <script nonce="<?= h(cspNonce()) ?>">
             window.dataLayer = window.dataLayer || [];
 
             function gtag() {
@@ -52,6 +54,7 @@
     <?php endif; ?>
 
     <?= $pageHead ?>
+    <script defer src="assets/app.js?v=<?= $scriptVersion ?>"></script>
 </head>
 <body<?= $bodyClass !== '' ? ' class="' . h($bodyClass) . '"' : '' ?>>
 <?php if ($showNavigation): ?>

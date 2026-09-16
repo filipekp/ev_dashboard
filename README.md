@@ -574,3 +574,10 @@ Po nasazení spusťte migrace přes stávající updater; migrace `migrate_v13.s
 vytvoří tabulky pro média, dokumenty, audit importů a samostatné vazby dokumentů
 na vzniklé provozní záznamy.
 
+
+
+## Landing page a veřejné demo
+
+Od migrace `migrate_v19.sql` je kořenová stránka aplikace veřejná landing page. Nepřihlášený návštěvník na ní najde marketingový přehled funkcí, odkazy na přihlášení a registraci a tlačítko pro vstup do read-only dema.
+
+Demo účet se vytváří migrací pod e-mailem `demo@evstats.local` a obsahuje syntetické vozidlo, jízdy a nabíjecí záznamy. Nemá použitelné heslo; přístup probíhá výhradně přes `demo-login.php`. Bootstrap centrálně blokuje všechny `POST`, `PUT`, `PATCH` a `DELETE` requesty demo uživatele, takže demo nemůže měnit data ani nahrávat soubory. V `.env` lze režim vypnout nebo změnit e-mail pomocí `DEMO_ENABLED` a `DEMO_USER_EMAIL`.

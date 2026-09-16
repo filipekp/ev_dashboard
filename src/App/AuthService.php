@@ -91,6 +91,27 @@ final class AuthService
         return $user;
     }
 
+
+    /** @param array<string,mixed>|null $user */
+    public function isDemo(?array $user = null): bool
+    {
+        $user = $user ?: $this->currentUser();
+        if (!$user || !(bool)$this->config->get('demo.enabled', true)) {
+            return false;
+        }
+
+        $demoEmail = strtolower(trim((string)$this->config->get('demo.email', 'demo@evstats.local')));
+        return $demoEmail !== '' && strtolower((string)($user['email'] ?? '')) === $demoEmail;
+    }
+
+    public function assertWritable(): void
+    {
+        if ($this->isDemo()) {
+            http_response_code(403);
+            exit('Demo režim je pouze pro čtení. Pro importy, úpravy a nahrávání souborů si vytvořte vlastní účet.');
+        }
+    }
+
     /** @param array<string,mixed> $user */
     public function isAdmin(array $user): bool
     {

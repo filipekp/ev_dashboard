@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ev-stats-static-v1';
+const CACHE_NAME = 'ev-stats-static-v2';
 const STATIC_ASSETS = [
   './assets/app.css',
   './assets/icons/icon-192.png',

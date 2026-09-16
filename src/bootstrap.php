@@ -22,6 +22,13 @@ $config = require __DIR__ . '/config.php';
 $app = new Application($config, dirname(__DIR__));
 $pdo = $app->pdo();
 
+// Veřejný demo účet je striktně read-only. Centrální ochrana blokuje všechny
+// zapisující POST/PUT/PATCH/DELETE requesty dříve, než se dostanou do controllerů.
+$httpMethod = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+if (in_array($httpMethod, ['POST', 'PUT', 'PATCH', 'DELETE'], true) && $app->auth()->isDemo()) {
+    $app->auth()->assertWritable();
+}
+
 /*
  * Tenká kompatibilní vrstva pro existující šablony. Veškerá aplikační logika
  * je nyní ve třídách v src/App; tyto funkce pouze delegují, aby refaktor

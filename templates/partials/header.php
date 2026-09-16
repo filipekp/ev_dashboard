@@ -14,6 +14,11 @@
     $showNavigation    = isset($showNavigation) ? (bool)$showNavigation : TRUE;
     $navTitle          = isset($navTitle) ? (string)$navTitle : '';
     $pageHead          = isset($pageHead) ? (string)$pageHead : '';
+    $headerCurrentUser = isset($app) ? $app->auth()->currentUser() : null;
+    $headerDemoMode = $headerCurrentUser ? $app->auth()->isDemo($headerCurrentUser) : false;
+    if ($headerDemoMode) {
+        $bodyClass = trim($bodyClass . ' demo-mode');
+    }
     $stylesheetPath    = __DIR__ . '/../../public/assets/app.css';
     $stylesheetVersion = (int)@filemtime($stylesheetPath);
 ?>
@@ -28,7 +33,7 @@
     <meta name="author" content="Pavel Filípek <pavel@filipek-czech.cz>">
 
     <?php
-    $analyticsUser = isset($app) ? $app->auth()->currentUser() : null;
+    $analyticsUser = $headerCurrentUser;
     $analyticsEnabled = !($analyticsUser && $app->auth()->isAdmin($analyticsUser));
     ?>
     <?php if ($analyticsEnabled): ?>
@@ -51,4 +56,7 @@
 <body<?= $bodyClass !== '' ? ' class="' . h($bodyClass) . '"' : '' ?>>
 <?php if ($showNavigation): ?>
     <?php require __DIR__ . '/navigation.php'; ?>
+    <?php if ($headerDemoMode): ?>
+        <div class="demo-readonly-banner"><span>◉</span><b>Demo režim · pouze pro čtení</b><span>Uploady a změny dat jsou vypnuté.</span><a href="register.php">Vytvořit vlastní účet →</a></div>
+    <?php endif; ?>
 <?php endif; ?>

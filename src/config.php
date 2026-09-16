@@ -90,6 +90,11 @@
         'mail' => [
             'from' => env('MAIL_FROM', ''),
         ],
+        'demo' => [
+            'enabled' => filter_var(env('DEMO_ENABLED', 'true'), FILTER_VALIDATE_BOOLEAN),
+            'email' => strtolower((string)env('DEMO_USER_EMAIL', 'demo@evstats.local')),
+        ],
+
         'registration' => [
             'parent_admin_id' => (int)env('REGISTRATION_PARENT_ADMIN_ID', '1'),
             'admin_notify_email' => env('REGISTRATION_ADMIN_NOTIFY_EMAIL', ''),

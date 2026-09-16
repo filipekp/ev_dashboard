@@ -4,6 +4,7 @@
     
     namespace App\Csv\Plugin;
     
+    use App\Vehicle\VinDecoder;
     use DateTime;
     
     /**
@@ -20,7 +21,7 @@
         }
         
         public function label(): string {
-            return 'Škoda Citigo iV';
+            return 'Škoda Citigo iV / Volkswagen e-up!';
         }
         
         public function supports(array $header): bool {
@@ -35,9 +36,20 @@
         }
         
         public function inspect(?string $vin): array {
+            $manufacturer = VinDecoder::manufacturer($vin);
+            $suggestedName = 'Škoda Citigo iV';
+
+            if ($manufacturer === 'VOLKSWAGEN') {
+                $suggestedName = 'Volkswagen e-up!';
+            } elseif ($manufacturer === null) {
+                // Starší Citigo exporty bez rozpoznatelného VIN zůstávají
+                // kvůli zpětné kompatibilitě vedené jako Škoda.
+                $manufacturer = 'SKODA';
+            }
+
             return [
-                'manufacturer'        => 'SKODA',
-                'suggested_name'      => 'Škoda Citigo iV',
+                'manufacturer'        => $manufacturer,
+                'suggested_name'      => $suggestedName,
                 'battery_kwh'         => 32.3,
                 'battery_nominal_kwh' => 32.3
             ];

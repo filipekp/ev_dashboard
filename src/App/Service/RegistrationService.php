@@ -321,9 +321,23 @@ final class RegistrationService
             'From: ' . $from,
             'MIME-Version: 1.0',
             'Content-Type: text/plain; charset=UTF-8',
+            'Content-Transfer-Encoding: 8bit',
         ];
 
-        return @mail($to, $subject, $body, implode("\r\n", $headers));
+        return @mail($to, $this->encodeMailHeader($subject), $body, implode("\r\n", $headers));
+    }
+
+    /**
+     * Zakóduje hlavičku e-mailu podle RFC 2047, aby se čeština v předmětu
+     * nezobrazovala jako mojibake na serverech, které očekávají ASCII hlavičky.
+     */
+    private function encodeMailHeader(string $value): string
+    {
+        if (function_exists('mb_encode_mimeheader')) {
+            return mb_encode_mimeheader($value, 'UTF-8', 'B', "\r\n");
+        }
+
+        return '=?UTF-8?B?' . base64_encode($value) . '?=';
     }
 
     private function deleteUnverifiedUser(int $userId): void

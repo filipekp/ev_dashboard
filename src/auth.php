@@ -161,8 +161,14 @@
         $body    = "Dobrý den {$name},\n\npro nastavení nového hesla otevřete tento odkaz:\n{$url}\n\nOdkaz je platný 60 minut. Pokud jste o změnu nežádali, zprávu ignorujte.\n";
         $headers = [
             'From: ' . $from,
-            'Content-Type: text/plain; charset=UTF-8'
+            'MIME-Version: 1.0',
+            'Content-Type: text/plain; charset=UTF-8',
+            'Content-Transfer-Encoding: 8bit'
         ];
+
+        $encodedSubject = function_exists('mb_encode_mimeheader')
+            ? mb_encode_mimeheader($subject, 'UTF-8', 'B', "\r\n")
+            : '=?UTF-8?B?' . base64_encode($subject) . '?=';
         
-        return @mail($to, $subject, $body, implode("\r\n", $headers));
+        return @mail($to, $encodedSubject, $body, implode("\r\n", $headers));
     }

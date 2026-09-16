@@ -75,12 +75,13 @@ final class VehiclesController
         $action = (string)($_POST['action'] ?? '');
 
         if ($action === 'create' || $action === 'update') {
-            $this->saveVehicle($action);
+            $vehicleId = $this->saveVehicle($action);
+            $this->saveAssignment($vehicleId, $_POST['user_ids'] ?? [], false);
             return;
         }
 
         if ($action === 'assign') {
-            $this->saveAssignment();
+            $this->saveAssignment((int)($_POST['vehicle_id'] ?? 0), $_POST['user_ids'] ?? []);
             return;
         }
 
@@ -96,7 +97,7 @@ final class VehiclesController
         throw new RuntimeException('Neznámá operace.');
     }
 
-    private function saveVehicle(string $action): void
+    private function saveVehicle(string $action): int
     {
         $id = (int)($_POST['id'] ?? 0);
         $name = trim((string)($_POST['name'] ?? ''));
@@ -159,8 +160,9 @@ final class VehiclesController
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, IF(? IS NULL, NULL, NOW()), ?)'
             );
             $query->execute($values);
+            $vehicleId = (int)$this->app->pdo()->lastInsertId();
             $this->app->session()->flash('Vozidlo bylo přidáno.');
-            return;
+            return $vehicleId;
         }
 
         if ($id <= 0) {
@@ -176,12 +178,13 @@ final class VehiclesController
         );
         $query->execute($values);
         $this->app->session()->flash('Vozidlo bylo upraveno.');
+        return $id;
     }
 
-    private function saveAssignment(): void
+    /** @param mixed $ids */
+    private function saveAssignment(int $vehicleId, $ids, bool $showFlash = true): void
     {
-        $vehicleId = (int)($_POST['vehicle_id'] ?? 0);
-        $userIds = array_map('intval', $_POST['user_ids'] ?? []);
+        $userIds = is_array($ids) ? array_map('intval', $ids) : [];
         if ($vehicleId <= 0) {
             throw new RuntimeException('Vozidlo nebylo nalezeno.');
         }
@@ -205,7 +208,9 @@ final class VehiclesController
                )"
         )->execute([$vehicleId, $vehicleId]);
         $pdo->commit();
-        $this->app->session()->flash('Přiřazení vozidla bylo uloženo.');
+        if ($showFlash) {
+            $this->app->session()->flash('Přiřazení vozidla bylo uloženo.');
+        }
     }
 
     /** @param mixed $value */

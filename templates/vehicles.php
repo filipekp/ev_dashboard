@@ -42,7 +42,7 @@ $powertrainLabels = [
         <h2>🚙 Vozidla</h2>
         <p>Přehled všech vozidel. Detaily a přiřazení uživatelů upravíte v jednom okně.</p>
       </div>
-      <button class="btn primary" type="button" data-vehicle-create>＋ Přidat vozidlo</button>
+      <?php if ($app->auth()->isAdmin($me)): ?><button class="btn primary" type="button" data-vehicle-create>＋ Přidat vozidlo</button><?php endif; ?>
     </div>
 
     <div class="table-wrap">
@@ -159,7 +159,8 @@ $powertrainLabels = [
 
         <div class="form-panel">
           <h3>Přiřazení uživatelů</h3>
-          <p class="form-panel-help">Uživatelé, kteří mají vozidlo vidět a používat.</p>
+          <p class="form-panel-help"><?= $app->auth()->isAdmin($me) ? 'Správci vozidel, kterým administrátor předává vozidlo do správy.' : 'Vaši řidiči, kterým povolujete používat toto vozidlo.' ?></p>
+          <label><span>Změna přiřazení platí od</span><input type="date" name="assignment_effective_date" value="<?= date('Y-m-d') ?>"></label>
           <div class="assignment-list assignment-list-compact">
             <?php foreach ($users as $u): ?>
               <label class="check assignment">

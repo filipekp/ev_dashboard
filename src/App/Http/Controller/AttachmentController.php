@@ -29,7 +29,7 @@ final class AttachmentController
         $attachmentId = (int)($_GET['id'] ?? 0);
         $attachment = $this->app->vehicleOperations()->attachment($attachmentId);
 
-        if (!$attachment || !$this->app->auth()->canAccessVehicle($user, (int)$attachment['vehicle_id'])) {
+        if (!$attachment || !$this->app->auth()->canAccessVehicle($user, (int)$attachment['vehicle_id']) || !$this->app->userAccess()->canReadDetailAt($user, (int)$attachment['vehicle_id'], (string)($attachment['serviced_at'] ?? ''))) {
             http_response_code(404);
             exit('Příloha nebyla nalezena.');
         }

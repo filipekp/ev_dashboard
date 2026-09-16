@@ -27,13 +27,16 @@
         }
         
         /** @param array<string,mixed> $vehicle */
-        public function stream(array $vehicle, string $period, string $year): void {
+        public function stream(array $vehicle, string $period, string $year, ?string $accessFrom = null): void {
             [
                 $period,
                 $from,
                 $to,
                 $suffix
             ] = $this->period($period, $year);
+            if ($accessFrom !== null && ($from === null || strtotime($from) < strtotime($accessFrom))) {
+                $from = $accessFrom;
+            }
             $vehicleId = (int)$vehicle['id'];
             $format    = $this->trips->dominantSourceFormat($vehicleId, $from, $to);
             if (!$this->registry->has($format)) {

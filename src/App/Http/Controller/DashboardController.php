@@ -74,7 +74,12 @@ final class DashboardController
             $newVehicleModal = $this->app->vehicles()->find((int)$vehicle['id']);
         }
 
-        $data = $this->app->dashboard()->build($vehicle, $_GET);
+        $detailScope = $this->app->userAccess()->vehicleDetailScope($user, (int)$vehicle['id']);
+        $data = $this->app->dashboard()->build($vehicle, $_GET, $detailScope);
+        $vehiclePhoto = $this->app->vehicleMedia()->primaryForVehicle((int)$vehicle['id']);
+        if ($vehiclePhoto && !$this->app->userAccess()->canReadDetailAt($user, (int)$vehicle['id'], (string)($vehiclePhoto['created_at'] ?? ''))) {
+            $vehiclePhoto = null;
+        }
         $this->app->template()->render('dashboard', array_merge($data, [
             'app' => $this->app,
             'user' => $user,
@@ -83,9 +88,9 @@ final class DashboardController
             'flash' => $flash,
             'newVehicleModal' => $newVehicleModal,
             'showAddVehicleModal' => $showAddVehicleModal,
-            'vehiclePhoto' => $this->app->vehicleMedia()->primaryForVehicle((int)$vehicle['id']),
-            'timelineEvents' => $this->app->timeline()->build((int)$vehicle['id'], 6),
-            'insights' => $this->app->insights()->build($vehicle),
+            'vehiclePhoto' => $vehiclePhoto,
+            'timelineEvents' => $this->app->timeline()->build((int)$vehicle['id'], 6, $detailScope),
+            'insights' => $this->app->insights()->build($vehicle, $detailScope),
         ]));
     }
 
@@ -107,8 +112,12 @@ final class DashboardController
                 throw new RuntimeException('K tomuto vozidlu nemáte přístup.');
             }
 
+            $scope = $this->app->userAccess()->vehicleDetailScope($user, $vehicleId);
             $startedAt = $this->dateTime((string)($_POST['started_at'] ?? ''));
             $endedAt = $this->dateTime((string)($_POST['ended_at'] ?? ''));
+            if (!empty($scope['from']) && strtotime($startedAt) < strtotime((string)$scope['from'])) {
+                throw new RuntimeException('Jízdu nelze zapsat před začátek vašeho přístupu k vozidlu.');
+            }
             if (strtotime($endedAt) < strtotime($startedAt)) {
                 throw new RuntimeException('Čas ukončení jízdy nemůže být před jejím začátkem.');
             }

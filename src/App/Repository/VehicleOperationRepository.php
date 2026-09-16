@@ -151,52 +151,56 @@ final class VehicleOperationRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function energyEntries(int $vehicleId, int $limit = 100): array
+    public function energyEntries(int $vehicleId, int $limit = 100, ?string $from = null): array
     {
         $query = $this->pdo->prepare(
-            'SELECT * FROM vehicle_energy_entries WHERE vehicle_id=? ORDER BY occurred_at DESC, id DESC LIMIT ' . (int)$limit
+            'SELECT * FROM vehicle_energy_entries WHERE vehicle_id=?' . ($from !== null ? ' AND occurred_at>=?' : '') . ' ORDER BY occurred_at DESC, id DESC LIMIT ' . (int)$limit
         );
-        $query->execute([$vehicleId]);
+        $params = [$vehicleId]; if ($from !== null) { $params[] = $from; }
+        $query->execute($params);
 
         return $query->fetchAll();
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function serviceRecords(int $vehicleId, int $limit = 100): array
+    public function serviceRecords(int $vehicleId, int $limit = 100, ?string $from = null): array
     {
         $query = $this->pdo->prepare(
             'SELECT s.*,
                     (SELECT COUNT(*) FROM vehicle_service_attachments a WHERE a.service_record_id=s.id) attachment_count
              FROM vehicle_service_records s
-             WHERE s.vehicle_id=?
+             WHERE s.vehicle_id=?' . ($from !== null ? ' AND s.serviced_at>=?' : '') . '
              ORDER BY s.serviced_at DESC, s.id DESC
              LIMIT ' . (int)$limit
         );
-        $query->execute([$vehicleId]);
+        $params = [$vehicleId]; if ($from !== null) { $params[] = substr($from, 0, 10); }
+        $query->execute($params);
 
         return $query->fetchAll();
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function expenses(int $vehicleId, int $limit = 100): array
+    public function expenses(int $vehicleId, int $limit = 100, ?string $from = null): array
     {
         $query = $this->pdo->prepare(
-            'SELECT * FROM vehicle_expenses WHERE vehicle_id=? ORDER BY occurred_at DESC, id DESC LIMIT ' . (int)$limit
+            'SELECT * FROM vehicle_expenses WHERE vehicle_id=?' . ($from !== null ? ' AND occurred_at>=?' : '') . ' ORDER BY occurred_at DESC, id DESC LIMIT ' . (int)$limit
         );
-        $query->execute([$vehicleId]);
+        $params = [$vehicleId]; if ($from !== null) { $params[] = substr($from, 0, 10); }
+        $query->execute($params);
 
         return $query->fetchAll();
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function reminders(int $vehicleId): array
+    public function reminders(int $vehicleId, ?string $from = null): array
     {
         $query = $this->pdo->prepare(
             'SELECT * FROM vehicle_reminders
-             WHERE vehicle_id=?
+             WHERE vehicle_id=?' . ($from !== null ? ' AND created_at>=?' : '') . '
              ORDER BY completed_at IS NOT NULL, due_date IS NULL, due_date, due_odometer_km, id DESC'
         );
-        $query->execute([$vehicleId]);
+        $params = [$vehicleId]; if ($from !== null) { $params[] = $from; }
+        $query->execute($params);
 
         return $query->fetchAll();
     }
@@ -236,45 +240,48 @@ final class VehicleOperationRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function tripBookEntries(int $vehicleId, int $limit = 100): array
+    public function tripBookEntries(int $vehicleId, int $limit = 100, ?string $from = null): array
     {
         $query = $this->pdo->prepare(
             'SELECT b.*, t.source_format
              FROM vehicle_trip_book_entries b
              LEFT JOIN trips t ON t.id=b.source_trip_id
-             WHERE b.vehicle_id=?
+             WHERE b.vehicle_id=?' . ($from !== null ? ' AND b.started_at>=?' : '') . '
              ORDER BY b.started_at DESC, b.id DESC
              LIMIT ' . (int)$limit
         );
-        $query->execute([$vehicleId]);
+        $params = [$vehicleId]; if ($from !== null) { $params[] = $from; }
+        $query->execute($params);
         return $query->fetchAll();
     }
 
     /** @return array<string,mixed>|null */
-    public function importedTrip(int $vehicleId, int $tripId): ?array
+    public function importedTrip(int $vehicleId, int $tripId, ?string $from = null): ?array
     {
         $query = $this->pdo->prepare(
             'SELECT id, started_at, ended_at, start_address, end_address, distance_km, start_odometer_km,
                     end_odometer_km, classification, trip_note
-             FROM trips WHERE vehicle_id=? AND id=? LIMIT 1'
+             FROM trips WHERE vehicle_id=? AND id=?' . ($from !== null ? ' AND started_at>=?' : '') . ' LIMIT 1'
         );
-        $query->execute([$vehicleId, $tripId]);
+        $params = [$vehicleId, $tripId]; if ($from !== null) { $params[] = $from; }
+        $query->execute($params);
         $row = $query->fetch();
         return $row ?: null;
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function tripLog(int $vehicleId, int $limit = 100): array
+    public function tripLog(int $vehicleId, int $limit = 100, ?string $from = null): array
     {
         $query = $this->pdo->prepare(
             'SELECT id, started_at, ended_at, start_address, end_address, distance_km, start_odometer_km,
                     end_odometer_km, classification, trip_note
              FROM trips
-             WHERE vehicle_id=?
+             WHERE vehicle_id=?' . ($from !== null ? ' AND started_at>=?' : '') . '
              ORDER BY started_at DESC
              LIMIT ' . (int)$limit
         );
-        $query->execute([$vehicleId]);
+        $params = [$vehicleId]; if ($from !== null) { $params[] = $from; }
+        $query->execute($params);
 
         return $query->fetchAll();
     }
@@ -283,7 +290,7 @@ final class VehicleOperationRepository
     public function attachment(int $attachmentId): ?array
     {
         $query = $this->pdo->prepare(
-            'SELECT a.*, s.vehicle_id
+            'SELECT a.*, s.vehicle_id, s.serviced_at
              FROM vehicle_service_attachments a
              JOIN vehicle_service_records s ON s.id=a.service_record_id
              WHERE a.id=?'

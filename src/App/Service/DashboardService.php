@@ -29,13 +29,25 @@
         }
 
         /** @param array<string,mixed> $vehicle @param array<string,mixed> $query @return array<string,mixed> */
-        public function build(array $vehicle, array $query): array {
+        public function build(array $vehicle, array $query, array $detailScope = []): array {
             $vehicleId = (int)$vehicle['id'];
             $powertrain = strtoupper((string)($vehicle['powertrain_type'] ?? 'BEV'));
             $hasTractionBattery = in_array($powertrain, ['BEV', 'PHEV'], TRUE);
             $hasFuelSystem = in_array($powertrain, ['PHEV', 'HEV', 'PETROL', 'DIESEL', 'LPG', 'CNG'], TRUE);
-            $months    = $this->pdo->prepare('SELECT DISTINCT DATE_FORMAT(started_at, "%Y-%m") m FROM trips WHERE vehicle_id=? ORDER BY m');
-            $months->execute([$vehicleId]);
+            $scopeWhere = '';
+            $scopeParams = [];
+            if (!empty($detailScope['from'])) {
+                $scopeWhere .= ' AND started_at >= ?';
+                $scopeParams[] = (string)$detailScope['from'];
+            }
+            if (!empty($detailScope['to'])) {
+                $scopeWhere .= ' AND started_at < ?';
+                $scopeParams[] = (string)$detailScope['to'];
+            }
+            $months = $this->pdo->prepare(
+                'SELECT DISTINCT DATE_FORMAT(started_at, "%Y-%m") m FROM trips WHERE vehicle_id=?' . $scopeWhere . ' ORDER BY m'
+            );
+            $months->execute(array_merge([$vehicleId], $scopeParams));
             $monthOptions = $months->fetchAll(PDO::FETCH_COLUMN);
             $years        = [];
             foreach ($monthOptions as $m) {
@@ -52,8 +64,8 @@
             if (!in_array($selectedYear, $years, TRUE)) {
                 $selectedYear = $years ? (string)end($years) : date('Y');
             }
-            $params = [$vehicleId];
-            $where  = 'vehicle_id = ?';
+            $params = array_merge([$vehicleId], $scopeParams);
+            $where  = 'vehicle_id = ?' . $scopeWhere;
             if (preg_match('/^\d{4}-\d{2}$/', $period)) {
                 $from = $period . '-01 00:00:00';
                 $dt   = new DateTime($from);
@@ -190,6 +202,44 @@
             $operationSummary = $this->vehicleOperations !== null
                 ? $this->vehicleOperations->costSummary($vehicleId)
                 : ['energy_cost' => 0.0, 'service_cost' => 0.0, 'other_cost' => 0.0, 'total_cost' => 0.0, 'distance_km' => 0.0, 'cost_per_km' => 0.0];
+            if (!empty($detailScope['from'])) {
+                $scopeFrom = (string)$detailScope['from'];
+                $energyQ = $this->pdo->prepare('SELECT COALESCE(SUM(total_price),0) FROM vehicle_energy_entries WHERE vehicle_id=? AND occurred_at>=?');
+                $energyQ->execute([$vehicleId, $scopeFrom]);
+                $serviceQ = $this->pdo->prepare('SELECT COALESCE(SUM(cost),0) FROM vehicle_service_records WHERE vehicle_id=? AND serviced_at>=?');
+                $serviceQ->execute([$vehicleId, substr($scopeFrom, 0, 10)]);
+                $expenseQ = $this->pdo->prepare('SELECT COALESCE(SUM(amount),0) FROM vehicle_expenses WHERE vehicle_id=? AND occurred_at>=?');
+                $expenseQ->execute([$vehicleId, substr($scopeFrom, 0, 10)]);
+                $energyCost = (float)$energyQ->fetchColumn();
+                $serviceCost = (float)$serviceQ->fetchColumn();
+                $otherCost = (float)$expenseQ->fetchColumn();
+                $scopedCost = $energyCost + $serviceCost + $otherCost;
+                $operationSummary = [
+                    'energy_cost' => $energyCost,
+                    'service_cost' => $serviceCost,
+                    'other_cost' => $otherCost,
+                    'total_cost' => $scopedCost,
+                    'distance_km' => $totalKm,
+                    'cost_per_km' => $totalKm > 0 ? $scopedCost / $totalKm : 0.0,
+                ];
+            }
+
+            // Sanitizované celoživotní statistiky neobsahují trasy, časy ani jiné osobní údaje.
+            $lifetimeQuery = $this->pdo->prepare(
+                'SELECT COALESCE(SUM(distance_km),0) distance_km, MAX(end_odometer_km) odometer_km, '
+                . 'COALESCE(SUM(consumed_kwh),0) consumed_kwh, COALESCE(SUM(fuel_consumed_l),0) fuel_consumed_l '
+                . 'FROM trips WHERE vehicle_id=?'
+            );
+            $lifetimeQuery->execute([$vehicleId]);
+            $lifetimeRow = $lifetimeQuery->fetch() ?: [];
+            $lifetimeKm = (float)($lifetimeRow['distance_km'] ?? 0);
+            $lifetimeStats = [
+                'distance_km' => $lifetimeKm,
+                'odometer_km' => $lifetimeRow['odometer_km'] !== null ? (float)$lifetimeRow['odometer_km'] : (float)($vehicle['odometer_km'] ?? 0),
+                'avg_consumption_kwh_100' => $lifetimeKm > 0 ? (float)($lifetimeRow['consumed_kwh'] ?? 0) / $lifetimeKm * 100 : 0.0,
+                'avg_fuel_consumption_l_100' => $lifetimeKm > 0 ? (float)($lifetimeRow['fuel_consumed_l'] ?? 0) / $lifetimeKm * 100 : 0.0,
+            ];
+            $privacyRestricted = !empty($detailScope['restricted']);
 
             return get_defined_vars();
         }

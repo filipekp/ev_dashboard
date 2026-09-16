@@ -38,12 +38,13 @@ final class DocumentsController
                 }
             } catch (Throwable $e) { $this->app->session()->flash($e->getMessage(),'error'); Http::redirect('documents.php?vehicle_id='.$vehicleId); }
         }
+        $scope=$this->app->userAccess()->vehicleDetailScope($user,$vehicleId);
         $runId=(int)($_GET['run_id'] ?? 0);
         $run=$runId>0 ? $this->app->documents()->run($runId) : null;
-        if ($run && (int)$run['vehicle_id']!==$vehicleId) $run=null;
+        if ($run && ((int)$run['vehicle_id']!==$vehicleId || !$this->app->userAccess()->canReadDetailAt($user,$vehicleId,(string)($run['created_at'] ?? '')))) $run=null;
         $this->app->template()->render('documents',[
             'app'=>$this->app,'user'=>$user,'vehicles'=>$this->app->auth()->allowedVehicles($user),'vehicle'=>$vehicle,
-            'documents'=>$this->app->documents()->listForVehicle($vehicleId),'run'=>$run,'flash'=>$this->app->session()->pullFlash(),
+            'documents'=>$this->app->documents()->listForVehicle($vehicleId,100,$scope['from']),'run'=>$run,'flash'=>$this->app->session()->pullFlash(),
             'aiProvider'=>(string)$this->app->config()->get('ai.provider','none'),
         ]);
     }

@@ -38,6 +38,7 @@ $roleLabels = [
         <tr>
           <th>Uživatel</th>
           <th>Role</th>
+          <th>Nadřízený</th>
           <th>Vozidla</th>
           <th>Stav</th>
           <th class="actions-col">Akce</th>
@@ -51,6 +52,7 @@ $roleLabels = [
                 'email' => (string)$u['email'],
                 'role' => (string)$u['role'],
                 'active' => (bool)$u['active'],
+                'parent_user_id' => isset($u['parent_user_id']) ? (int)$u['parent_user_id'] : null,
                 'vehicle_ids' => $assigned[(int)$u['id']] ?? [],
             ];
             $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_HEX_TAG);
@@ -60,6 +62,7 @@ $roleLabels = [
               <div class="table-primary"><strong><?= h($u['name']) ?></strong><small><?= h($u['email']) ?></small></div>
             </td>
             <td><?= h($roleLabels[$u['role']] ?? $u['role']) ?></td>
+            <td><?= h((string)($u['parent_name'] ?? '—')) ?></td>
             <td><span class="count-badge"><?= (int)$u['vehicle_count'] ?></span></td>
             <td><span class="status-badge <?= (int)$u['active'] ? 'is-active' : 'is-inactive' ?>"><?= (int)$u['active'] ? 'Aktivní' : 'Neaktivní' ?></span></td>
             <td class="actions-col">
@@ -76,7 +79,7 @@ $roleLabels = [
           </tr>
         <?php endforeach; ?>
         <?php if (!$users): ?>
-          <tr><td colspan="5" class="empty-table">Zatím nejsou založeni žádní uživatelé.</td></tr>
+          <tr><td colspan="6" class="empty-table">Zatím nejsou založeni žádní uživatelé.</td></tr>
         <?php endif; ?>
         </tbody>
       </table>
@@ -108,18 +111,28 @@ $roleLabels = [
             <label class="span-2"><span>Jméno</span><input id="userName" name="name" required autocomplete="name"></label>
             <label class="span-2"><span>E-mail</span><input id="userEmail" name="email" type="email" required autocomplete="email"></label>
             <label id="userPasswordField" class="span-2"><span>Heslo</span><input id="userPassword" name="password" type="password" minlength="8" autocomplete="new-password"><small>Minimálně 8 znaků.</small></label>
+            <?php if ($app->auth()->isAdmin($me)): ?>
             <label><span>Role</span><select id="userRole" name="role">
               <option value="user">Řidič</option>
               <option value="manager">Správce vozidel</option>
               <option value="admin">Administrátor</option>
             </select></label>
+            <label id="userParentField"><span>Nadřízený správce</span><select id="userParent" name="parent_user_id">
+              <option value="">— vyberte správce —</option>
+              <?php foreach ($managers as $manager): ?><option value="<?= (int)$manager['id'] ?>"><?= h($manager['name']) ?> · <?= h($manager['email']) ?></option><?php endforeach; ?>
+            </select></label>
+            <?php else: ?>
+            <input type="hidden" id="userRole" name="role" value="user">
+            <input type="hidden" id="userParent" name="parent_user_id" value="<?= (int)$me['id'] ?>">
+            <?php endif; ?>
             <label class="toggle-field" id="userActiveField"><span>Stav účtu</span><span class="toggle-line"><input id="userActive" type="checkbox" name="active" checked> Aktivní účet</span></label>
           </div>
         </div>
 
         <div class="form-panel">
           <h3>Přiřazená vozidla</h3>
-          <p class="form-panel-help">Zaškrtněte vozidla, ke kterým má mít uživatel přístup.</p>
+          <p class="form-panel-help">Řidič může dostat pouze vozidla svého nadřízeného správce. Datum účinnosti chrání historii předchozích vlastníků.</p>
+          <label><span>Změna přiřazení platí od</span><input type="date" name="assignment_effective_date" id="userAssignmentDate" value="<?= date('Y-m-d') ?>"></label>
           <div class="assignment-list">
             <?php foreach ($vehicles as $v): ?>
               <label class="check assignment">
@@ -159,6 +172,8 @@ $roleLabels = [
     password: document.getElementById('userPassword'),
     passwordField: document.getElementById('userPasswordField'),
     role: document.getElementById('userRole'),
+    parent: document.getElementById('userParent'),
+    parentField: document.getElementById('userParentField'),
     active: document.getElementById('userActive'),
     activeField: document.getElementById('userActiveField'),
     title: document.getElementById('userEditorTitle'),
@@ -177,6 +192,14 @@ $roleLabels = [
     vehicleChecks.forEach(input => { input.checked = selected.has(Number(input.value)); });
   };
 
+
+  const syncHierarchyFields = () => {
+    if (!fields.parentField || !fields.role) return;
+    fields.parentField.hidden = fields.role.value !== 'user';
+    if (fields.role.value !== 'user' && fields.parent) fields.parent.value = '';
+  };
+  fields.role?.addEventListener('change', syncHierarchyFields);
+
   const open = user => {
     lastFocus = document.activeElement;
     const editing = !!user;
@@ -186,12 +209,14 @@ $roleLabels = [
     fields.name.value = editing ? user.name : '';
     fields.email.value = editing ? user.email : '';
     fields.role.value = editing ? user.role : 'user';
+    if (fields.parent) fields.parent.value = editing && user.parent_user_id ? String(user.parent_user_id) : '';
     fields.active.checked = editing ? !!user.active : true;
     fields.password.value = '';
     fields.password.required = !editing;
     fields.passwordField.hidden = editing;
     fields.activeField.hidden = !editing;
     setAssignments(editing ? user.vehicle_ids : []);
+    syncHierarchyFields();
 
     fields.kicker.textContent = editing ? 'Editace účtu' : 'Nový účet';
     fields.title.textContent = editing ? user.name : 'Přidat uživatele';

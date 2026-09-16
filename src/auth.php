@@ -19,7 +19,7 @@
         if (!$id) {
             return NULL;
         }
-        $q = $pdo->prepare('SELECT id,name,email,role,active,default_vehicle_id FROM users WHERE id=?');
+        $q = $pdo->prepare('SELECT id,name,email,role,parent_user_id,active,default_vehicle_id FROM users WHERE id=?');
         $q->execute([$id]);
         $u = $q->fetch();
         if (!$u || !(int)$u['active']) {
@@ -75,7 +75,7 @@
     }
     
     function allowedVehicles(PDO $pdo, array $u): array {
-        if (canManageVehicles($u)) {
+        if (isAdmin($u)) {
             return $pdo->query('SELECT * FROM vehicles ORDER BY name, id')->fetchAll();
         }
         $q = $pdo->prepare('SELECT v.* FROM vehicles v JOIN user_vehicles uv ON uv.vehicle_id=v.id WHERE uv.user_id=? ORDER BY v.name,v.id');
@@ -85,7 +85,7 @@
     }
     
     function canAccessVehicle(PDO $pdo, array $u, int $vehicleId): bool {
-        if (canManageVehicles($u)) {
+        if (isAdmin($u)) {
             $q = $pdo->prepare('SELECT 1 FROM vehicles WHERE id=?');
             $q->execute([$vehicleId]);
             

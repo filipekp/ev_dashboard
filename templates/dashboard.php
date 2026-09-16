@@ -76,6 +76,20 @@
             </section>
         </div>
     <?php endif; ?>
+    <?php if (!empty($privacyRestricted)): ?>
+        <section class="card privacy-summary">
+            <div>
+                <small>🔒 SOUKROMÍ HISTORIE</small>
+                <h2>Detailní data vidíte až od svého přiřazení vozidla</h2>
+                <p>Starší trasy, adresy, dokumenty a provozní záznamy jsou skryté. Z minulosti se sdílí pouze anonymní technický souhrn vozidla.</p>
+            </div>
+            <div class="privacy-summary-stats">
+                <span><b><?= cz((float)$lifetimeStats['odometer_km'], 0) ?> km</b><small>poslední známý tachometr</small></span>
+                <?php if ($hasTractionBattery): ?><span><b><?= cz((float)$lifetimeStats['avg_consumption_kwh_100'], 1) ?> kWh/100 km</b><small>dlouhodobá spotřeba</small></span><?php elseif ($hasFuelSystem): ?><span><b><?= cz((float)$lifetimeStats['avg_fuel_consumption_l_100'], 1) ?> <?= h(fuelUnit($powertrain)) ?>/100 km</b><small>dlouhodobá spotřeba</small></span><?php endif; ?>
+            </div>
+        </section>
+    <?php endif; ?>
+
     <section class="period-filter">
         <div class="period-main">
             <b>🗓 Období:</b>

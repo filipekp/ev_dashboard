@@ -9,13 +9,7 @@ use App\Http;
 use RuntimeException;
 use Throwable;
 
-/**
- * Správa vozidel a jejich přiřazení uživatelům.
- *
- * @author    Pavel Filípek <pavel@filipek-czech.cz>
- * @copyright © 2026, Proclient s.r.o.
- * @created   15.09.2026
- */
+/** Správa vozidel v rámci hierarchicky omezeného vozového parku. */
 final class VehiclesController
 {
     /** @var Application */
@@ -45,18 +39,33 @@ final class VehiclesController
             Http::redirect('vehicles.php');
         }
 
-        $vehicles = $pdo->query(
-            'SELECT v.*, (SELECT COUNT(*) FROM trips t WHERE t.vehicle_id=v.id) trip_count
-             FROM vehicles v
-             ORDER BY v.name'
-        )->fetchAll();
-        $users = $pdo->query(
-            'SELECT id, name, email FROM users WHERE active=1 ORDER BY name'
-        )->fetchAll();
+        $vehicles = $this->app->auth()->allowedVehicles($me);
+        foreach ($vehicles as &$vehicle) {
+            $q = $pdo->prepare('SELECT COUNT(*) FROM trips WHERE vehicle_id=?');
+            $q->execute([(int)$vehicle['id']]);
+            $vehicle['trip_count'] = (int)$q->fetchColumn();
+        }
+        unset($vehicle);
+
+        if ($this->app->auth()->isAdmin($me)) {
+            $users = $pdo->query("SELECT id,name,email,role FROM users WHERE active=1 AND role='manager' ORDER BY name")->fetchAll();
+        } else {
+            $q = $pdo->prepare("SELECT id,name,email,role FROM users WHERE active=1 AND role='user' AND parent_user_id=? ORDER BY name");
+            $q->execute([(int)$me['id']]);
+            $users = $q->fetchAll();
+        }
 
         $assigned = [];
-        foreach ($pdo->query('SELECT user_id, vehicle_id FROM user_vehicles') as $row) {
-            $assigned[(int)$row['vehicle_id']][] = (int)$row['user_id'];
+        if ($vehicles) {
+            $vehicleIds = array_map(static function (array $vehicle): int {
+                return (int)$vehicle['id'];
+            }, $vehicles);
+            $placeholders = implode(',', array_fill(0, count($vehicleIds), '?'));
+            $q = $pdo->prepare('SELECT user_id,vehicle_id FROM user_vehicles WHERE vehicle_id IN (' . $placeholders . ')');
+            $q->execute($vehicleIds);
+            foreach ($q->fetchAll() as $row) {
+                $assigned[(int)$row['vehicle_id']][] = (int)$row['user_id'];
+            }
         }
 
         $this->app->template()->render('vehicles', [
@@ -73,18 +82,19 @@ final class VehiclesController
     private function handlePost(array $me): void
     {
         $action = (string)($_POST['action'] ?? '');
-
-        if ($action === 'create' || $action === 'update') {
-            $vehicleId = $this->saveVehicle($action);
-            $this->saveAssignment($vehicleId, $_POST['user_ids'] ?? [], false);
+        if ($action === 'create') {
+            if (!$this->app->auth()->isAdmin($me)) {
+                throw new RuntimeException('Nové vozidlo může založit pouze administrátor.');
+            }
+            $vehicleId = $this->saveVehicle($action, $me);
+            $this->syncVehicleAssignments($me, $vehicleId, $_POST['user_ids'] ?? []);
             return;
         }
-
-        if ($action === 'assign') {
-            $this->saveAssignment((int)($_POST['vehicle_id'] ?? 0), $_POST['user_ids'] ?? []);
+        if ($action === 'update') {
+            $vehicleId = $this->saveVehicle($action, $me);
+            $this->syncVehicleAssignments($me, $vehicleId, $_POST['user_ids'] ?? []);
             return;
         }
-
         if ($action === 'delete') {
             if (!$this->app->auth()->isAdmin($me)) {
                 throw new RuntimeException('Vozidlo může smazat pouze administrátor.');
@@ -93,19 +103,21 @@ final class VehiclesController
             $this->app->session()->flash('Vozidlo a jeho související data byla smazána.');
             return;
         }
-
         throw new RuntimeException('Neznámá operace.');
     }
 
-    private function saveVehicle(string $action): int
+    /** @param array<string,mixed> $me */
+    private function saveVehicle(string $action, array $me): int
     {
         $id = (int)($_POST['id'] ?? 0);
+        if ($action === 'update' && ($id <= 0 || !$this->app->auth()->canAccessVehicle($me, $id))) {
+            throw new RuntimeException('Toto vozidlo nemůžete spravovat.');
+        }
         $name = trim((string)($_POST['name'] ?? ''));
         $vin = strtoupper(trim((string)($_POST['vin'] ?? '')));
         $manufacturer = strtoupper(trim((string)($_POST['manufacturer'] ?? '')));
         $powertrain = strtoupper(trim((string)($_POST['powertrain_type'] ?? 'BEV')));
         $allowedPowertrains = ['BEV', 'PHEV', 'HEV', 'PETROL', 'DIESEL', 'LPG', 'CNG'];
-
         if ($name === '' || $vin === '' || $manufacturer === '') {
             throw new RuntimeException('Vyplňte název, výrobce a VIN vozidla.');
         }
@@ -132,32 +144,15 @@ final class VehiclesController
             throw new RuntimeException('SoH zadejte v rozsahu 50–110 %.');
         }
 
-        $values = [
-            $name,
-            $vin,
-            $manufacturer,
-            $powertrain,
-            $battery ?: 0,
-            $nominal ?: ($battery ?: null),
-            $tank,
-            $registrationPlate ?: null,
-            $firstRegistration ?: null,
-            $acquisitionDate ?: null,
-            $acquisitionPrice,
-            $currentValue,
-            $odometer,
-            $soh,
-            $soh,
-            $home ?: null,
-        ];
+        $values = [$name, $vin, $manufacturer, $powertrain, $battery ?: 0, $nominal ?: ($battery ?: null), $tank,
+            $registrationPlate ?: null, $firstRegistration ?: null, $acquisitionDate ?: null, $acquisitionPrice,
+            $currentValue, $odometer, $soh, $soh, $home ?: null];
 
         if ($action === 'create') {
             $query = $this->app->pdo()->prepare(
-                'INSERT INTO vehicles
-                    (name, vin, manufacturer, powertrain_type, battery_kwh, battery_nominal_kwh, fuel_tank_l,
-                     registration_plate, first_registration_date, acquisition_date, acquisition_price, current_value,
-                     odometer_km, soh_manual_pct, soh_manual_at, home_label)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, IF(? IS NULL, NULL, NOW()), ?)'
+                'INSERT INTO vehicles (name,vin,manufacturer,powertrain_type,battery_kwh,battery_nominal_kwh,fuel_tank_l,'
+                . 'registration_plate,first_registration_date,acquisition_date,acquisition_price,current_value,odometer_km,'
+                . 'soh_manual_pct,soh_manual_at,home_label) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,IF(? IS NULL,NULL,NOW()),?)'
             );
             $query->execute($values);
             $vehicleId = (int)$this->app->pdo()->lastInsertId();
@@ -165,52 +160,50 @@ final class VehiclesController
             return $vehicleId;
         }
 
-        if ($id <= 0) {
-            throw new RuntimeException('Vozidlo nebylo nalezeno.');
-        }
         $values[] = $id;
         $query = $this->app->pdo()->prepare(
-            'UPDATE vehicles
-             SET name=?, vin=?, manufacturer=?, powertrain_type=?, battery_kwh=?, battery_nominal_kwh=?, fuel_tank_l=?,
-                 registration_plate=?, first_registration_date=?, acquisition_date=?, acquisition_price=?, current_value=?,
-                 odometer_km=?, soh_manual_pct=?, soh_manual_at=IF(? IS NULL, NULL, NOW()), home_label=?
-             WHERE id=?'
+            'UPDATE vehicles SET name=?,vin=?,manufacturer=?,powertrain_type=?,battery_kwh=?,battery_nominal_kwh=?,fuel_tank_l=?,'
+            . 'registration_plate=?,first_registration_date=?,acquisition_date=?,acquisition_price=?,current_value=?,odometer_km=?,'
+            . 'soh_manual_pct=?,soh_manual_at=IF(? IS NULL,NULL,NOW()),home_label=? WHERE id=?'
         );
         $query->execute($values);
         $this->app->session()->flash('Vozidlo bylo upraveno.');
         return $id;
     }
 
-    /** @param mixed $ids */
-    private function saveAssignment(int $vehicleId, $ids, bool $showFlash = true): void
+    /** @param array<string,mixed> $me @param mixed $ids */
+    private function syncVehicleAssignments(array $me, int $vehicleId, $ids): void
     {
-        $userIds = is_array($ids) ? array_map('intval', $ids) : [];
-        if ($vehicleId <= 0) {
-            throw new RuntimeException('Vozidlo nebylo nalezeno.');
+        $requested = is_array($ids) ? array_values(array_unique(array_filter(array_map('intval', $ids)))) : [];
+        $effectiveDate = (string)($_POST['assignment_effective_date'] ?? '');
+        $pdo = $this->app->pdo();
+
+        if ($this->app->auth()->isAdmin($me)) {
+            $targets = $pdo->query("SELECT id FROM users WHERE role='manager'")->fetchAll();
+        } else {
+            $q = $pdo->prepare("SELECT id FROM users WHERE role='user' AND parent_user_id=?");
+            $q->execute([(int)$me['id']]);
+            $targets = $q->fetchAll();
         }
 
-        $pdo = $this->app->pdo();
         $pdo->beginTransaction();
-        $pdo->prepare('DELETE FROM user_vehicles WHERE vehicle_id=?')->execute([$vehicleId]);
-        $insert = $pdo->prepare('INSERT INTO user_vehicles(user_id, vehicle_id) VALUES(?, ?)');
-        foreach (array_unique($userIds) as $userId) {
-            if ($userId > 0) {
-                $insert->execute([$userId, $vehicleId]);
+        foreach ($targets as $target) {
+            $userId = (int)$target['id'];
+            $q = $pdo->prepare('SELECT vehicle_id FROM user_vehicles WHERE user_id=?');
+            $q->execute([$userId]);
+            $vehicleIds = array_map('intval', $q->fetchAll(\PDO::FETCH_COLUMN));
+            $has = in_array($vehicleId, $vehicleIds, true);
+            $wants = in_array($userId, $requested, true);
+            if ($wants && !$has) {
+                $vehicleIds[] = $vehicleId;
+            } elseif (!$wants && $has) {
+                $vehicleIds = array_values(array_diff($vehicleIds, [$vehicleId]));
+            } else {
+                continue;
             }
+            $this->app->userAccess()->syncAssignments($me, $userId, $vehicleIds, $effectiveDate);
         }
-        $pdo->prepare(
-            "UPDATE users u
-             SET u.default_vehicle_id=NULL
-             WHERE u.default_vehicle_id=?
-               AND u.role='user'
-               AND NOT EXISTS (
-                   SELECT 1 FROM user_vehicles uv WHERE uv.user_id=u.id AND uv.vehicle_id=?
-               )"
-        )->execute([$vehicleId, $vehicleId]);
         $pdo->commit();
-        if ($showFlash) {
-            $this->app->session()->flash('Přiřazení vozidla bylo uloženo.');
-        }
     }
 
     /** @param mixed $value */

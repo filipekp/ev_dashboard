@@ -48,7 +48,7 @@ final class AuthService
         if ($id <= 0) {
             return null;
         }
-        $q = $this->pdo->prepare('SELECT id,name,email,role,active,default_vehicle_id FROM users WHERE id=?');
+        $q = $this->pdo->prepare('SELECT id,name,email,role,parent_user_id,active,default_vehicle_id FROM users WHERE id=?');
         $q->execute([$id]);
         $user = $q->fetch();
         if (!$user || !(int)$user['active']) {
@@ -106,18 +106,34 @@ final class AuthService
     /** @param array<string,mixed> $user @return array<int,array<string,mixed>> */
     public function allowedVehicles(array $user): array
     {
-        if ($this->canManageVehicles($user)) {
+        if ($this->isAdmin($user)) {
             return $this->pdo->query('SELECT * FROM vehicles ORDER BY name,id')->fetchAll();
         }
-        $q = $this->pdo->prepare('SELECT v.* FROM vehicles v JOIN user_vehicles uv ON uv.vehicle_id=v.id WHERE uv.user_id=? ORDER BY v.name,v.id');
+        $q = $this->pdo->prepare(
+            'SELECT v.*, uva.home_label assignment_home_label, uva.acquisition_date assignment_acquisition_date, ' .
+            'uva.acquisition_price assignment_acquisition_price, uva.current_value assignment_current_value ' .
+            'FROM vehicles v '
+            . 'JOIN user_vehicles uv ON uv.vehicle_id=v.id AND uv.user_id=? '
+            . 'LEFT JOIN user_vehicle_access uva ON uva.user_id=uv.user_id AND uva.vehicle_id=uv.vehicle_id AND uva.valid_to IS NULL '
+            . 'ORDER BY v.name,v.id'
+        );
         $q->execute([(int)$user['id']]);
-        return $q->fetchAll();
+        $vehicles = $q->fetchAll();
+        foreach ($vehicles as &$vehicle) {
+            $vehicle['home_label'] = $vehicle['assignment_home_label'] ?? null;
+            $vehicle['acquisition_date'] = $vehicle['assignment_acquisition_date'] ?? null;
+            $vehicle['acquisition_price'] = $vehicle['assignment_acquisition_price'] ?? null;
+            $vehicle['current_value'] = $vehicle['assignment_current_value'] ?? null;
+            unset($vehicle['assignment_home_label'], $vehicle['assignment_acquisition_date'], $vehicle['assignment_acquisition_price'], $vehicle['assignment_current_value']);
+        }
+        unset($vehicle);
+        return $vehicles;
     }
 
     /** @param array<string,mixed> $user */
     public function canAccessVehicle(array $user, int $vehicleId): bool
     {
-        if ($this->canManageVehicles($user)) {
+        if ($this->isAdmin($user)) {
             $q = $this->pdo->prepare('SELECT 1 FROM vehicles WHERE id=?');
             $q->execute([$vehicleId]);
             return (bool)$q->fetchColumn();

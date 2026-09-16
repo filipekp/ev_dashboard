@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(190) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('admin','manager','user') NOT NULL DEFAULT 'user',
+    parent_user_id BIGINT UNSIGNED NULL,
     active TINYINT(1) NOT NULL DEFAULT 1,
     default_vehicle_id BIGINT UNSIGNED NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -23,6 +24,9 @@ CREATE TABLE IF NOT EXISTS vehicles (
     soh_manual_pct DECIMAL(5,2) NULL,
     soh_manual_at DATETIME NULL,
     home_label VARCHAR(190) NULL,
+    acquisition_date DATE NULL,
+    acquisition_price DECIMAL(12,2) NULL,
+    current_value DECIMAL(12,2) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
@@ -30,6 +34,10 @@ CREATE TABLE IF NOT EXISTS vehicles (
 ALTER TABLE users
     ADD KEY idx_users_default_vehicle (default_vehicle_id),
     ADD CONSTRAINT fk_users_default_vehicle FOREIGN KEY (default_vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL;
+
+ALTER TABLE users
+    ADD KEY idx_users_parent (parent_user_id),
+    ADD CONSTRAINT fk_users_parent FOREIGN KEY (parent_user_id) REFERENCES users(id) ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS user_vehicles (
     user_id BIGINT UNSIGNED NOT NULL,
@@ -39,6 +47,25 @@ CREATE TABLE IF NOT EXISTS user_vehicles (
     KEY idx_uv_vehicle (vehicle_id),
     CONSTRAINT fk_uv_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_uv_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
+
+CREATE TABLE IF NOT EXISTS user_vehicle_access (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    vehicle_id BIGINT UNSIGNED NOT NULL,
+    assigned_by_user_id BIGINT UNSIGNED NULL,
+    valid_from DATETIME NOT NULL,
+    valid_to DATETIME NULL,
+    home_label VARCHAR(190) NULL,
+    acquisition_date DATE NULL,
+    acquisition_price DECIMAL(12,2) NULL,
+    current_value DECIMAL(12,2) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_uva_user_current (user_id, valid_to, vehicle_id),
+    KEY idx_uva_vehicle_period (vehicle_id, valid_from, valid_to),
+    CONSTRAINT fk_uva_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_uva_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+    CONSTRAINT fk_uva_assigned_by FOREIGN KEY (assigned_by_user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
 
 CREATE TABLE IF NOT EXISTS trips (

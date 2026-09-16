@@ -4293,3 +4293,19 @@ body.modal-open { overflow: hidden; }
   .form-panel { padding:14px; }
   .admin-list-table { min-width:720px; }
 }
+
+/* v16 – privacy-safe vehicle ownership handover */
+.privacy-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 18px;
+}
+.privacy-summary h2 { margin: 4px 0 6px; font-size: 1.05rem; }
+.privacy-summary p { margin: 0; max-width: 760px; opacity: .75; }
+.privacy-summary-stats { display: flex; gap: 12px; flex-wrap: wrap; }
+.privacy-summary-stats span { min-width: 170px; padding: 12px 14px; border: 1px solid var(--line, #25344b); border-radius: 12px; }
+.privacy-summary-stats b, .privacy-summary-stats small { display: block; }
+.privacy-summary-stats small { margin-top: 4px; opacity: .65; }
+@media (max-width: 760px) { .privacy-summary { align-items: stretch; flex-direction: column; } }

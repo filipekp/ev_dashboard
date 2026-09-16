@@ -28,7 +28,7 @@ final class MediaController
     private function view(array $user,int $id): void
     {
         $media=$this->app->vehicleMedia()->find($id);
-        if(!$media || !$this->app->auth()->canAccessVehicle($user,(int)$media['vehicle_id'])){http_response_code(404);exit('Fotografie nebyla nalezena.');}
+        if(!$media || !$this->app->auth()->canAccessVehicle($user,(int)$media['vehicle_id']) || !$this->app->userAccess()->canReadDetailAt($user,(int)$media['vehicle_id'],(string)($media['created_at'] ?? ''))){http_response_code(404);exit('Fotografie nebyla nalezena.');}
         $path=$this->app->root().'/storage/vehicle-media/'.basename((string)$media['stored_name']); if(!is_file($path)){http_response_code(404);exit('Soubor nebyl nalezen.');}
         header('Content-Type: '.(string)$media['mime_type']); header('Content-Length: '.filesize($path)); header('Cache-Control: private, max-age=86400'); header('X-Content-Type-Options: nosniff'); readfile($path);
     }

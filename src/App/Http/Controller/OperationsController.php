@@ -41,12 +41,14 @@ final class OperationsController
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $this->handlePost($vehicleId);
+            $this->handlePost($vehicleId, $user);
             return;
         }
 
+        $scope = $this->app->userAccess()->vehicleDetailScope($user, $vehicleId);
+        $from = $scope['from'];
         $repository = $this->app->vehicleOperations();
-        $services = $repository->serviceRecords($vehicleId);
+        $services = $repository->serviceRecords($vehicleId, 100, $from);
         $attachments = [];
         foreach ($services as $service) {
             $attachments[(int)$service['id']] = $repository->attachmentsForService((int)$service['id']);
@@ -59,24 +61,35 @@ final class OperationsController
             'vehicle' => $vehicle,
             'flash' => $this->app->session()->pullFlash(),
             'summary' => $repository->costSummary($vehicleId),
-            'energyEntries' => $repository->energyEntries($vehicleId),
+            'energyEntries' => $repository->energyEntries($vehicleId, 100, $from),
             'services' => $services,
             'serviceAttachments' => $attachments,
-            'expenses' => $repository->expenses($vehicleId),
-            'reminders' => $repository->reminders($vehicleId),
-            'tripBook' => $repository->tripBookEntries($vehicleId),
-            'importedTrips' => $repository->tripLog($vehicleId, 30),
+            'expenses' => $repository->expenses($vehicleId, 100, $from),
+            'reminders' => $repository->reminders($vehicleId, $from),
+            'tripBook' => $repository->tripBookEntries($vehicleId, 100, $from),
+            'importedTrips' => $repository->tripLog($vehicleId, 30, $from),
             'prefillTrip' => (int)($_GET['source_trip_id'] ?? 0) > 0
-                ? $repository->importedTrip($vehicleId, (int)$_GET['source_trip_id'])
+                ? $repository->importedTrip($vehicleId, (int)$_GET['source_trip_id'], $from)
                 : null,
         ]);
     }
 
-    private function handlePost(int $vehicleId): void
+    private function handlePost(int $vehicleId, array $user): void
     {
         try {
             $this->app->session()->verifyCsrf();
             $action = (string)($_POST['action'] ?? '');
+            $scope = $this->app->userAccess()->vehicleDetailScope($user, $vehicleId);
+            $dateValue = (string)($_POST['occurred_at'] ?? $_POST['serviced_at'] ?? $_POST['started_at'] ?? '');
+            if ($dateValue !== '' && !$this->app->userAccess()->canReadDetailAt($user, $vehicleId, $dateValue)) {
+                throw new RuntimeException('Záznam nelze uložit před začátek vašeho přístupu k vozidlu.');
+            }
+            if ($action === 'update_trip') {
+                $trip = $this->app->vehicleOperations()->importedTrip($vehicleId, (int)($_POST['trip_id'] ?? 0), $scope['from']);
+                if (!$trip) {
+                    throw new RuntimeException('Jízda není v období, ke kterému máte přístup.');
+                }
+            }
             $service = $this->app->vehicleOperationService();
 
             switch ($action) {

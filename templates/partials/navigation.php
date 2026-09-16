@@ -57,7 +57,7 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
         <?php if ($navCanManageVehicles || $navIsAdmin): ?>
             <small>SPRÁVA</small>
             <?php if ($navCanManageVehicles): ?><a class="<?= $navCurrent('vehicles.php') ?>" href="vehicles.php"><span>⚙</span> Vozidla</a><?php endif; ?>
-            <?php if ($navIsAdmin): ?><a class="<?= $navCurrent('users.php') ?>" href="users.php"><span>♙</span> Uživatelé</a><a class="<?= $navCurrent('update.php') ?>" href="update.php"><span>↻</span> Aktualizace</a><?php endif; ?>
+            <?php if ($navCanManageVehicles): ?><a class="<?= $navCurrent('users.php') ?>" href="users.php"><span>♙</span> Uživatelé</a><?php endif; ?><?php if ($navIsAdmin): ?><a class="<?= $navCurrent('update.php') ?>" href="update.php"><span>↻</span> Aktualizace</a><?php endif; ?>
         <?php endif; ?>
     </nav>
 
@@ -96,8 +96,10 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
         <?php if ($navCanManageVehicles): ?>
             <a class="<?= $navCurrent('vehicles.php') ?>" href="vehicles.php"><span>⚙</span><div><b>Vozidla</b><small>Správa vozidel a parametrů</small></div><i>›</i></a>
         <?php endif; ?>
+        <?php if ($navCanManageVehicles): ?>
+            <a class="<?= $navCurrent('users.php') ?>" href="users.php"><span>♙</span><div><b>Uživatelé</b><small>Hierarchie a oprávnění</small></div><i>›</i></a>
+        <?php endif; ?>
         <?php if ($navIsAdmin): ?>
-            <a class="<?= $navCurrent('users.php') ?>" href="users.php"><span>♙</span><div><b>Uživatelé</b><small>Účty a oprávnění</small></div><i>›</i></a>
             <a class="<?= $navCurrent('update.php') ?>" href="update.php"><span>↻</span><div><b>Aktualizace</b><small>Verze aplikace a updater</small></div><i>›</i></a>
         <?php endif; ?>
         <a class="<?= $navCurrent('profile.php') ?>" href="profile.php"><span class="avatar-mini"><?= h(mb_strtoupper(mb_substr((string)($navUser['name'] ?? 'U'), 0, 1))) ?></span><div><b>Můj profil</b><small><?= h((string)($navUser['name'] ?? 'Uživatel')) ?></small></div><i>›</i></a>

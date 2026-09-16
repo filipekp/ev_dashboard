@@ -30,6 +30,7 @@ use App\Service\ImportService;
 use App\Service\VehicleMediaService;
 use App\Service\VehicleOperationService;
 use App\Service\VehicleTimelineService;
+use App\Service\UserAccessService;
 use App\Service\VehicleInsightService;
 use PDO;
 
@@ -79,6 +80,9 @@ final class Application
     /** @var DocumentRepository|null */
     private $documents;
 
+    /** @var UserAccessService|null */
+    private $userAccess;
+
     /** @var VehicleMediaRepository|null */
     private $vehicleMedia;
 
@@ -112,6 +116,15 @@ final class Application
     public function auth(): AuthService
     {
         return $this->auth;
+    }
+
+    public function userAccess(): UserAccessService
+    {
+        if ($this->userAccess === null) {
+            $this->userAccess = new UserAccessService($this->pdo());
+        }
+
+        return $this->userAccess;
     }
 
     public function root(): string

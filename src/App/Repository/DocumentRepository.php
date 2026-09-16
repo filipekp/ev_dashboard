@@ -96,15 +96,19 @@ final class DocumentRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function listForVehicle(int $vehicleId, int $limit = 100): array
+    public function listForVehicle(int $vehicleId, int $limit = 100, ?string $from = null): array
     {
         $q = $this->pdo->prepare(
             'SELECT d.*, r.id import_run_id,r.status import_status,r.extractor,r.confidence,r.error_message,r.confirmed_at
              FROM vehicle_documents d
              LEFT JOIN document_import_runs r ON r.id=(SELECT MAX(r2.id) FROM document_import_runs r2 WHERE r2.document_id=d.id)
-             WHERE d.vehicle_id=? ORDER BY d.created_at DESC,d.id DESC LIMIT ' . (int)$limit
+             WHERE d.vehicle_id=?' . ($from !== null ? ' AND d.created_at>=?' : '') . ' ORDER BY d.created_at DESC,d.id DESC LIMIT ' . (int)$limit
         );
-        $q->execute([$vehicleId]);
+        $params = [$vehicleId];
+        if ($from !== null) {
+            $params[] = $from;
+        }
+        $q->execute($params);
         return $q->fetchAll();
     }
 

@@ -3,6 +3,26 @@ $pageTitle = 'Vozidla';
 $showNavigation = true;
 $navTitle = 'Správa vozidel';
 require __DIR__ . '/partials/header.php';
+
+$manufacturerLabels = [
+    'SKODA' => 'Škoda',
+    'KIA' => 'Kia',
+    'HYUNDAI' => 'Hyundai',
+    'VOLKSWAGEN' => 'Volkswagen',
+    'AUDI' => 'Audi',
+    'TESLA' => 'Tesla',
+    'OTHER' => 'Jiný',
+];
+$powertrainLabels = [
+    'BEV' => 'BEV – elektromobil',
+    'PHEV' => 'PHEV – plug-in hybrid',
+    'HEV' => 'HEV – hybrid',
+    'PETROL' => 'Benzín',
+    'DIESEL' => 'Nafta',
+    'LPG' => 'LPG',
+    'CNG' => 'CNG',
+];
+
 ?>
 <main class="wrap narrow admin-list-page">
   <?php if ($flash): ?>

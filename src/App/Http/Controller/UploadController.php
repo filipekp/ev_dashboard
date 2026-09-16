@@ -6,6 +6,7 @@ namespace App\Http\Controller;
 
 use App\Application;
 use App\Http;
+use App\Import\UnsupportedImportFormatException;
 use RuntimeException;
 use Throwable;
 
@@ -71,6 +72,19 @@ final class UploadController
             }
 
             $this->app->session()->flash($message);
+        } catch (UnsupportedImportFormatException $e) {
+            try {
+                $file = $_FILES['csv'];
+                $staged = $this->app->unknownImportService()->stage(
+                    $user,
+                    (int)($_POST['vehicle_id'] ?? 0),
+                    (string)$file['tmp_name'],
+                    (string)($file['name'] ?? '')
+                );
+                Http::redirect('generic-import.php?token=' . rawurlencode((string)$staged['token']));
+            } catch (Throwable $fallbackError) {
+                $this->app->session()->flash('Soubor nebyl rozpoznán pluginem a univerzální mapování se nepodařilo připravit: ' . $fallbackError->getMessage(), 'error');
+            }
         } catch (Throwable $e) {
             $this->app->session()->flash('Chyba importu: ' . $e->getMessage(), 'error');
         }

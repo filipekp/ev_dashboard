@@ -20,6 +20,7 @@ use App\Document\Parser\PowerpassElliInvoiceParser;
 use App\Repository\DocumentRepository;
 use App\Repository\IntegrationImportRunRepository;
 use App\Repository\TripRepository;
+use App\Repository\UnknownImportRepository;
 use App\Repository\VehicleMediaRepository;
 use App\Repository\VehicleOperationRepository;
 use App\Repository\VehicleRepository;
@@ -27,6 +28,7 @@ use App\Service\AnalyticsService;
 use App\Service\DashboardService;
 use App\Service\DocumentImportService;
 use App\Service\ImportService;
+use App\Service\UnknownImportService;
 use App\Service\RegistrationService;
 use App\Service\VehicleMediaService;
 use App\Service\VehicleOperationService;
@@ -74,6 +76,9 @@ final class Application
 
     /** @var VehicleRepository|null */
     private $vehicles;
+
+    /** @var UnknownImportRepository|null */
+    private $unknownImports;
 
     /** @var VehicleOperationRepository|null */
     private $vehicleOperations;
@@ -171,6 +176,29 @@ final class Application
         }
 
         return $this->vehicles;
+    }
+
+    public function unknownImports(): UnknownImportRepository
+    {
+        if ($this->unknownImports === null) {
+            $this->unknownImports = new UnknownImportRepository($this->pdo());
+        }
+
+        return $this->unknownImports;
+    }
+
+    public function unknownImportService(): UnknownImportService
+    {
+        return new UnknownImportService(
+            $this->pdo(),
+            $this->auth(),
+            $this->config(),
+            $this->root(),
+            $this->unknownImports(),
+            $this->vehicles(),
+            $this->trips(),
+            $this->integrationImportRuns()
+        );
     }
 
     public function integrationImportRuns(): IntegrationImportRunRepository

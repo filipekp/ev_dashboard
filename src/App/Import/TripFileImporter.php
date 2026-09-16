@@ -96,6 +96,6 @@ final class TripFileImporter
             }
         }
 
-        throw new RuntimeException('Nepodporovaný soubor. Očekávám podporované CSV nebo export jízd XLSX z Kia Connect.');
+        throw new UnsupportedImportFormatException('Pro tento soubor nebyl nalezen nativní importní plugin.');
     }
 }

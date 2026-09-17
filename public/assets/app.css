@@ -5982,10 +5982,6 @@ body.modal-open {
         min-height: 70px;
     }
 
-    .landing-nav-actions .landing-link {
-        display: none;
-    }
-
     .landing-hero, .landing-section, .landing-showcase, .landing-split-showcase, .landing-steps, .landing-demo-panel, .landing-footer, .landing-stats-strip, .landing-ai-section {
         width: min(100% - 28px, 1420px);
     }

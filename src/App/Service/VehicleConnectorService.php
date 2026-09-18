@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\AuthService;
+use App\Integration\Vehicle\RefreshableVehicleConnectorInterface;
+use App\Integration\Vehicle\RevocableVehicleConnectorInterface;
 use App\Integration\Vehicle\VehicleConnectorRegistry;
 use App\Repository\VehicleDataRepository;
 use App\Repository\VehicleRepository;
@@ -66,8 +68,12 @@ final class VehicleConnectorService
         if (!$connector->supportsVehicle($vehicle)) {
             throw new RuntimeException('Tento konektor není určen pro výrobce vybraného vozidla.');
         }
+        $schema = $connector->credentialSchema();
+        if (($schema['type'] ?? '') === 'oauth') {
+            throw new RuntimeException('Tento konektor používá OAuth. Připojení spusťte tlačítkem přihlášení k výrobci.');
+        }
 
-        $this->validateCredentials($connector->credentialSchema(), $credentials);
+        $this->validateCredentials($schema, $credentials);
         $encrypted = $this->cipher->encrypt($credentials);
         $secret = $this->primarySecret($credentials);
         $hint = $secret !== '' ? '••••' . substr($secret, -4) : 'uloženo';
@@ -103,9 +109,38 @@ final class VehicleConnectorService
     /** @param array<string,mixed> $user */
     public function disconnect(array $user, int $vehicleId): void
     {
-        $this->managedVehicle($user, $vehicleId);
+        $vehicle = $this->managedVehicle($user, $vehicleId);
         $connection = $this->requiredConnection($vehicleId);
-        $this->repository->deleteConnection((int)$connection['id']);
+        $connectionId = (int)$connection['id'];
+        $connector = $this->connectors->get((string)$connection['provider']);
+
+        if ($connector instanceof RevocableVehicleConnectorInterface) {
+            $encrypted = trim((string)($connection['credentials_encrypted'] ?? ''));
+            if ($encrypted !== '') {
+                $credentials = $this->cipher->decrypt($encrypted);
+                if ($connector instanceof RefreshableVehicleConnectorInterface) {
+                    $prepared = $connector->refreshCredentialsIfNeeded($credentials);
+                    $credentials = $prepared['credentials'];
+                    if (!empty($prepared['changed'])) {
+                        $newEncrypted = $this->cipher->encrypt($credentials);
+                        $secret = trim((string)($credentials['refresh_token'] ?? $credentials['access_token'] ?? ''));
+                        $this->repository->updateConnectionCredentials(
+                            $connectionId,
+                            $newEncrypted,
+                            hash('sha256', $secret !== '' ? $secret : $newEncrypted),
+                            (string)($prepared['hint'] ?? 'OAuth'),
+                            isset($prepared['expires_at']) ? (string)$prepared['expires_at'] : null
+                        );
+                    }
+                }
+                $connector->revoke($vehicle, $credentials);
+            }
+            if ($connector->purgeDataOnDisconnect()) {
+                $this->repository->purgeConnectionData($connectionId);
+            }
+        }
+
+        $this->repository->deleteConnection($connectionId);
     }
 
     /** @param array<string,mixed> $user @return array<string,mixed> */

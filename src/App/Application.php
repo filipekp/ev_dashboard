@@ -42,6 +42,9 @@ use App\Service\VehicleConnectorService;
 use App\Integration\Vehicle\VehicleConnectorRegistry;
 use App\Integration\Vehicle\Skoda\SkodaConnector;
 use App\Integration\Vehicle\Skoda\SkodaPublicApiClient;
+use App\Integration\Vehicle\Kia\KiaConnector;
+use App\Integration\Vehicle\Kia\KiaPleosApiClient;
+use App\Service\KiaPleosService;
 use App\Security\CredentialCipher;
 use PDO;
 
@@ -114,6 +117,9 @@ final class Application
 
     /** @var CredentialCipher|null */
     private $credentialCipher;
+
+    /** @var KiaPleosService|null */
+    private $kiaPleosService;
 
     /** @var RateLimiter|null */
     private $rateLimiter;
@@ -379,16 +385,53 @@ final class Application
                 (string)$this->config->get('vehicle_connectors.skoda.api_url', 'https://public.api.connect.skoda-auto.cz'),
                 (int)$this->config->get('vehicle_connectors.skoda.timeout_seconds', 30)
             );
+            $kiaClient = $this->kiaPleosClient();
             $this->vehicleConnectorRegistry = new VehicleConnectorRegistry([
                 new SkodaConnector(
                     $skodaClient,
                     (int)$this->config->get('vehicle_connectors.skoda.sync_interval_seconds', 600),
                     (int)$this->config->get('vehicle_connectors.skoda.rate_limit_reserve', 3)
                 ),
+                new KiaConnector(
+                    $kiaClient,
+                    (int)$this->config->get('vehicle_connectors.kia.sync_interval_seconds', 900)
+                ),
             ]);
         }
 
         return $this->vehicleConnectorRegistry;
+    }
+
+    public function kiaPleos(): KiaPleosService
+    {
+        if ($this->kiaPleosService === null) {
+            $this->kiaPleosService = new KiaPleosService(
+                $this->auth(),
+                $this->vehicles(),
+                $this->vehicleData(),
+                $this->credentialCipher(),
+                $this->vehicleSync(),
+                $this->session(),
+                $this->kiaPleosClient(),
+                (string)$this->config->get('app.base_url', ''),
+                (string)$this->config->get('vehicle_connectors.kia.login_redirect_uri', ''),
+                (string)$this->config->get('vehicle_connectors.kia.consent_redirect_uri', ''),
+                (string)$this->config->get('vehicle_connectors.kia.sharing_end_token', ''),
+                (string)$this->config->get('vehicle_connectors.kia.language', 'cs')
+            );
+        }
+
+        return $this->kiaPleosService;
+    }
+
+    private function kiaPleosClient(): KiaPleosApiClient
+    {
+        return new KiaPleosApiClient(
+            (string)$this->config->get('vehicle_connectors.kia.api_url', 'https://api.pleos.ai'),
+            (string)$this->config->get('vehicle_connectors.kia.client_id', ''),
+            (string)$this->config->get('vehicle_connectors.kia.client_secret', ''),
+            (int)$this->config->get('vehicle_connectors.kia.timeout_seconds', 30)
+        );
     }
 
     public function credentialCipher(): CredentialCipher

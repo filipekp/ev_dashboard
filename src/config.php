@@ -122,6 +122,17 @@ return [
             'sync_interval_seconds' => (int)env('SKODA_SYNC_INTERVAL_SECONDS', '600'),
             'rate_limit_reserve' => (int)env('SKODA_RATE_LIMIT_RESERVE', '3'),
         ],
+        'kia' => [
+            'api_url' => env('KIA_PLEOS_API_URL', 'https://api.pleos.ai'),
+            'client_id' => env('KIA_PLEOS_CLIENT_ID', ''),
+            'client_secret' => env('KIA_PLEOS_CLIENT_SECRET', ''),
+            'login_redirect_uri' => env('KIA_PLEOS_LOGIN_REDIRECT_URI', ''),
+            'consent_redirect_uri' => env('KIA_PLEOS_CONSENT_REDIRECT_URI', ''),
+            'sharing_end_token' => env('KIA_PLEOS_SHARING_END_TOKEN', ''),
+            'language' => env('KIA_PLEOS_LANGUAGE', 'cs'),
+            'timeout_seconds' => (int)env('KIA_PLEOS_TIMEOUT_SECONDS', '30'),
+            'sync_interval_seconds' => (int)env('KIA_PLEOS_SYNC_INTERVAL_SECONDS', '900'),
+        ],
     ],
     'ai' => [
         'provider' => strtolower((string)env('AI_PROVIDER', 'none')),

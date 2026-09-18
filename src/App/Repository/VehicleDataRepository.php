@@ -380,6 +380,78 @@ final class VehicleDataRepository
         return $q->fetchAll();
     }
 
+
+    /**
+     * Aktualizuje šifrované credentials po OAuth refreshi. U Pleos je refresh
+     * token jednorázový, takže novou hodnotu je nutné uložit atomicky hned po
+     * úspěšném refreshi.
+     */
+    public function updateConnectionCredentials(
+        int $connectionId,
+        string $encryptedCredentials,
+        string $credentialFingerprint,
+        string $credentialHint,
+        ?string $credentialExpiresAt = null
+    ): void {
+        $q = $this->pdo->prepare(
+            'UPDATE vehicle_connector_connections SET credentials_encrypted=?,credential_fingerprint=?,credential_hint=?,credential_expires_at=? WHERE id=?'
+        );
+        $q->execute([
+            $encryptedCredentials,
+            $credentialFingerprint,
+            $this->limit($credentialHint, 32),
+            $this->nullableDateTime($credentialExpiresAt),
+            $connectionId,
+        ]);
+    }
+
+    /**
+     * Smaže telemetrii a eventy získané konkrétním konektorem. Používá se u
+     * providerů, kteří po ukončení souhlasu vyžadují odstranění poskytnutých dat.
+     */
+    public function purgeConnectionData(int $connectionId): void
+    {
+        $q = $this->pdo->prepare('DELETE FROM vehicle_events WHERE connection_id=?');
+        $q->execute([$connectionId]);
+        $q = $this->pdo->prepare('DELETE FROM vehicle_telemetry_snapshots WHERE connection_id=?');
+        $q->execute([$connectionId]);
+    }
+
+    /**
+     * Zpracuje externí odvolání souhlasu podle VIN a odstraní pouze data daného
+     * providera. Ostatní historie vozidla v EV Stats zůstává nedotčená.
+     *
+     * @param string[] $vins
+     * @return int počet odstraněných propojení
+     */
+    public function revokeProviderConnectionsByVins(string $provider, array $vins): int
+    {
+        $normalized = [];
+        foreach ($vins as $vin) {
+            $vin = strtoupper(trim((string)$vin));
+            if ($vin !== '') {
+                $normalized[$vin] = true;
+            }
+        }
+        if ($normalized === []) {
+            return 0;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($normalized), '?'));
+        $params = array_merge([$provider], array_keys($normalized), array_keys($normalized));
+        $q = $this->pdo->prepare(
+            'SELECT c.id FROM vehicle_connector_connections c LEFT JOIN vehicles v ON v.id=c.vehicle_id '
+            . 'WHERE c.provider=? AND (UPPER(c.external_vin) IN (' . $placeholders . ') OR UPPER(v.vin) IN (' . $placeholders . '))'
+        );
+        $q->execute($params);
+        $ids = array_map('intval', array_column($q->fetchAll(), 'id'));
+        foreach ($ids as $connectionId) {
+            $this->purgeConnectionData($connectionId);
+            $this->deleteConnection($connectionId);
+        }
+        return count($ids);
+    }
+
     /** @param array<string,mixed> $normalized */
     private function telemetryFingerprint(array $normalized): string
     {

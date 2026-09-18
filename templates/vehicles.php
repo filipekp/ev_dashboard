@@ -218,7 +218,7 @@
                     </div>
                 </div>
 
-                <div class="form-panel connector-panel span-2" id="vehicleConnectorPanel" hidden>
+                <div class="form-panel connector-panel span-2" id="vehicleConnectorPanel" data-security-ready="<?= $connectorSecurityReady ? '1' : '0' ?>" hidden>
                     <div class="connector-panel-head">
                         <div>
                             <span class="section-kicker">Connected Car</span>
@@ -240,20 +240,26 @@
                     </div>
 
                     <div id="vehicleConnectorBody">
-                        <input form="vehicleConnectorForm" type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
+                        <input form="vehicleConnectorForm" type="hidden" name="csrf" id="vehicleConnectorCsrf" value="<?= h(csrfToken()) ?>">
                         <input form="vehicleConnectorForm" type="hidden" name="vehicle_id" id="vehicleConnectorVehicleId" value="">
                         <input form="vehicleConnectorForm" type="hidden" name="provider" id="vehicleConnectorProvider" value="">
 
                         <div class="connector-connect" id="vehicleConnectorConnect">
-                            <label>
-                                <span id="vehicleConnectorCredentialLabel">API klíč</span>
-                                <input form="vehicleConnectorForm" id="vehicleConnectorApiKey" name="credentials[api_key]" type="password"
-                                       autocomplete="off" placeholder="Vložte nový API klíč">
-                            </label>
+                            <div id="vehicleConnectorCredentialFlow">
+                                <label>
+                                    <span id="vehicleConnectorCredentialLabel">API klíč</span>
+                                    <input form="vehicleConnectorForm" id="vehicleConnectorApiKey" name="credentials[api_key]" type="password"
+                                           autocomplete="off" placeholder="Vložte nový API klíč">
+                                </label>
+                            </div>
+                            <div id="vehicleConnectorOauthFlow" hidden>
+                                <p class="form-panel-help" id="vehicleConnectorOauthHelp"></p>
+                                <a class="btn primary" id="vehicleConnectorOauthButton" href="#">Připojit účet výrobce</a>
+                            </div>
                             <p class="form-panel-help" id="vehicleConnectorCredentialHelp"></p>
                             <div class="connector-actions">
                                 <a class="btn" id="vehicleConnectorDocs" href="#" target="_blank" rel="noopener noreferrer">Dokumentace</a>
-                                <button form="vehicleConnectorForm" class="btn primary" type="submit" name="action"
+                                <button form="vehicleConnectorForm" class="btn primary" id="vehicleConnectorCredentialConnectButton" type="submit" name="action"
                                         value="connector_connect" <?= $connectorSecurityReady ? '' : 'disabled' ?>>Otestovat a připojit
                                 </button>
                             </div>
@@ -268,7 +274,7 @@
                                 <div><small>API kvóta</small><strong id="vehicleConnectorRateLimit">—</strong></div>
                             </div>
                             <div class="connector-error" id="vehicleConnectorError" hidden></div>
-                            <div class="connector-replace">
+                            <div class="connector-replace" id="vehicleConnectorReplace">
                                 <label>
                                     <span>Nahradit credential</span>
                                     <input form="vehicleConnectorForm" name="credentials[api_key]" id="vehicleConnectorReplacementApiKey"
@@ -279,7 +285,7 @@
                                 <button form="vehicleConnectorForm" class="btn" type="submit" name="action" value="connector_test">Otestovat</button>
                                 <button form="vehicleConnectorForm" class="btn" type="submit" name="action" value="connector_sync">↻ Synchronizovat
                                 </button>
-                                <button form="vehicleConnectorForm" class="btn primary" type="submit" name="action"
+                                <button form="vehicleConnectorForm" class="btn primary" id="vehicleConnectorSaveCredential" type="submit" name="action"
                                         value="connector_connect" <?= $connectorSecurityReady ? '' : 'disabled' ?>>Uložit nový klíč
                                 </button>
                                 <button form="vehicleConnectorForm" class="btn danger" type="submit" name="action" value="connector_disconnect"

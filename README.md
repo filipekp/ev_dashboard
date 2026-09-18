@@ -159,10 +159,10 @@ Elektromobily mohou pracovat s hodnotami SoC, kapacitou baterie, kWh a SoH. Spal
 
 Connected Car je postavený jako **pluginová vrstva přímých konektorů automobilek**. Analytika, Timeline a budoucí Anomaly Engine neznají formát konkrétního OEM API; pracují pouze s normalizovanou telemetrií a eventy.
 
-Aktuálně je produkčně připraven první konektor **MyŠkoda Public API**. Kód není svázaný s jedním agregátorem a další značku lze doplnit registrací další implementace `VehicleConnectorInterface`.
+Aktuálně jsou zapojené dva přímé OEM konektory: **MyŠkoda Public API** a **Kia Europe Vehicle Data API přes Pleos**. Škoda používá uživatelský API key, Kia používá Business User OAuth + explicitní data-sharing consent. Kód není svázaný s jedním agregátorem a další značku lze doplnit registrací další implementace `VehicleConnectorInterface`.
 
 ```text
-Škoda Public API     Tesla Fleet API     BMW CarData     další OEM
+Škoda Public API      Kia / Pleos       Tesla Fleet API     další OEM
        │                    │                  │              │
        └────────────────────┴──────────┬───────┴──────────────┘
                                        ▼
@@ -187,14 +187,14 @@ Aktuálně je produkčně připraven první konektor **MyŠkoda Public API**. K�
 
 1. Správce otevře **Vozidla → Upravit vozidlo**.
 2. EV Stats podle výrobce vybere dostupné konektory z `VehicleConnectorRegistry`.
-3. U vozidla Škoda se zobrazí widget **MyŠkoda Public API**.
-4. Uživatel vloží API klíč vytvořený v aplikaci MyŠkoda pro dané vozidlo.
-5. Credential se zašifruje aplikačním master key `VEHICLE_CREDENTIALS_KEY`; plaintext se do databáze neukládá.
-6. EV Stats provede request pro VIN uložený u vozidla a ověří, že API nevrátilo jiné VIN.
+3. U Škody se zobrazí widget **MyŠkoda Public API**; u Kia **Kia Connect / Pleos**.
+4. Škoda používá API klíč. Kia přesměruje uživatele na oficiální Pleos/Kia login a následně na obrazovku výběru vozidla a souhlasu se sdílením.
+5. Credentials/tokeny se zašifrují aplikačním master key `VEHICLE_CREDENTIALS_KEY`; plaintext se do databáze neukládá.
+6. EV Stats ověří VIN a oprávnění/souhlas pro konkrétní vozidlo.
 7. OEM odpověď se převede do společného telemetry modelu.
 8. Snapshot se uloží idempotentně; ze změn proti předchozímu snapshotu mohou vzniknout doménové eventy.
 9. Odometr z online zdroje může zvýšit aktuální stav vozidla, nikdy jej však nesnižuje.
-10. Další synchronizaci řídí `next_sync_at`, API rate-limit metadata a případný `Retry-After`.
+10. Další synchronizaci řídí `next_sync_at`, expirace tokenu, API rate-limit metadata a případný retry plán.
 
 ### Bezpečnost Connected Car
 
@@ -204,6 +204,9 @@ Aktuálně je produkčně připraven první konektor **MyŠkoda Public API**. K�
 - Credentials se neposílají zpět do HTML/JavaScriptu.
 - Server vždy ověřuje přístup uživatele ke konkrétnímu vozidlu.
 - Konektor Škoda ověřuje shodu VIN.
+- Kia OAuth používá server-side `state` kontrolu; EV Stats nevidí heslo ke Kia Connect.
+- Pleos access/refresh tokeny jsou šifrované; při refreshi se jednorázový refresh token atomicky nahradí novým.
+- Při odvolání Kia data-sharing souhlasu callback odstraní Kia telemetrii/eventy daného vozidla podle podmínek Pleos Vehicle Data API.
 - Synchronizace ukládá auditní běhy a bezpečně zpracovává expiraci credentialu, rate limit a dočasné chyby API.
 - Remote commands jsou v první verzi záměrně vypnuté; konektor je read-only.
 
@@ -1018,6 +1021,17 @@ SKODA_API_URL=https://public.api.connect.skoda-auto.cz
 SKODA_API_TIMEOUT_SECONDS=30
 SKODA_SYNC_INTERVAL_SECONDS=600
 SKODA_RATE_LIMIT_RESERVE=3
+
+# Kia Europe Vehicle Data API / Pleos Business User
+KIA_PLEOS_API_URL=https://api.pleos.ai
+KIA_PLEOS_CLIENT_ID=
+KIA_PLEOS_CLIENT_SECRET=
+KIA_PLEOS_LOGIN_REDIRECT_URI=
+KIA_PLEOS_CONSENT_REDIRECT_URI=
+KIA_PLEOS_SHARING_END_TOKEN=
+KIA_PLEOS_LANGUAGE=cs
+KIA_PLEOS_TIMEOUT_SECONDS=30
+KIA_PLEOS_SYNC_INTERVAL_SECONDS=900
 ```
 
 `VEHICLE_CREDENTIALS_KEY` po prvním ostrém nasazení bez plánované migrace credentialů neměňte. Rotace tohoto key vyžaduje bezpečné přešifrování uložených credentials.
@@ -1041,6 +1055,43 @@ První nativní OEM plugin je určen pro vozidla s výrobcem `SKODA` / `ŠKODA`.
 Konektor ukládá a používá mimo jiné informaci o expiraci API key a `RateLimit-*` hlavičky. Výchozí AutoSync interval je 10 minut, ale scheduler může další sync odložit podle zbývající kvóty nebo `Retry-After`.
 
 První verze je **read-only**. Ovládání nabíjení/klimatizace z EV Stats není zatím povoleno.
+
+---
+
+# Kia Europe Vehicle Data API / Pleos
+
+Kia používá oficiální evropské Vehicle Data API přes Pleos. Pro více uživatelů EV Stats je implementován **Business User** flow.
+
+## Co nastavit v Pleos Playground
+
+V projektu otevřete **API → Vehicle Data → Request Access** a požádejte o přístup pro značku Kia. Do autorizačních URL nastavte:
+
+```text
+Login redirect URL:
+https://VAŠE-DOMÉNA/kia-oauth-callback.php
+
+Data sharing agreement redirect URL:
+https://VAŠE-DOMÉNA/kia-consent-callback.php
+
+Data sharing end callback URL:
+https://VAŠE-DOMÉNA/kia-data-sharing-ended.php?token=VÁŠ_NÁHODNÝ_TOKEN
+```
+
+Hodnota Login redirect URL musí přesně odpovídat `KIA_PLEOS_LOGIN_REDIRECT_URI`. Pokud explicitní hodnotu v `.env` nepoužijete, EV Stats sestaví URL z `APP_BASE_URL`.
+
+## Připojení uživatele
+
+1. U vozidla s výrobcem `KIA` otevřete **Vozidla → Upravit**.
+2. V Connected Car klikněte **Připojit Kia účet**.
+3. EV Stats vytvoří OAuth `state` a přesměruje uživatele na `https://api.pleos.ai/v1/auth/login`.
+4. Po návratu vymění authorization code za access/refresh token přes `/v1/auth/token`.
+5. Následně vyvolá `/v1/vehicles/selections` a uživatel v Pleos WebView vybere vozidlo a schválí sdílení.
+6. EV Stats ověří skutečně odsouhlasené VIN přes `/v1/vehicles/consent` a až potom spustí první synchronizaci.
+7. Access token se automaticky obnovuje přes `/v1/auth/token-refresh`; nový jednorázový refresh token se vždy znovu zašifruje do DB.
+
+Konektor čte podle dostupnosti modelu zejména `/batteries`, `/locations`, `/driving`, `/powertrains` a `/status`. Nedostupné modelové endpointy jsou zpracované jako částečně chybějící capability a nemusí shodit celý sync.
+
+Pokud Kia/Pleos oznámí ukončení souhlasu přes `kia-data-sharing-ended.php`, EV Stats odstraní propojení a data získaná přes tento Kia konektor pro příslušné VIN.
 
 ### Přidání další automobilky
 
@@ -1218,10 +1269,16 @@ Integration/
         VehicleConnectorInterface.php
         VehicleConnectorRegistry.php
         VehicleConnectorException.php
+        RefreshableVehicleConnectorInterface.php
+        RevocableVehicleConnectorInterface.php
         Skoda/
             SkodaConnector.php
             SkodaPublicApiClient.php
             SkodaVehicleNormalizer.php
+        Kia/
+            KiaConnector.php
+            KiaPleosApiClient.php
+            KiaVehicleNormalizer.php
 ```
 
 Citlivé credentials řeší samostatná bezpečnostní vrstva `src/App/Security/CredentialCipher.php`.

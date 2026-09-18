@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Integration\Vehicle\RefreshableVehicleConnectorInterface;
 use App\Integration\Vehicle\VehicleConnectorException;
 use App\Integration\Vehicle\VehicleConnectorRegistry;
 use App\Repository\VehicleDataRepository;
@@ -82,6 +83,25 @@ final class VehicleSyncService
 
         try {
             $credentials = $this->cipher->decrypt($encryptedCredentials);
+            if ($connector instanceof RefreshableVehicleConnectorInterface) {
+                $prepared = $connector->refreshCredentialsIfNeeded($credentials);
+                $credentials = $prepared['credentials'];
+                if (!empty($prepared['changed'])) {
+                    // U rotujících refresh tokenů (Pleos) ukládáme nový token
+                    // okamžitě před dalším síťovým voláním, jinak by případná
+                    // následná chyba zneplatnila starý token bez možnosti obnovy.
+                    $encrypted = $this->cipher->encrypt($credentials);
+                    $secret = trim((string)($credentials['refresh_token'] ?? $credentials['access_token'] ?? ''));
+                    $this->repository->updateConnectionCredentials(
+                        $connectionId,
+                        $encrypted,
+                        hash('sha256', $secret !== '' ? $secret : $encrypted),
+                        (string)($prepared['hint'] ?? 'OAuth'),
+                        isset($prepared['expires_at']) ? (string)$prepared['expires_at'] : null
+                    );
+                }
+            }
+
             $result = $connector->fetch($vehicle, $credentials);
             $normalized = isset($result['snapshot']) && is_array($result['snapshot']) ? $result['snapshot'] : null;
             $metadata = isset($result['connection']) && is_array($result['connection']) ? $result['connection'] : [];

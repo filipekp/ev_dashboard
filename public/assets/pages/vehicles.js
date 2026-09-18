@@ -16,11 +16,15 @@
     submit: byId('vehicleSubmit'), deleteZone: byId('vehicleDeleteZone'), deleteButton: byId('vehicleDeleteButton')
   };
   const connector = {
-    panel: byId('vehicleConnectorPanel'), unsupported: byId('vehicleConnectorUnsupported'), body: byId('vehicleConnectorBody'),
-    title: byId('vehicleConnectorTitle'), description: byId('vehicleConnectorDescription'), status: byId('vehicleConnectorStatus'),
-    vehicleId: byId('vehicleConnectorVehicleId'), provider: byId('vehicleConnectorProvider'), docs: byId('vehicleConnectorDocs'),
-    connect: byId('vehicleConnectorConnect'), connected: byId('vehicleConnectorConnected'), apiKey: byId('vehicleConnectorApiKey'),
-    replacementApiKey: byId('vehicleConnectorReplacementApiKey'), credentialLabel: byId('vehicleConnectorCredentialLabel'),
+    form: byId('vehicleConnectorForm'), panel: byId('vehicleConnectorPanel'), unsupported: byId('vehicleConnectorUnsupported'),
+    body: byId('vehicleConnectorBody'), title: byId('vehicleConnectorTitle'), description: byId('vehicleConnectorDescription'),
+    status: byId('vehicleConnectorStatus'), csrf: byId('vehicleConnectorCsrf'), vehicleId: byId('vehicleConnectorVehicleId'), provider: byId('vehicleConnectorProvider'),
+    docs: byId('vehicleConnectorDocs'), connect: byId('vehicleConnectorConnect'), connected: byId('vehicleConnectorConnected'),
+    credentialFlow: byId('vehicleConnectorCredentialFlow'), oauthFlow: byId('vehicleConnectorOauthFlow'),
+    oauthHelp: byId('vehicleConnectorOauthHelp'), oauthButton: byId('vehicleConnectorOauthButton'),
+    credentialConnectButton: byId('vehicleConnectorCredentialConnectButton'), apiKey: byId('vehicleConnectorApiKey'),
+    replacementApiKey: byId('vehicleConnectorReplacementApiKey'), replace: byId('vehicleConnectorReplace'),
+    saveCredential: byId('vehicleConnectorSaveCredential'), credentialLabel: byId('vehicleConnectorCredentialLabel'),
     credentialHelp: byId('vehicleConnectorCredentialHelp'), credentialHint: byId('vehicleConnectorCredentialHint'),
     lastSync: byId('vehicleConnectorLastSync'), nextSync: byId('vehicleConnectorNextSync'), expires: byId('vehicleConnectorExpires'),
     rateLimit: byId('vehicleConnectorRateLimit'), error: byId('vehicleConnectorError'), disconnect: byId('vehicleConnectorDisconnect')
@@ -90,19 +94,52 @@
     connector.title.textContent = option.label || option.id;
     connector.description.textContent = option.id === 'skoda_public_api'
       ? 'Oficiální MyŠkoda Public API. API klíč se ukládá pouze šifrovaně a nikdy se neposílá zpět do prohlížeče.'
-      : 'Přímé propojení s oficiálním API výrobce.';
+      : option.id === 'kia_pleos'
+        ? 'Oficiální Kia Europe Vehicle Data API přes Pleos. Přihlášení i souhlas se sdílením probíhá přímo u Kia/Pleos.'
+        : 'Přímé propojení s oficiálním API výrobce.';
 
     const schema = option.credentials || {};
+    const isOauth = schema.type === 'oauth';
     const credentialField = Array.isArray(schema.fields) ? schema.fields[0] : null;
+    connector.credentialFlow.hidden = isOauth;
+    connector.oauthFlow.hidden = !isOauth;
+    connector.credentialConnectButton.hidden = isOauth;
     connector.credentialLabel.textContent = credentialField?.label || 'Credential';
-    connector.credentialHelp.textContent = credentialField?.help || '';
+    connector.credentialHelp.textContent = isOauth ? '' : (credentialField?.help || '');
     connector.docs.href = schema.documentation_url || '#';
+
+    if (isOauth) {
+      const available = schema.available !== false && connector.panel?.dataset.securityReady === '1';
+      connector.oauthHelp.textContent = connector.panel?.dataset.securityReady === '1'
+        ? (schema.help || '')
+        : 'Nejdříve nastavte VEHICLE_CREDENTIALS_KEY, aby bylo možné OAuth tokeny bezpečně zašifrovat.';
+      connector.oauthButton.textContent = schema.connect_label || 'Připojit účet výrobce';
+      connector.oauthButton.hidden = !available;
+      if (available) {
+        const csrf = value(connector.csrf?.value).trim();
+
+        if (csrf !== '') {
+          const params = new URLSearchParams({ vehicle_id: value(vehicle.id), csrf });
+          connector.oauthButton.href = `${schema.connect_url || '#'}?${params.toString()}`;
+          connector.oauthButton.removeAttribute('aria-disabled');
+        } else {
+          connector.oauthButton.removeAttribute('href');
+          connector.oauthButton.setAttribute('aria-disabled', 'true');
+          connector.oauthHelp.textContent = 'OAuth připojení nelze spustit: chybí CSRF token. Obnovte stránku a zkuste to znovu.';
+        }
+      } else {
+        connector.oauthButton.removeAttribute('href');
+        connector.oauthButton.setAttribute('aria-disabled', 'true');
+      }
+    }
 
     const isConnected = !!connection;
     connector.connect.hidden = isConnected;
     connector.connected.hidden = !isConnected;
-    connector.apiKey.disabled = isConnected;
-    connector.replacementApiKey.disabled = !isConnected;
+    connector.apiKey.disabled = isConnected || isOauth;
+    connector.replacementApiKey.disabled = !isConnected || isOauth;
+    connector.replace.hidden = isOauth;
+    connector.saveCredential.hidden = isOauth;
 
     if (!isConnected) {
       connector.status.textContent = 'Nepřipojeno';
@@ -183,7 +220,7 @@
     if (!confirm('Smazat vozidlo včetně všech importovaných jízd?')) event.preventDefault();
   });
   connector.disconnect?.addEventListener('click', event => {
-    if (!confirm('Odpojit OEM konektor? Uložený API klíč bude odstraněn. Historická telemetrie zůstane zachována.')) {
+    if (!confirm('Odpojit OEM konektor? Uložené přístupové údaje budou odstraněny. U konektorů se souhlasem se sdílením mohou být podle podmínek poskytovatele odstraněna i data získaná z API.')) {
       event.preventDefault();
     }
   });

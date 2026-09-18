@@ -43,7 +43,7 @@ require __DIR__ . '/partials/header.php';
             <?php if (!empty($vehiclePhoto)): ?><img src="media.php?view=<?= (int)$vehiclePhoto['id'] ?>" alt="<?= h($vehicle['name']) ?>"><?php else: ?><div class="vehicle-silhouette">🚙</div><?php endif; ?>
         </div>
         <div class="hero-actions">
-            <a class="hero-action" href="import.php?vehicle_id=<?= (int)$vehicle['id'] ?>"><b>✦ Import Hub</b><small>Faktury, účtenky, CSV & AI</small></a>
+            <a class="hero-action" href="documents.php?vehicle_id=<?= (int)$vehicle['id'] ?>"><b>✦ Import Hub</b><small>Faktury, účtenky, CSV & AI</small></a>
             <a class="hero-action" href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>"><b>＋ Přidat záznam</b><small>Nabíjení, tankování, servis</small></a>
         </div>
     </section>

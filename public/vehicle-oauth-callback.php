@@ -44,7 +44,7 @@ try {
     }
 
     $credentials = $connector->exchangeAuthorizationCode($code);
-    $result = $app->vehicleConnectorService()->connect($me, $vehicleId, $provider, $credentials);
+    $result = $app->vehicleConnectorService()->connectOAuth($me, $vehicleId, $provider, $credentials);
     $app->session()->flash(
         'OEM účet byl bezpečně autorizován. Uloženo ' . $result['snapshots'] . ' nových telemetry snapshotů.',
         'ok'

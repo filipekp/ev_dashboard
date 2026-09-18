@@ -12,6 +12,7 @@ $vehicleId = (int)($_GET['vehicle_id'] ?? 0);
 $provider = trim((string)($_GET['provider'] ?? ''));
 
 try {
+    $app->session()->verifyCsrf((string)($_GET['csrf'] ?? ''));
     if ($vehicleId <= 0 || !$app->auth()->canAccessVehicle($me, $vehicleId)) {
         throw new RuntimeException('Toto vozidlo nemůžete spravovat.');
     }

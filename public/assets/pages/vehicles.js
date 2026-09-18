@@ -75,6 +75,7 @@
       connector.unsupported.textContent = 'Výrobce vozidla byl změněn. Nejdříve uložte změny; potom EV Stats nabídne konektor odpovídající nové značce.';
       connector.body.hidden = true;
       connector.title.textContent = 'OEM konektor';
+      connector.description.textContent = 'Přímé propojení vozidla s oficiálním API výrobce.';
       connector.status.textContent = 'Čeká na uložení';
       return;
     }
@@ -84,6 +85,7 @@
       connector.unsupported.textContent = 'Pro tohoto výrobce zatím není v EV Stats registrován přímý OEM konektor.';
       connector.body.hidden = true;
       connector.title.textContent = 'OEM konektor';
+      connector.description.textContent = 'Přímé propojení vozidla s oficiálním API výrobce.';
       connector.status.textContent = 'Není dostupný';
       return;
     }
@@ -92,13 +94,14 @@
     connector.body.hidden = false;
     connector.provider.value = option.id;
     connector.title.textContent = option.label || option.id;
-    connector.description.textContent = option.id === 'skoda_public_api'
-      ? 'Oficiální MyŠkoda Public API. API klíč se ukládá pouze šifrovaně a nikdy se neposílá zpět do prohlížeče.'
-      : option.id === 'kia_pleos'
-        ? 'Oficiální Kia Europe Vehicle Data API přes Pleos. Přihlášení i souhlas se sdílením probíhá přímo u Kia/Pleos.'
-        : 'Přímé propojení s oficiálním API výrobce.';
-
     const schema = option.credentials || {};
+    connector.description.textContent = schema.description
+      || (option.id === 'skoda_public_api'
+        ? 'Oficiální MyŠkoda Public API. API klíč se ukládá pouze šifrovaně a nikdy se neposílá zpět do prohlížeče.'
+        : option.id === 'kia_pleos'
+          ? 'Oficiální Kia Europe Vehicle Data API přes Pleos. Přihlášení i souhlas se sdílením probíhá přímo u Kia/Pleos.'
+          : 'Přímé propojení vozidla s oficiálním API výrobce.');
+
     const isOauth = schema.type === 'oauth';
     const credentialField = Array.isArray(schema.fields) ? schema.fields[0] : null;
     connector.credentialFlow.hidden = isOauth;
@@ -119,8 +122,14 @@
         const csrf = value(connector.csrf?.value).trim();
 
         if (csrf !== '') {
-          const params = new URLSearchParams({ vehicle_id: value(vehicle.id), csrf });
-          connector.oauthButton.href = `${schema.connect_url || '#'}?${params.toString()}`;
+          const params = new URLSearchParams({
+            vehicle_id: value(vehicle.id),
+            provider: option.id,
+            csrf
+          });
+          const connectUrl = schema.connect_url || '#';
+          const separator = connectUrl.includes('?') ? '&' : '?';
+          connector.oauthButton.href = `${connectUrl}${separator}${params.toString()}`;
           connector.oauthButton.removeAttribute('aria-disabled');
         } else {
           connector.oauthButton.removeAttribute('href');

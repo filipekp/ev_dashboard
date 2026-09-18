@@ -23,20 +23,6 @@ require __DIR__ . '/partials/header.php';
         </div>
     </section>
 
-    <section class="card connected-architecture-card">
-        <div class="section-heading">
-            <div><span class="section-kicker">ARCHITEKTURA</span><h2>Výrobce → Connector → Telemetry → Events</h2></div>
-        </div>
-        <div class="architecture-flow">
-            <span>MyŠkoda / OEM API</span><i>→</i><span>VehicleConnectorInterface</span><i>→</i><span>Normalizer</span><i>→</i><span>Telemetry</span><i>→</i><span>Events</span><i>→</i><span>Anomaly Engine</span>
-        </div>
-        <ul class="connected-feature-list">
-            <li><span>Credentials</span><b>Šifrované server-side; do prohlížeče se po uložení nikdy nevracejí.</b></li>
-            <li><span>AutoSync</span><b>Řízený per-connector intervalem, retry politikou a rate-limit hlavičkami.</b></li>
-            <li><span>Rozšiřitelnost</span><b>Další značky lze přidat jako nový connector bez změny telemetry a analytické vrstvy.</b></li>
-        </ul>
-    </section>
-
     <section class="card connected-vehicles-card">
         <div class="section-heading">
             <div><span class="section-kicker">VOZIDLA</span><h2>Konektory vozidel</h2></div>

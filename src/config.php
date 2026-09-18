@@ -63,6 +63,12 @@ function env(string $key, $default = null)
 
 $appEnvironment = strtolower((string)env('APP_ENV', 'production'));
 $appDebug = filter_var(env('APP_DEBUG', 'false'), FILTER_VALIDATE_BOOLEAN);
+$appBaseUrl = rtrim((string)env('APP_BASE_URL', ''), '/');
+$defaultVehicleOauthCallback = $appBaseUrl !== '' ? $appBaseUrl . '/vehicle-oauth-callback.php' : '';
+$teslaRedirectUri = trim((string)env('TESLA_REDIRECT_URI', ''));
+if ($teslaRedirectUri === '') {
+    $teslaRedirectUri = $defaultVehicleOauthCallback;
+}
 if ($appEnvironment === 'production') {
     // Debug výstupy mohou obsahovat interní informace nebo jednorázové odkazy.
     $appDebug = false;
@@ -74,7 +80,7 @@ return [
         'debug' => $appDebug,
         'session_name' => env('SESSION_NAME', 'ev_stats'),
         'name' => env('APP_NAME', 'EV Stats'),
-        'base_url' => env('APP_BASE_URL', ''),
+        'base_url' => $appBaseUrl,
     ],
     'security' => [
         'session_idle_seconds' => (int)env('SESSION_IDLE_SECONDS', '43200'),
@@ -132,6 +138,29 @@ return [
             'language' => env('KIA_PLEOS_LANGUAGE', 'cs'),
             'timeout_seconds' => (int)env('KIA_PLEOS_TIMEOUT_SECONDS', '30'),
             'sync_interval_seconds' => (int)env('KIA_PLEOS_SYNC_INTERVAL_SECONDS', '900'),
+        ],
+        'tesla' => [
+            'client_id' => env('TESLA_CLIENT_ID', ''),
+            'client_secret' => env('TESLA_CLIENT_SECRET', ''),
+            'authorization_url' => env('TESLA_AUTHORIZATION_URL', 'https://auth.tesla.com/oauth2/v3/authorize'),
+            'token_url' => env('TESLA_TOKEN_URL', 'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token'),
+            'api_url' => env('TESLA_API_URL', 'https://fleet-api.prd.eu.vn.cloud.tesla.com'),
+            'redirect_uri' => $teslaRedirectUri,
+            'scopes' => env('TESLA_SCOPES', 'openid offline_access vehicle_device_data vehicle_location'),
+            'timeout_seconds' => (int)env('TESLA_API_TIMEOUT_SECONDS', '30'),
+            'sync_interval_seconds' => (int)env('TESLA_SYNC_INTERVAL_SECONDS', '1800'),
+        ],
+        'vag_data_hub' => [
+            'vehicle_data_url_template' => env('VAG_DATA_HUB_VEHICLE_DATA_URL_TEMPLATE', ''),
+            'client_id' => env('VAG_DATA_HUB_CLIENT_ID', ''),
+            'client_secret' => env('VAG_DATA_HUB_CLIENT_SECRET', ''),
+            'token_url' => env(
+                'VAG_DATA_HUB_TOKEN_URL',
+                'https://idp.onebusinessid.com/auth/realms/organisation-user-id/protocol/openid-connect/token'
+            ),
+            'token_scope' => env('VAG_DATA_HUB_TOKEN_SCOPE', 'audience_marketplace-portal'),
+            'timeout_seconds' => (int)env('VAG_DATA_HUB_TIMEOUT_SECONDS', '30'),
+            'sync_interval_seconds' => (int)env('VAG_DATA_HUB_SYNC_INTERVAL_SECONDS', '900'),
         ],
     ],
     'ai' => [

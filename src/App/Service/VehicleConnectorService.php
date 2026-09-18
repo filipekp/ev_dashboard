@@ -98,6 +98,63 @@ final class VehicleConnectorService
         ];
     }
 
+    /**
+     * Uloží credentials získané přes OAuth callback a spustí první synchronizaci.
+     *
+     * @param array<string,mixed> $user
+     * @param array<string,mixed> $credentials
+     * @return array{connection_id:int,snapshots:int,events:int}
+     */
+    public function connectOAuth(array $user, int $vehicleId, string $provider, array $credentials): array
+    {
+        $vehicle = $this->managedVehicle($user, $vehicleId);
+        $connector = $this->connectors->get($provider);
+        if (!$connector->supportsVehicle($vehicle)) {
+            throw new RuntimeException('Tento konektor není určen pro výrobce vybraného vozidla.');
+        }
+        $schema = $connector->credentialSchema();
+        if (($schema['type'] ?? '') !== 'oauth') {
+            throw new RuntimeException('Vybraný konektor nepoužívá OAuth autorizaci.');
+        }
+        if ($credentials === []) {
+            throw new RuntimeException('OAuth provider nevrátil přístupové údaje.');
+        }
+
+        $encrypted = $this->cipher->encrypt($credentials);
+        $secret = $this->primarySecret($credentials);
+        $hint = $secret !== '' ? 'OAuth ••••' . substr($secret, -4) : 'OAuth';
+        $fingerprint = $secret !== '' ? hash('sha256', $secret) : hash('sha256', $encrypted);
+        $externalId = strtoupper(trim((string)($vehicle['vin'] ?? '')));
+
+        $connection = $this->repository->upsertConnectorConnection(
+            (int)$user['id'],
+            $vehicleId,
+            $provider,
+            $externalId,
+            $encrypted,
+            $fingerprint,
+            $hint
+        );
+
+        $expiresAt = trim((string)($credentials['expires_at'] ?? $credentials['access_token_expires_at'] ?? ''));
+        if ($expiresAt !== '') {
+            $this->repository->updateConnectionCredentials(
+                (int)$connection['id'],
+                $encrypted,
+                $fingerprint,
+                $hint,
+                $expiresAt
+            );
+        }
+
+        $sync = $this->sync->syncConnection((int)$connection['id'], (int)$user['id'], 'initial');
+        return [
+            'connection_id' => (int)$connection['id'],
+            'snapshots' => $sync['snapshots'],
+            'events' => $sync['events'],
+        ];
+    }
+
     /** @param array<string,mixed> $user @return array{snapshots:int,events:int} */
     public function sync(array $user, int $vehicleId): array
     {

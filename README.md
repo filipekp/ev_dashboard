@@ -159,7 +159,7 @@ Elektromobily mohou pracovat s hodnotami SoC, kapacitou baterie, kWh a SoH. Spal
 
 Connected Car je postavený jako **pluginová vrstva přímých konektorů automobilek**. Analytika, Timeline a budoucí Anomaly Engine neznají formát konkrétního OEM API; pracují pouze s normalizovanou telemetrií a eventy.
 
-Aktuálně jsou zapojené dva přímé OEM konektory: **MyŠkoda Public API** a **Kia Europe Vehicle Data API přes Pleos**. Škoda používá uživatelský API key, Kia používá Business User OAuth + explicitní data-sharing consent. Kód není svázaný s jedním agregátorem a další značku lze doplnit registrací další implementace `VehicleConnectorInterface`.
+Aktuálně jsou zapojené přímé OEM konektory pro **Škoda, Kia, Tesla, Audi a Volkswagen**. Škoda používá uživatelský API key, Kia používá Pleos Business User OAuth + explicitní data-sharing consent, Tesla používá Tesla Fleet API OAuth a Audi/Volkswagen používají Volkswagen Group EU Data Act Data Hub. Kód není svázaný s jedním agregátorem a další značku lze doplnit registrací další implementace `VehicleConnectorInterface`.
 
 ```text
 Škoda Public API      Kia / Pleos       Tesla Fleet API     další OEM
@@ -187,8 +187,8 @@ Aktuálně jsou zapojené dva přímé OEM konektory: **MyŠkoda Public API** a 
 
 1. Správce otevře **Vozidla → Upravit vozidlo**.
 2. EV Stats podle výrobce vybere dostupné konektory z `VehicleConnectorRegistry`.
-3. U Škody se zobrazí widget **MyŠkoda Public API**; u Kia **Kia Connect / Pleos**.
-4. Škoda používá API klíč. Kia přesměruje uživatele na oficiální Pleos/Kia login a následně na obrazovku výběru vozidla a souhlasu se sdílením.
+3. EV Stats podle značky nabídne odpovídající konektor: MyŠkoda Public API, Kia Connect / Pleos, Tesla Fleet API nebo VAG Data Hub pro Audi/Volkswagen.
+4. Škoda a VAG používají API credential, Kia a Tesla používají OAuth flow. Kia navíc používá samostatný data-sharing consent přes Pleos.
 5. Credentials/tokeny se zašifrují aplikačním master key `VEHICLE_CREDENTIALS_KEY`; plaintext se do databáze neukládá.
 6. EV Stats ověří VIN a oprávnění/souhlas pro konkrétní vozidlo.
 7. OEM odpověď se převede do společného telemetry modelu.
@@ -204,7 +204,7 @@ Aktuálně jsou zapojené dva přímé OEM konektory: **MyŠkoda Public API** a 
 - Credentials se neposílají zpět do HTML/JavaScriptu.
 - Server vždy ověřuje přístup uživatele ke konkrétnímu vozidlu.
 - Konektor Škoda ověřuje shodu VIN.
-- Kia OAuth používá server-side `state` kontrolu; EV Stats nevidí heslo ke Kia Connect.
+- Kia i Tesla OAuth používají server-side `state` kontrolu; EV Stats nevidí heslo uživatele k účtu výrobce.
 - Pleos access/refresh tokeny jsou šifrované; při refreshi se jednorázový refresh token atomicky nahradí novým.
 - Při odvolání Kia data-sharing souhlasu callback odstraní Kia telemetrii/eventy daného vozidla podle podmínek Pleos Vehicle Data API.
 - Synchronizace ukládá auditní běhy a bezpečně zpracovává expiraci credentialu, rate limit a dočasné chyby API.
@@ -1032,6 +1032,26 @@ KIA_PLEOS_SHARING_END_TOKEN=
 KIA_PLEOS_LANGUAGE=cs
 KIA_PLEOS_TIMEOUT_SECONDS=30
 KIA_PLEOS_SYNC_INTERVAL_SECONDS=900
+
+# Tesla Fleet API
+TESLA_CLIENT_ID=
+TESLA_CLIENT_SECRET=
+TESLA_AUTHORIZATION_URL=https://auth.tesla.com/oauth2/v3/authorize
+TESLA_TOKEN_URL=https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token
+TESLA_API_URL=https://fleet-api.prd.eu.vn.cloud.tesla.com
+TESLA_REDIRECT_URI=
+TESLA_SCOPES="openid offline_access vehicle_device_data vehicle_location"
+TESLA_API_TIMEOUT_SECONDS=30
+TESLA_SYNC_INTERVAL_SECONDS=1800
+
+# Volkswagen Group EU Data Act Data Hub (Audi / Volkswagen)
+VAG_DATA_HUB_VEHICLE_DATA_URL_TEMPLATE=
+VAG_DATA_HUB_CLIENT_ID=
+VAG_DATA_HUB_CLIENT_SECRET=
+VAG_DATA_HUB_TOKEN_URL=https://idp.onebusinessid.com/auth/realms/organisation-user-id/protocol/openid-connect/token
+VAG_DATA_HUB_TOKEN_SCOPE=audience_marketplace-portal
+VAG_DATA_HUB_TIMEOUT_SECONDS=30
+VAG_DATA_HUB_SYNC_INTERVAL_SECONDS=900
 ```
 
 `VEHICLE_CREDENTIALS_KEY` po prvním ostrém nasazení bez plánované migrace credentialů neměňte. Rotace tohoto key vyžaduje bezpečné přešifrování uložených credentials.
@@ -1279,6 +1299,18 @@ Integration/
             KiaConnector.php
             KiaPleosApiClient.php
             KiaVehicleNormalizer.php
+        Tesla/
+            TeslaConnector.php
+            TeslaFleetApiClient.php
+            TeslaVehicleNormalizer.php
+        Vag/
+            AbstractVagDataHubConnector.php
+            VagDataHubClient.php
+            VagDataHubNormalizer.php
+        Audi/
+            AudiDataHubConnector.php
+        Volkswagen/
+            VolkswagenDataHubConnector.php
 ```
 
 Citlivé credentials řeší samostatná bezpečnostní vrstva `src/App/Security/CredentialCipher.php`.

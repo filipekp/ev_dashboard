@@ -40,10 +40,15 @@ use App\Service\UserAccessService;
 use App\Service\VehicleInsightService;
 use App\Service\VehicleConnectorService;
 use App\Integration\Vehicle\VehicleConnectorRegistry;
+use App\Integration\Vehicle\Audi\AudiDataHubConnector;
 use App\Integration\Vehicle\Skoda\SkodaConnector;
 use App\Integration\Vehicle\Skoda\SkodaPublicApiClient;
 use App\Integration\Vehicle\Kia\KiaConnector;
 use App\Integration\Vehicle\Kia\KiaPleosApiClient;
+use App\Integration\Vehicle\Tesla\TeslaConnector;
+use App\Integration\Vehicle\Tesla\TeslaFleetApiClient;
+use App\Integration\Vehicle\Vag\VagDataHubClient;
+use App\Integration\Vehicle\Volkswagen\VolkswagenDataHubConnector;
 use App\Service\KiaPleosService;
 use App\Security\CredentialCipher;
 use PDO;
@@ -386,6 +391,29 @@ final class Application
                 (int)$this->config->get('vehicle_connectors.skoda.timeout_seconds', 30)
             );
             $kiaClient = $this->kiaPleosClient();
+            $teslaClient = new TeslaFleetApiClient(
+                (string)$this->config->get('vehicle_connectors.tesla.client_id', ''),
+                (string)$this->config->get('vehicle_connectors.tesla.client_secret', ''),
+                (string)$this->config->get('vehicle_connectors.tesla.authorization_url', 'https://auth.tesla.com/oauth2/v3/authorize'),
+                (string)$this->config->get('vehicle_connectors.tesla.token_url', 'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token'),
+                (string)$this->config->get('vehicle_connectors.tesla.api_url', 'https://fleet-api.prd.eu.vn.cloud.tesla.com'),
+                (string)$this->config->get('vehicle_connectors.tesla.redirect_uri', ''),
+                (string)$this->config->get('vehicle_connectors.tesla.scopes', 'openid offline_access vehicle_device_data vehicle_location'),
+                (int)$this->config->get('vehicle_connectors.tesla.timeout_seconds', 30)
+            );
+            $vagDataHubClient = new VagDataHubClient(
+                (string)$this->config->get('vehicle_connectors.vag_data_hub.vehicle_data_url_template', ''),
+                (string)$this->config->get('vehicle_connectors.vag_data_hub.client_id', ''),
+                (string)$this->config->get('vehicle_connectors.vag_data_hub.client_secret', ''),
+                (string)$this->config->get(
+                    'vehicle_connectors.vag_data_hub.token_url',
+                    'https://idp.onebusinessid.com/auth/realms/organisation-user-id/protocol/openid-connect/token'
+                ),
+                (string)$this->config->get('vehicle_connectors.vag_data_hub.token_scope', 'audience_marketplace-portal'),
+                (int)$this->config->get('vehicle_connectors.vag_data_hub.timeout_seconds', 30)
+            );
+            $vagSyncInterval = (int)$this->config->get('vehicle_connectors.vag_data_hub.sync_interval_seconds', 900);
+
             $this->vehicleConnectorRegistry = new VehicleConnectorRegistry([
                 new SkodaConnector(
                     $skodaClient,
@@ -396,6 +424,12 @@ final class Application
                     $kiaClient,
                     (int)$this->config->get('vehicle_connectors.kia.sync_interval_seconds', 900)
                 ),
+                new TeslaConnector(
+                    $teslaClient,
+                    (int)$this->config->get('vehicle_connectors.tesla.sync_interval_seconds', 1800)
+                ),
+                new AudiDataHubConnector($vagDataHubClient, $vagSyncInterval),
+                new VolkswagenDataHubConnector($vagDataHubClient, $vagSyncInterval),
             ]);
         }
 

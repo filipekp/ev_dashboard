@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Integration\Vehicle\Tesla;
 
 use App\Integration\Vehicle\OAuthVehicleConnectorInterface;
+use App\Integration\Vehicle\RefreshableVehicleConnectorInterface;
 use App\Integration\Vehicle\VehicleConnectorException;
 
 /**
@@ -14,7 +15,7 @@ use App\Integration\Vehicle\VehicleConnectorException;
  * @copyright © 2026, Proclient s.r.o.
  * @created   18.09.2026
  */
-final class TeslaConnector implements OAuthVehicleConnectorInterface
+final class TeslaConnector implements OAuthVehicleConnectorInterface, RefreshableVehicleConnectorInterface
 {
     /** @var TeslaFleetApiClient */
     private $client;
@@ -62,13 +63,15 @@ final class TeslaConnector implements OAuthVehicleConnectorInterface
     {
         return [
             'type' => 'oauth',
+            'available' => $this->oauthConfigured(),
             'configured' => $this->oauthConfigured(),
             'fields' => [],
+            'connect_url' => 'vehicle-oauth-start.php',
             'connect_label' => 'Připojit Tesla účet',
-            'description' => 'Oficiální Tesla OAuth. Heslo k Tesla účtu se do EV Stats nikdy neposílá.',
+            'description' => 'Oficiální Tesla Fleet API přes OAuth. Heslo k Tesla účtu se do EV Stats nikdy neposílá.',
             'help' => $this->oauthConfigured()
                 ? 'Po kliknutí budete přesměrováni na Tesla autorizaci a zpět do EV Stats.'
-                : 'Nejdříve nastavte Tesla Fleet API Client ID/Secret v .env.',
+                : 'Nejdříve nastavte TESLA_CLIENT_ID a TESLA_CLIENT_SECRET v .env.',
             'documentation_url' => 'https://developer.tesla.com/docs/fleet-api/authentication/overview',
         ];
     }
@@ -98,6 +101,42 @@ final class TeslaConnector implements OAuthVehicleConnectorInterface
     public function exchangeAuthorizationCode(string $code): array
     {
         return $this->client->exchangeAuthorizationCode($code);
+    }
+
+    /** @param array<string,mixed> $credentials @return array<string,mixed> */
+    public function refreshCredentialsIfNeeded(array $credentials): array
+    {
+        $accessToken = trim((string)($credentials['access_token'] ?? ''));
+        $expiresAt = trim((string)($credentials['expires_at'] ?? ''));
+        $timestamp = $expiresAt !== '' ? strtotime($expiresAt) : false;
+        $needsRefresh = $accessToken === '' || ($timestamp !== false && $timestamp <= time() + 120);
+
+        if (!$needsRefresh) {
+            return [
+                'credentials' => $credentials,
+                'changed' => false,
+                'hint' => 'OAuth / Tesla',
+                'expires_at' => $this->credentialExpiry($credentials),
+            ];
+        }
+
+        $refreshToken = trim((string)($credentials['refresh_token'] ?? ''));
+        if ($refreshToken === '') {
+            throw new VehicleConnectorException('Tesla refresh token chybí. Připojte Tesla účet znovu.', 401, true);
+        }
+
+        $refreshed = $this->client->refreshAccessToken($refreshToken);
+        if (trim((string)($refreshed['refresh_token'] ?? '')) === '') {
+            $refreshed['refresh_token'] = $refreshToken;
+        }
+        $updated = array_merge($credentials, $refreshed);
+
+        return [
+            'credentials' => $updated,
+            'changed' => true,
+            'hint' => 'OAuth / Tesla',
+            'expires_at' => $this->credentialExpiry($updated),
+        ];
     }
 
     /** @param array<string,mixed> $vehicle @param array<string,mixed> $credentials @return array<string,mixed> */

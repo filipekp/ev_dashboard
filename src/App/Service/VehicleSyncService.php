@@ -105,8 +105,28 @@ final class VehicleSyncService
             $result = $connector->fetch($vehicle, $credentials);
             $normalized = isset($result['snapshot']) && is_array($result['snapshot']) ? $result['snapshot'] : null;
             $metadata = isset($result['connection']) && is_array($result['connection']) ? $result['connection'] : [];
+            $updatedCredentials = isset($result['credentials']) && is_array($result['credentials'])
+                ? $result['credentials']
+                : null;
             if ($normalized === null) {
                 throw new RuntimeException('Konektor nevrátil normalizovaný telemetry snapshot.');
+            }
+
+            // Některé OEM API mohou vrátit nový/rotovaný token až během samotného
+            // datového requestu (např. retry po HTTP 401). Uložíme ho ještě v
+            // rámci stejného sync běhu, aby další synchronizace nepoužila starý token.
+            if ($updatedCredentials !== null) {
+                $credentials = $updatedCredentials;
+                $encrypted = $this->cipher->encrypt($credentials);
+                $secret = trim((string)($credentials['refresh_token'] ?? $credentials['access_token'] ?? ''));
+                $expiresAt = trim((string)($credentials['expires_at'] ?? $credentials['access_token_expires_at'] ?? ''));
+                $this->repository->updateConnectionCredentials(
+                    $connectionId,
+                    $encrypted,
+                    hash('sha256', $secret !== '' ? $secret : $encrypted),
+                    'OAuth',
+                    $expiresAt !== '' ? $expiresAt : null
+                );
             }
 
             $previous = $this->repository->latestTelemetry($connectionId);

@@ -19,19 +19,28 @@
     if ($headerDemoMode) {
         $bodyClass = trim($bodyClass . ' demo-mode');
     }
-    $stylesheetPath    = __DIR__ . '/../../public/assets/app.css';
-    $stylesheetVersion = (int)@filemtime($stylesheetPath);
+    $stylesheetPath = __DIR__ . '/../../public/assets/app.css';
     $scriptPath = __DIR__ . '/../../public/assets/app.js';
-    $scriptVersion = (int)@filemtime($scriptPath);
+    $serviceWorkerPath = __DIR__ . '/../../public/service-worker.js';
+    $manifestPath = __DIR__ . '/../../public/manifest.webmanifest';
+    $appVersionLabel = isset($app) ? (string)$app->version()->label() : 'local';
+    $pwaAssetTimestamp = max(
+        (int)@filemtime($stylesheetPath),
+        (int)@filemtime($scriptPath),
+        (int)@filemtime($serviceWorkerPath),
+        (int)@filemtime($manifestPath)
+    );
+    $pwaCacheVersion = $appVersionLabel . '-' . $pwaAssetTimestamp;
+    $pwaVersionQuery = rawurlencode($pwaCacheVersion);
 ?>
 <!doctype html>
-<html lang="cs">
+<html lang="cs" data-app-version="<?= h($appVersionLabel) ?>" data-pwa-cache-version="<?= h($pwaCacheVersion) ?>">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <?php require __DIR__ . '/pwa-head.php'; ?>
     <title><?= h($pageTitle) ?></title>
-    <link rel="stylesheet" href="assets/app.css?v=<?= $stylesheetVersion ?>">
+    <link rel="stylesheet" href="assets/app.css?v=<?= h($pwaVersionQuery) ?>">
     <meta name="author" content="Pavel Filípek <pavel@filipek-czech.cz>">
 
     <?php
@@ -54,7 +63,7 @@
     <?php endif; ?>
 
     <?= $pageHead ?>
-    <script defer src="assets/app.js?v=<?= $scriptVersion ?>"></script>
+    <script defer src="assets/app.js?v=<?= h($pwaVersionQuery) ?>"></script>
 </head>
 <body<?= $bodyClass !== '' ? ' class="' . h($bodyClass) . '"' : '' ?>>
 <?php if ($showNavigation): ?>

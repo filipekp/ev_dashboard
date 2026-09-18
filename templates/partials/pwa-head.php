@@ -9,7 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="EV Stats">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
-<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<meta name="application-version" content="<?= h($appVersionLabel ?? 'local') ?>">
+<link rel="manifest" href="manifest.webmanifest?v=<?= h($pwaVersionQuery ?? 'local') ?>">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png?v=<?= h($pwaVersionQuery ?? 'local') ?>">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png?v=<?= h($pwaVersionQuery ?? 'local') ?>">
 

@@ -10,6 +10,7 @@ $navHasVehicle = $navVehicle !== NULL && isset($navVehicle['id']);
 $navVehicleId = $navHasVehicle ? (int)$navVehicle['id'] : 0;
 $navPowertrain = $navHasVehicle ? strtoupper((string)($navVehicle['powertrain_type'] ?? 'BEV')) : '';
 $navTitle = isset($navTitle) ? (string)$navTitle : '';
+$navAppVersion = isset($appVersionLabel) ? (string)$appVersionLabel : (string)$app->version()->label();
 $navCurrent = static function (string $page) use ($navPage): string { return $navPage === $page ? ' is-active' : ''; };
 $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
 ?>
@@ -87,7 +88,7 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
 <div class="mobile-more-backdrop" data-mobile-more-backdrop hidden></div>
 <section class="mobile-more-menu" id="mobileMoreMenu" data-mobile-more-menu role="dialog" aria-modal="true" aria-label="Další navigace" hidden>
     <header class="mobile-more-head">
-        <div><small>EV STATS</small><b>Další nabídka</b></div>
+        <div><small>EV STATS · <?= h($navAppVersion) ?></small><b>Další nabídka</b></div>
         <button type="button" class="mobile-more-close" data-mobile-more-close aria-label="Zavřít menu">×</button>
     </header>
     <div class="mobile-more-links">

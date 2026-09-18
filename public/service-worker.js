@@ -1,9 +1,14 @@
-const CACHE_NAME = 'ev-stats-static-v4';
+const CACHE_PREFIX = 'ev-stats-static-';
+const SERVICE_WORKER_URL = new URL(self.location.href);
+const CACHE_VERSION = SERVICE_WORKER_URL.searchParams.get('v') || 'local';
+const SAFE_CACHE_VERSION = CACHE_VERSION.replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 120) || 'local';
+const CACHE_NAME = `${CACHE_PREFIX}${SAFE_CACHE_VERSION}`;
+const VERSION_QUERY = encodeURIComponent(CACHE_VERSION);
 const STATIC_ASSETS = [
-  './assets/app.css',
-  './assets/app.js',
-  './assets/icons/icon-192.png',
-  './assets/icons/icon-512.png'
+  `./assets/app.css?v=${VERSION_QUERY}`,
+  `./assets/app.js?v=${VERSION_QUERY}`,
+  `./assets/icons/icon-192.png?v=${VERSION_QUERY}`,
+  `./assets/icons/icon-512.png?v=${VERSION_QUERY}`
 ];
 
 self.addEventListener('install', (event) => {
@@ -14,7 +19,9 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
-      keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+      keys
+        .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+        .map((key) => caches.delete(key))
     ))
   );
   self.clients.claim();
@@ -38,6 +45,7 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       });
+
       return cached || network;
     })
   );

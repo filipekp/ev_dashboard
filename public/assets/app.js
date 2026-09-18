@@ -6,6 +6,13 @@
         || window.matchMedia('(display-mode: minimal-ui)').matches
         || window.navigator.standalone === true;
 
+    const getPwaCacheVersion = () => document.documentElement.dataset.pwaCacheVersion || 'local';
+
+    const versionedPwaUrl = (path) => {
+        const separator = path.includes('?') ? '&' : '?';
+        return `${path}${separator}v=${encodeURIComponent(getPwaCacheVersion())}`;
+    };
+
     const PWA_INSTALL_DISMISS_KEY = 'evstats-pwa-install-dismissed-at';
     const PWA_INSTALL_DISMISS_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -190,7 +197,13 @@
         }
 
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('service-worker.js').catch(() => {
+            navigator.serviceWorker.register(versionedPwaUrl('service-worker.js'), {
+                updateViaCache: 'none'
+            }).then((registration) => {
+                registration.update().catch(() => {
+                    // A failed update check must not affect normal application usage.
+                });
+            }).catch(() => {
                 // PWA support is optional; the web application remains usable without it.
             });
         });

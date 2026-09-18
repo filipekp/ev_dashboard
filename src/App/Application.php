@@ -25,6 +25,7 @@ use App\Repository\UnknownImportRepository;
 use App\Repository\VehicleMediaRepository;
 use App\Repository\VehicleOperationRepository;
 use App\Repository\VehicleRepository;
+use App\Repository\VehicleDataRepository;
 use App\Service\AnalyticsService;
 use App\Service\DashboardService;
 use App\Service\DocumentImportService;
@@ -34,8 +35,14 @@ use App\Service\RegistrationService;
 use App\Service\VehicleMediaService;
 use App\Service\VehicleOperationService;
 use App\Service\VehicleTimelineService;
+use App\Service\VehicleSyncService;
 use App\Service\UserAccessService;
 use App\Service\VehicleInsightService;
+use App\Service\VehicleConnectorService;
+use App\Integration\Vehicle\VehicleConnectorRegistry;
+use App\Integration\Vehicle\Skoda\SkodaConnector;
+use App\Integration\Vehicle\Skoda\SkodaPublicApiClient;
+use App\Security\CredentialCipher;
 use PDO;
 
 /**
@@ -98,6 +105,15 @@ final class Application
 
     /** @var VehicleMediaRepository|null */
     private $vehicleMedia;
+
+    /** @var VehicleDataRepository|null */
+    private $vehicleData;
+
+    /** @var VehicleConnectorRegistry|null */
+    private $vehicleConnectorRegistry;
+
+    /** @var CredentialCipher|null */
+    private $credentialCipher;
 
     /** @var RateLimiter|null */
     private $rateLimiter;
@@ -346,6 +362,66 @@ final class Application
     public function insights(): VehicleInsightService
     {
         return new VehicleInsightService($this->pdo());
+    }
+
+    public function vehicleData(): VehicleDataRepository
+    {
+        if ($this->vehicleData === null) {
+            $this->vehicleData = new VehicleDataRepository($this->pdo());
+        }
+        return $this->vehicleData;
+    }
+
+    public function vehicleConnectors(): VehicleConnectorRegistry
+    {
+        if ($this->vehicleConnectorRegistry === null) {
+            $skodaClient = new SkodaPublicApiClient(
+                (string)$this->config->get('vehicle_connectors.skoda.api_url', 'https://public.api.connect.skoda-auto.cz'),
+                (int)$this->config->get('vehicle_connectors.skoda.timeout_seconds', 30)
+            );
+            $this->vehicleConnectorRegistry = new VehicleConnectorRegistry([
+                new SkodaConnector(
+                    $skodaClient,
+                    (int)$this->config->get('vehicle_connectors.skoda.sync_interval_seconds', 600),
+                    (int)$this->config->get('vehicle_connectors.skoda.rate_limit_reserve', 3)
+                ),
+            ]);
+        }
+
+        return $this->vehicleConnectorRegistry;
+    }
+
+    public function credentialCipher(): CredentialCipher
+    {
+        if ($this->credentialCipher === null) {
+            $this->credentialCipher = new CredentialCipher(
+                (string)$this->config->get('vehicle_connectors.credentials_key', '')
+            );
+        }
+
+        return $this->credentialCipher;
+    }
+
+    public function vehicleSync(): VehicleSyncService
+    {
+        return new VehicleSyncService(
+            $this->pdo(),
+            $this->vehicleData(),
+            $this->vehicleConnectors(),
+            $this->credentialCipher()
+        );
+    }
+
+    public function vehicleConnectorService(): VehicleConnectorService
+    {
+        return new VehicleConnectorService(
+            $this->auth(),
+            $this->vehicles(),
+            $this->vehicleData(),
+            $this->vehicleConnectors(),
+            $this->credentialCipher(),
+            $this->vehicleSync()
+        );
     }
 
     public function vehicleOperationService(): VehicleOperationService

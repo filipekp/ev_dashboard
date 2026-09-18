@@ -114,6 +114,15 @@ return [
         'channel' => strtolower((string)env('UPDATE_CHANNEL', 'release')),
         'branch' => env('UPDATE_BRANCH', 'dev'),
     ],
+    'vehicle_connectors' => [
+        'credentials_key' => env('VEHICLE_CREDENTIALS_KEY', ''),
+        'skoda' => [
+            'api_url' => env('SKODA_API_URL', 'https://public.api.connect.skoda-auto.cz'),
+            'timeout_seconds' => (int)env('SKODA_API_TIMEOUT_SECONDS', '30'),
+            'sync_interval_seconds' => (int)env('SKODA_SYNC_INTERVAL_SECONDS', '600'),
+            'rate_limit_reserve' => (int)env('SKODA_RATE_LIMIT_RESERVE', '3'),
+        ],
+    ],
     'ai' => [
         'provider' => strtolower((string)env('AI_PROVIDER', 'none')),
         'openai_api_key' => env('OPENAI_API_KEY', ''),

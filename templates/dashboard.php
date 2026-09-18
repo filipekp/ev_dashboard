@@ -9,6 +9,18 @@ require __DIR__ . '/partials/header.php';
     $hasTractionBattery = in_array($powertrain, ['BEV', 'PHEV'], TRUE);
     $hasFuelSystem = in_array($powertrain, ['PHEV', 'HEV', 'PETROL', 'DIESEL', 'LPG', 'CNG'], TRUE);
     $combustionOnly = !$hasTractionBattery;
+    $liveTelemetry = !empty($liveConnectedCar['telemetry']) && is_array($liveConnectedCar['telemetry'])
+        ? $liveConnectedCar['telemetry']
+        : NULL;
+    $hasLiveTelemetry = $liveTelemetry !== NULL && (
+        $liveTelemetry['soc_pct'] !== NULL
+        || $liveTelemetry['range_km'] !== NULL
+        || $liveTelemetry['odometer_km'] !== NULL
+        || $liveTelemetry['is_charging'] !== NULL
+        || $liveTelemetry['is_plugged_in'] !== NULL
+        || $liveTelemetry['fuel_level_pct'] !== NULL
+        || $liveTelemetry['battery_temperature_c'] !== NULL
+    );
 ?>
 <main class="wrap dashboard-wrap">
     <section class="vehicle-hero">
@@ -20,6 +32,11 @@ require __DIR__ . '/partials/header.php';
                 <span><?= h(powertrainLabel($powertrain)) ?></span>
                 <?php if ($hasTractionBattery && (float)($vehicle['battery_kwh'] ?? 0) > 0): ?><span>🔋 <?= cz((float)$vehicle['battery_kwh'], 0) ?> kWh</span><?php endif; ?>
                 <?php if ($hasFuelSystem && (float)($vehicle['fuel_tank_l'] ?? 0) > 0): ?><span>⛽ <?= cz((float)$vehicle['fuel_tank_l'], 0) ?> l</span><?php endif; ?>
+                <?php if ($hasLiveTelemetry): ?>
+                    <span class="hero-live-chip">● Connected</span>
+                    <?php if ($liveTelemetry['soc_pct'] !== NULL): ?><span>🔋 <?= cz((float)$liveTelemetry['soc_pct'], 0) ?> %</span><?php endif; ?>
+                    <?php if ($liveTelemetry['range_km'] !== NULL): ?><span>↗ <?= cz((float)$liveTelemetry['range_km'], 0) ?> km</span><?php endif; ?>
+                <?php endif; ?>
             </div>
         </div>
         <div class="vehicle-hero-visual">
@@ -34,6 +51,67 @@ require __DIR__ . '/partials/header.php';
         <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div>
     <?php endif; ?>
     <?php require __DIR__ . '/partials/add-vehicle-modal.php'; ?>
+    <?php if ($hasLiveTelemetry): ?>
+        <?php
+            $liveCharging = $liveTelemetry['is_charging'] !== NULL ? (bool)$liveTelemetry['is_charging'] : NULL;
+            $livePlugged = $liveTelemetry['is_plugged_in'] !== NULL ? (bool)$liveTelemetry['is_plugged_in'] : NULL;
+            $liveChargingLabel = '—';
+            $liveChargingDetail = 'stav není dostupný';
+            if ($liveCharging === TRUE) {
+                $liveChargingLabel = 'Nabíjí';
+                $liveChargingDetail = $liveTelemetry['charging_power_kw'] !== NULL
+                    ? cz((float)$liveTelemetry['charging_power_kw'], 1) . ' kW'
+                    : 'aktivní nabíjení';
+            } elseif ($livePlugged === TRUE) {
+                $liveChargingLabel = 'Připojeno';
+                $liveChargingDetail = 'kabel je připojen';
+            } elseif ($livePlugged === FALSE) {
+                $liveChargingLabel = 'Odpojeno';
+                $liveChargingDetail = 'kabel není připojen';
+            } elseif ($liveCharging === FALSE) {
+                $liveChargingLabel = 'Nenabíjí';
+                $liveChargingDetail = 'nabíjení není aktivní';
+            }
+            $liveUpdatedAt = !empty($liveConnectedCar['last_synced_at'])
+                ? date('d.m.Y H:i', strtotime((string)$liveConnectedCar['last_synced_at']))
+                : '—';
+        ?>
+        <section class="live-vehicle-state" aria-label="Aktuální stav vozidla">
+            <div class="live-vehicle-state-head">
+                <div class="live-vehicle-state-title">
+                    <span class="live-vehicle-state-dot" aria-hidden="true"></span>
+                    <div>
+                        <small>CONNECTED CAR · AKTUÁLNÍ STAV</small>
+                        <strong><?= h((string)$liveConnectedCar['label']) ?></strong>
+                    </div>
+                </div>
+                <div class="live-vehicle-state-meta">
+                    <span>Synchronizováno <?= h($liveUpdatedAt) ?></span>
+                    <a href="vehicles.php?edit=<?= (int)$vehicle['id'] ?>">Spravovat připojení →</a>
+                </div>
+            </div>
+            <div class="live-vehicle-metrics">
+                <?php if ($liveTelemetry['soc_pct'] !== NULL): ?>
+                    <div class="live-vehicle-metric"><small>STAV BATERIE</small><strong><?= cz((float)$liveTelemetry['soc_pct'], 0) ?> %</strong><span>aktuální SoC</span></div>
+                <?php endif; ?>
+                <?php if ($liveTelemetry['range_km'] !== NULL): ?>
+                    <div class="live-vehicle-metric"><small>AKTUÁLNÍ DOJEZD</small><strong><?= cz((float)$liveTelemetry['range_km'], 0) ?> km</strong><span>hlášený vozidlem</span></div>
+                <?php endif; ?>
+                <?php if ($liveTelemetry['odometer_km'] !== NULL): ?>
+                    <div class="live-vehicle-metric"><small>TACHOMETR</small><strong><?= cz((float)$liveTelemetry['odometer_km'], 0) ?> km</strong><span>online stav</span></div>
+                <?php endif; ?>
+                <?php if ($liveTelemetry['is_charging'] !== NULL || $liveTelemetry['is_plugged_in'] !== NULL): ?>
+                    <div class="live-vehicle-metric"><small>NABÍJENÍ</small><strong><?= h($liveChargingLabel) ?></strong><span><?= h($liveChargingDetail) ?></span></div>
+                <?php endif; ?>
+                <?php if ($liveTelemetry['fuel_level_pct'] !== NULL): ?>
+                    <div class="live-vehicle-metric"><small>PALIVO</small><strong><?= cz((float)$liveTelemetry['fuel_level_pct'], 0) ?> %</strong><span>aktuální hladina</span></div>
+                <?php endif; ?>
+                <?php if ($liveTelemetry['battery_temperature_c'] !== NULL): ?>
+                    <div class="live-vehicle-metric"><small>TEPLOTA BATERIE</small><strong><?= cz((float)$liveTelemetry['battery_temperature_c'], 1) ?> °C</strong><span>hlášená vozidlem</span></div>
+                <?php endif; ?>
+            </div>
+        </section>
+    <?php endif; ?>
     <?php if ($newVehicleModal): ?>
         <div class="modal-backdrop" id="newVehicleModal">
             <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="newVehicleTitle">

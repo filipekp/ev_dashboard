@@ -91,7 +91,69 @@ final class DashboardController
             'vehiclePhoto' => $vehiclePhoto,
             'timelineEvents' => $this->app->timeline()->build((int)$vehicle['id'], 6, $detailScope),
             'insights' => $this->app->insights()->build($vehicle, $detailScope),
+            'liveConnectedCar' => $this->liveConnectedCar($vehicle),
         ]));
+    }
+
+    /**
+     * Připraví čerstvý online stav Connected Car pro dashboard.
+     *
+     * Dashboard nesmí spadnout jen proto, že konektor nebo jeho tabulky nejsou
+     * dostupné. Proto se chyba telemetrické vrstvy zde chová jako chybějící
+     * online stav a historická část dashboardu zůstane funkční.
+     *
+     * @param array<string,mixed> $vehicle
+     * @return array<string,mixed>|null
+     */
+    private function liveConnectedCar(array $vehicle): ?array
+    {
+        try {
+            $telemetry = $this->app->vehicleData()->latestTelemetryForVehicle((int)$vehicle['id']);
+            if ($telemetry === null) {
+                return null;
+            }
+
+            $provider = (string)($telemetry['provider'] ?? '');
+            $label = $provider;
+            $syncInterval = 600;
+
+            if ($provider !== '') {
+                try {
+                    $connector = $this->app->vehicleConnectors()->get($provider);
+                    $label = $connector->label();
+                    $syncInterval = max(60, $connector->recommendedSyncIntervalSeconds());
+                } catch (Throwable $e) {
+                    // Historický/neznámý provider nesmí znefunkčnit dashboard.
+                }
+            }
+
+            $lastSyncedAt = (string)($telemetry['last_synced_at'] ?? '');
+            $lastSyncTimestamp = $lastSyncedAt !== '' ? strtotime($lastSyncedAt) : false;
+            if ($lastSyncTimestamp === false) {
+                return null;
+            }
+
+            // Data považujeme za živá po dobu tří sync intervalů, minimálně
+            // však 30 minut. Při výpadku cronu se tak zastaralé hodnoty samy
+            // přestanou na dashboardu tvářit jako aktuální.
+            $freshForSeconds = max(1800, $syncInterval * 3);
+            $ageSeconds = max(0, time() - $lastSyncTimestamp);
+            if ($ageSeconds > $freshForSeconds) {
+                return null;
+            }
+
+            return [
+                'provider' => $provider,
+                'label' => $label !== '' ? $label : 'Connected Car',
+                'last_synced_at' => $lastSyncedAt,
+                'observed_at' => (string)($telemetry['observed_at'] ?? ''),
+                'age_seconds' => $ageSeconds,
+                'fresh_for_seconds' => $freshForSeconds,
+                'telemetry' => $telemetry,
+            ];
+        } catch (Throwable $e) {
+            return null;
+        }
     }
 
     /** @param array<string,mixed> $user */

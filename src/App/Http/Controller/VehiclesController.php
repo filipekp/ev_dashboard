@@ -6,6 +6,7 @@ namespace App\Http\Controller;
 
 use App\Application;
 use App\Http;
+use App\Security\CredentialCipher;
 use RuntimeException;
 use Throwable;
 
@@ -28,7 +29,11 @@ final class VehiclesController
         try {
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $this->app->session()->verifyCsrf();
+                $action = (string)($_POST['action'] ?? '');
                 $this->handlePost($me);
+                if (strpos($action, 'connector_') === 0) {
+                    Http::redirect('vehicles.php?edit=' . max(0, (int)($_POST['vehicle_id'] ?? 0)));
+                }
                 Http::redirect('vehicles.php');
             }
         } catch (Throwable $e) {
@@ -44,6 +49,9 @@ final class VehiclesController
             $q = $pdo->prepare('SELECT COUNT(*) FROM trips WHERE vehicle_id=?');
             $q->execute([(int)$vehicle['id']]);
             $vehicle['trip_count'] = (int)$q->fetchColumn();
+            $connection = $this->app->vehicleData()->findConnectionForVehicle((int)$vehicle['id']);
+            $vehicle['connector'] = $connection !== null ? $this->safeConnectorSummary($connection) : null;
+            $vehicle['connector_options'] = $this->app->vehicleConnectors()->descriptorsForVehicle($vehicle);
         }
         unset($vehicle);
 
@@ -74,6 +82,9 @@ final class VehiclesController
             'vehicles' => $vehicles,
             'users' => $users,
             'assigned' => $assigned,
+            'connectorSecurityReady' => CredentialCipher::isConfigured(
+                (string)$this->app->config()->get('vehicle_connectors.credentials_key', '')
+            ),
             'flash' => $this->app->session()->pullFlash(),
         ]);
     }
@@ -106,6 +117,34 @@ final class VehiclesController
             }
             $this->app->vehicles()->delete((int)($_POST['id'] ?? 0));
             $this->app->session()->flash('Vozidlo a jeho související data byla smazána.');
+            return;
+        }
+        if ($action === 'connector_connect') {
+            $vehicleId = (int)($_POST['vehicle_id'] ?? 0);
+            $provider = trim((string)($_POST['provider'] ?? ''));
+            $connector = $this->app->vehicleConnectors()->get($provider);
+            $credentials = $this->connectorCredentials($connector->credentialSchema());
+            $result = $this->app->vehicleConnectorService()->connect($me, $vehicleId, $provider, $credentials);
+            $this->app->session()->flash(
+                'Konektor byl připojen a ověřen. Uloženo ' . $result['snapshots'] . ' nové telemetry snapshoty.',
+                'ok'
+            );
+            return;
+        }
+        if ($action === 'connector_sync' || $action === 'connector_test') {
+            $vehicleId = (int)($_POST['vehicle_id'] ?? 0);
+            $result = $this->app->vehicleConnectorService()->sync($me, $vehicleId);
+            $this->app->session()->flash(
+                ($action === 'connector_test' ? 'Spojení je funkční. ' : 'Synchronizace dokončena. ')
+                . $result['snapshots'] . ' nový snapshot, ' . $result['events'] . ' nové události.',
+                'ok'
+            );
+            return;
+        }
+        if ($action === 'connector_disconnect') {
+            $vehicleId = (int)($_POST['vehicle_id'] ?? 0);
+            $this->app->vehicleConnectorService()->disconnect($me, $vehicleId);
+            $this->app->session()->flash('OEM konektor byl od vozidla odpojen. Historická telemetrie zůstala zachována.', 'ok');
             return;
         }
         throw new RuntimeException('Neznámá operace.');
@@ -209,6 +248,58 @@ final class VehiclesController
             $this->app->userAccess()->syncAssignments($me, $userId, $vehicleIds, $effectiveDate);
         }
         $pdo->commit();
+    }
+
+    /** @param array<string,mixed> $connection @return array<string,mixed> */
+    private function safeConnectorSummary(array $connection): array
+    {
+        return [
+            'id' => (int)$connection['id'],
+            'provider' => (string)$connection['provider'],
+            'status' => (string)$connection['status'],
+            'external_name' => (string)($connection['external_name'] ?? ''),
+            'credential_hint' => (string)($connection['credential_hint'] ?? ''),
+            'credential_expires_at' => $connection['credential_expires_at'] ?? null,
+            'last_synced_at' => $connection['last_synced_at'] ?? null,
+            'next_sync_at' => $connection['next_sync_at'] ?? null,
+            'retry_after_at' => $connection['retry_after_at'] ?? null,
+            'rate_limit_limit' => $connection['rate_limit_limit'] ?? null,
+            'rate_limit_remaining' => $connection['rate_limit_remaining'] ?? null,
+            'rate_limit_reset_at' => $connection['rate_limit_reset_at'] ?? null,
+            'last_error' => (string)($connection['last_error'] ?? ''),
+        ];
+    }
+
+    /**
+     * Načte pouze credentials deklarované konkrétním connector pluginem.
+     * Neznámá pole z POSTu se do šifrovaného payloadu nedostanou.
+     *
+     * @param array<string,mixed> $schema
+     * @return array<string,mixed>
+     */
+    private function connectorCredentials(array $schema): array
+    {
+        $posted = isset($_POST['credentials']) && is_array($_POST['credentials'])
+            ? $_POST['credentials']
+            : [];
+        $fields = isset($schema['fields']) && is_array($schema['fields']) ? $schema['fields'] : [];
+        $credentials = [];
+
+        foreach ($fields as $field) {
+            if (!is_array($field)) {
+                continue;
+            }
+            $name = (string)($field['name'] ?? '');
+            if ($name === '' || preg_match('/^[a-z][a-z0-9_]{0,63}$/', $name) !== 1) {
+                continue;
+            }
+            $value = $posted[$name] ?? ($_POST[$name] ?? '');
+            if (is_string($value) || is_numeric($value)) {
+                $credentials[$name] = trim((string)$value);
+            }
+        }
+
+        return $credentials;
     }
 
     /** @param mixed $value */

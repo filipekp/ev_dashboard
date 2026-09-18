@@ -7,7 +7,7 @@ AddType application/manifest+json .webmanifest
 RewriteEngine On
 
 # Citlivé adresáře a soubory nesmí být dostupné přímo z webu.
-RewriteRule ^(?:src|sql|templates|storage|data|\.updates|\.git)(?:/|$) - [F,L,NC]
+RewriteRule ^(?:src|sql|templates|storage|data|bin|\.updates|\.git)(?:/|$) - [F,L,NC]
 RewriteRule ^(?:\.env(?:\..*)?|README\.md|CODING_STYLE\.md|Dockerfile|docker-compose\.yml|\.editorconfig|\.gitignore)$ - [F,L,NC]
 
 # WEDOS/shared hosting: interně obsluhuj aplikaci z public/.

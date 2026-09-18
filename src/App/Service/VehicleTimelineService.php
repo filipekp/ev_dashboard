@@ -22,6 +22,7 @@ final class VehicleTimelineService
             ['energy', 'occurred_at', 'SELECT id, occurred_at event_at, total_price value, station label, CONCAT(ROUND(quantity,2), " ", unit, " · ", energy_type) detail FROM vehicle_energy_entries WHERE vehicle_id=?'],
             ['service', 'serviced_at', 'SELECT id, serviced_at event_at, cost value, title label, CONCAT(category, IF(provider IS NULL,"",CONCAT(" · ",provider))) detail FROM vehicle_service_records WHERE vehicle_id=?'],
             ['expense', 'occurred_at', 'SELECT id, occurred_at event_at, amount value, title label, category detail FROM vehicle_expenses WHERE vehicle_id=?'],
+            ['connected', 'occurred_at', 'SELECT id, occurred_at event_at, NULL value, title label, event_type detail FROM vehicle_events WHERE vehicle_id=?'],
         ];
         foreach ($sources as $source) {
             $sql = $source[2];

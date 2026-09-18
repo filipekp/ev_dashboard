@@ -28,7 +28,7 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
                     <?php
                     $optionId = (int)$option['id'];
                     $optionPowertrain = strtoupper((string)($option['powertrain_type'] ?? 'BEV'));
-                    $targetPage = in_array($navPage, ['index.php', 'operations.php', 'documents.php', 'timeline.php', 'import.php'], TRUE) ? $navPage : 'index.php';
+                    $targetPage = in_array($navPage, ['index.php', 'operations.php', 'documents.php', 'timeline.php', 'import.php', 'integrations.php'], TRUE) ? $navPage : 'index.php';
                     $targetUrl = $targetPage . '?vehicle_id=' . $optionId;
                     ?>
                     <a class="vehicle-picker-option<?= $optionId === $navVehicleId ? ' is-selected' : '' ?>" href="<?= h($targetUrl) ?>" role="option" aria-selected="<?= $optionId === $navVehicleId ? 'true' : 'false' ?>">
@@ -53,6 +53,7 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
             <a class="<?= $navCurrent('operations.php') ?>" href="operations.php?vehicle_id=<?= $navVehicleId ?>"><span>↗</span> Provoz & náklady</a>
             <a class="<?= $navCurrent('import.php') ?>" href="import.php?vehicle_id=<?= $navVehicleId ?>"><span>＋</span> Import Hub</a>
             <a class="<?= $navCurrent('documents.php') ?>" href="documents.php?vehicle_id=<?= $navVehicleId ?>"><span>✦</span> Dokumenty & AI</a>
+            <a class="<?= $navCurrent('integrations.php') ?>" href="integrations.php"><span>⌁</span> Connected Car</a>
         <?php endif; ?>
         <?php if ($navCanManageVehicles || $navIsAdmin): ?>
             <small>SPRÁVA</small>
@@ -80,7 +81,7 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
     <a class="<?= $navCurrent('garage.php') ?>" href="garage.php"><span>◈</span><small>Garáž</small></a>
     <a class="mobile-add" href="<?= $navHasVehicle ? 'import.php?vehicle_id=' . $navVehicleId : 'index.php?add_vehicle=1' ?>"><span>＋</span><small>Přidat</small></a>
     <?php if ($navHasVehicle): ?><a class="<?= $navCurrent('operations.php') ?>" href="operations.php?vehicle_id=<?= $navVehicleId ?>"><span>↗</span><small>Provoz</small></a><?php else: ?><a href="index.php?add_vehicle=1"><span>＋</span><small>Vozidlo</small></a><?php endif; ?>
-    <button class="mobile-more-trigger<?= in_array($navPage, ['timeline.php', 'import.php', 'documents.php', 'vehicles.php', 'users.php', 'import-monitoring.php', 'update.php', 'profile.php'], TRUE) ? ' is-active' : '' ?>" type="button" data-mobile-more-open aria-haspopup="dialog" aria-controls="mobileMoreMenu" aria-expanded="false"><span>☰</span><small>Více</small></button>
+    <button class="mobile-more-trigger<?= in_array($navPage, ['timeline.php', 'import.php', 'documents.php', 'integrations.php', 'vehicles.php', 'users.php', 'import-monitoring.php', 'update.php', 'profile.php'], TRUE) ? ' is-active' : '' ?>" type="button" data-mobile-more-open aria-haspopup="dialog" aria-controls="mobileMoreMenu" aria-expanded="false"><span>☰</span><small>Více</small></button>
 </nav>
 
 <div class="mobile-more-backdrop" data-mobile-more-backdrop hidden></div>
@@ -94,6 +95,7 @@ $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
             <a class="<?= $navCurrent('timeline.php') ?>" href="timeline.php?vehicle_id=<?= $navVehicleId ?>"><span>◷</span><div><b>Timeline</b><small>Historie událostí vozidla</small></div><i>›</i></a>
             <a class="<?= $navCurrent('import.php') ?>" href="import.php?vehicle_id=<?= $navVehicleId ?>"><span>＋</span><div><b>Import Hub</b><small>Import jízd a dat</small></div><i>›</i></a>
             <a class="<?= $navCurrent('documents.php') ?>" href="documents.php?vehicle_id=<?= $navVehicleId ?>"><span>✦</span><div><b>Dokumenty & AI</b><small>Faktury, účtenky a dokumenty</small></div><i>›</i></a>
+            <a class="<?= $navCurrent('integrations.php') ?>" href="integrations.php"><span>⌁</span><div><b>Connected Car</b><small>AutoSync a online telemetrie</small></div><i>›</i></a>
         <?php endif; ?>
         <?php if ($navCanManageVehicles): ?>
             <a class="<?= $navCurrent('vehicles.php') ?>" href="vehicles.php"><span>⚙</span><div><b>Vozidla</b><small>Správa vozidel a parametrů</small></div><i>›</i></a>

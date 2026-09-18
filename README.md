@@ -1,298 +1,513 @@
-# EV Dashboard
+# EV Stats
 
-EV Dashboard je webová aplikace pro evidenci vozidel, import jízd z CSV exportů, sledování spotřeby, nákladů, provozní historie a technického stavu vozidel. Systém podporuje elektromobily i další typy pohonu a umožňuje správu více uživatelů, rolí a přiřazení vozidel.
+EV Stats je webová aplikace pro kompletní evidenci, analytiku a dlouhodobou správu vozidel. Původně vznikla pro detailní sledování elektromobilů, dnes ale podporuje také plug-in hybridy, hybridy i klasická spalovací vozidla.
 
-Aplikace je určená pro provoz na běžném PHP hostingu s databází MariaDB nebo MySQL.
+Cílem projektu je sjednotit na jednom místě **jízdy, spotřebu, nabíjení a tankování, náklady, servis, dokumenty, fotografie, připomínky, analytiku, importy a nově také online telemetrii vozidla**.
+
+Aktuální vývojová větev zároveň obsahuje základ architektury **Connected Car / AutoSync**, na kterém mohou navazovat další online integrace, Anomaly Engine a EV Stats Copilot.
+
+---
+
+## Obsah
+
+- [Hlavní funkce](#hlavní-funkce)
+- [Podporované typy vozidel](#podporované-typy-vozidel)
+- [Connected Car / AutoSync](#connected-car--autosync)
+- [Telemetry a Event model](#telemetry-a-event-model)
+- [Dashboard a analytika](#dashboard-a-analytika)
+- [Import jízd](#import-jízd)
+- [Manuální mapování neznámých importů](#manuální-mapování-neznámých-importů)
+- [Dokumentové centrum a AI vytěžování](#dokumentové-centrum-a-ai-vytěžování)
+- [Provozní evidence](#provozní-evidence)
+- [Timeline](#timeline)
+- [Uživatelé, role a oprávnění](#uživatelé-role-a-oprávnění)
+- [Registrace a demo](#registrace-a-demo)
+- [PWA](#pwa)
+- [Bezpečnost](#bezpečnost)
+- [Požadavky](#požadavky)
+- [Instalace](#instalace)
+- [Aktualizace existující instalace](#aktualizace-existující-instalace)
+- [Konfigurace `.env`](#konfigurace-env)
+- [MyŠkoda Public API](#myškoda-public-api)
+- [Automatická synchronizace přes cron](#automatická-synchronizace-přes-cron)
+- [Docker](#docker)
+- [Architektura projektu](#architektura-projektu)
+- [Databázové migrace](#databázové-migrace)
+- [Vývoj nového importního pluginu](#vývoj-nového-importního-pluginu)
+- [Vývoj nového OEM konektoru](#vývoj-nového-oem-konektoru)
+- [Testování a kontrola syntaxe](#testování-a-kontrola-syntaxe)
+- [Provozní doporučení](#provozní-doporučení)
+- [Roadmap](#roadmap)
+- [Licence](#licence)
+- [Autor](#autor)
+
+---
 
 ## Hlavní funkce
 
-- správa vozidel a jejich technických údajů,
-- správa uživatelů, rolí a oprávnění,
-- přiřazování vozidel konkrétním uživatelům,
-- dashboard se statistikami jízd, spotřeby a nákladů,
-- import jízd z CSV exportů,
-- automatické rozpoznání podporovaného CSV formátu,
-- automatické rozpoznání vozidla podle VIN v názvu CSV souboru,
-- evidence nabíjení, tankování, servisu a ostatních provozních nákladů,
-- kniha jízd,
-- připomínky podle data nebo stavu kilometrů,
-- výpočet provozních nákladů a ceny za kilometr,
-- sledování State of Health baterie,
-- uživatelský profil a změna hesla,
-- obnova zapomenutého hesla,
-- aktualizace aplikace z GitHubu,
-- ochrana citlivých souborů mimo veřejný webroot.
-
-## Požadavky
-
-- PHP 7.4 nebo novější,
-- rozšíření PDO MySQL,
-- MariaDB 10.5+ nebo MySQL 8+,
-- webserver Apache nebo Nginx,
-- rozšíření ZipArchive pro aktualizace z GitHubu,
-- cURL nebo povolené allow_url_fopen pro stahování aktualizací,
-- pro odesílání obnovy hesla funkční PHP mail() nebo lokální MTA.
-
-Preferovaný document root je adresář public/.
-
-Pokud hosting neumožňuje nastavit document root na public/, je v kořeni projektu připraven .htaccess, který požadavky interně směruje do public/ a zároveň blokuje přímý přístup k citlivým adresářům.
-
-## Instalace
-
-### 1. Nahrání souborů
-
-Nahrajte celý obsah projektu na server.
-
-Doporučené nastavení webserveru:
-
-    DocumentRoot /cesta/k/projektu/public
-
-Pokud používáte sdílený hosting bez možnosti změnit document root, nahrajte projekt do cílového adresáře webu. Kořenový .htaccess zajistí směrování požadavků do adresáře public/.
-
-### 2. Vytvoření databáze
-
-Vytvořte prázdnou databázi v MariaDB nebo MySQL.
-
-Poté importujte schéma:
-
-    SOURCE sql/schema.sql;
-
-Na hostingu lze stejný soubor importovat například přes phpMyAdmin nebo jiný databázový nástroj.
-
-### 3. Nastavení konfigurace
-
-Zkopírujte ukázkový konfigurační soubor:
-
-    cp .env.example .env
-
-V souboru .env nastavte připojení k databázi a základní URL aplikace:
-
-    DB_HOST=localhost
-    DB_NAME=ev_dashboard
-    DB_USER=database_user
-    DB_PASS=database_password
-
-    APP_BASE_URL=https://ev.example.cz
-    APP_DEBUG=0
-
-Pokud chcete používat obnovu hesla e-mailem, nastavte také odesílatele:
-
-    MAIL_FROM=noreply@example.cz
-
-Pro aktualizace z GitHubu lze nastavit repozitář a větev:
-
-    UPDATE_REPOSITORY=filipekp/ev_dashboard
-    UPDATE_BRANCH=dev
-
-Soubor .env nikdy necommitujte do repozitáře a nenechávejte jej veřejně dostupný.
-
-### 4. První spuštění
-
-Otevřete aplikaci v prohlížeči.
-
-Při první instalaci vás systém provede vytvořením prvního administrátorského účtu.
-
-Po vytvoření administrátora se můžete přihlásit a začít přidávat vozidla, uživatele a importovat data.
-
-## Doporučená struktura nasazení
-
-Veřejně dostupný by měl být pouze adresář:
-
-    public/
-
-Ostatní adresáře obsahují zdrojový kód, konfiguraci, SQL soubory, šablony nebo uložené soubory a neměly by být přímo dostupné z internetu.
-
-Důležité adresáře:
-
-- public/ – veřejné HTTP vstupní body aplikace,
-- src/ – aplikační logika,
-- templates/ – šablony,
-- sql/ – databázové schéma a migrace,
-- storage/ – neveřejně uložené uživatelské soubory,
-- .updates/ – zálohy vytvořené aktualizátorem,
-- .env – lokální konfigurace prostředí.
-
-## Uživatelské role
-
-Systém rozlišuje několik typů uživatelů.
-
-### Administrátor
-
-Administrátor má plný přístup k systému.
-
-Může:
-
-- spravovat uživatele,
-- vytvářet a upravovat vozidla,
-- přiřazovat vozidla uživatelům,
-- importovat data,
-- zobrazovat dashboardy všech vozidel,
-- spravovat provozní evidenci,
-- spouštět aktualizace aplikace.
-
-### Manager
-
-Manager může pracovat s vozidly a jejich přiřazením, ale nemá plná administrátorská oprávnění.
-
-Může:
-
-- spravovat vozidla,
-- přiřazovat vozidla uživatelům,
-- zobrazovat data dostupných vozidel,
-- pracovat s provozní evidencí.
-
-Nemůže vytvářet ani mazat uživatelské účty a nemůže mazat vozidla.
-
-### Uživatel
-
-Běžný uživatel vidí pouze vozidla, která mu byla přiřazena.
-
-Může:
-
-- zobrazit dashboard přiřazených vozidel,
-- pracovat s vlastními dostupnými daty,
-- změnit svůj profil,
-- nastavit si výchozí vozidlo.
-
-## Správa vozidel
-
-U každého vozidla lze evidovat zejména:
-
-- název vozidla,
-- VIN,
-- typ pohonu,
-- kapacitu baterie,
-- nominální kapacitu baterie,
-- ručně zadaný State of Health,
-- domácí lokalitu,
-- další technické a provozní údaje.
-
-Podporované typy pohonu:
-
-- BEV,
-- PHEV,
-- HEV,
-- PETROL,
-- DIESEL,
-- LPG,
-- CNG.
-
-EV specifické údaje se používají zejména pro elektromobily a plug-in hybridy. Provozní evidence je společná pro všechny typy vozidel.
-
-## Dashboard
-
-Dashboard poskytuje přehled o provozu vozidla.
-
-Zobrazuje například:
-
-- seznam jízd,
-- celkové kilometry,
-- spotřebu,
-- náklady,
-- statistiky za období,
-- odhad dojezdu,
-- informace o baterii,
-- State of Health,
-- související provozní údaje.
-
-Uživatel může přepínat mezi vozidly, ke kterým má oprávnění. V profilu si také může nastavit výchozí vozidlo, které se automaticky otevře po přihlášení.
-
-## Import CSV
-
-Aplikace umožňuje importovat jízdy z CSV exportů.
-
-Import:
-
-- automaticky rozpozná podporovaný formát CSV,
-- zpracuje jednotlivé řádky do jednotného interního modelu,
-- podle možností doplní spotřebu, vzdálenost, čas, stav nabití a další údaje,
-- kontroluje VIN v názvu souboru, pokud je dostupné,
-- při nalezení známého VIN přiřadí data ke správnému vozidlu,
-- při neznámém VIN může založit nové vozidlo,
-- při chybějícím VIN použije aktuálně vybrané vozidlo.
-
-Pokud je v názvu CSV souboru obsažen 17znakový VIN, systém jej použije pro identifikaci vozidla.
-
-Pokud vozidlo s daným VIN existuje, ale uživatel k němu nemá přístup, import se z bezpečnostních důvodů zastaví.
-
-## Podporované CSV formáty
-
-Aplikace podporuje pluginový systém pro CSV formáty.
-
-Součástí projektu jsou například pluginy pro:
-
-- novější exporty MyŠkoda,
-- exporty Škoda Citigo iV.
-
-Jednotlivé pluginy zajišťují:
-
-- rozpoznání CSV podle hlavičky,
-- návrh názvu vozidla při automatickém založení,
-- převod řádku CSV do interního modelu jízd,
-- export dat zpět do CSV.
-
-Díky pluginové architektuře lze přidávat další značky a formáty bez zásahu do hlavního importeru, dashboardu nebo databázové vrstvy.
-
-## State of Health baterie
-
-Systém umožňuje sledovat stav baterie, tedy State of Health.
-
-Používají se dva možné zdroje:
-
-1. ručně zadaná hodnota z BMS nebo diagnostiky,
-2. orientační odhad z jízd, pokud je dostupných dostatek vhodných dat.
-
-Preferovaným zdrojem je vždy hodnota z diagnostiky nebo BMS.
-
-Orientační odhad z jízd pracuje s dostupnými hodnotami spotřeby a poklesu stavu nabití. Tento výpočet je pouze informativní, protože výrobci mohou rozdílně počítat rezervy baterie, SoC a dostupnou kapacitu.
-
-Pro servisní rozhodnutí používejte hodnotu z diagnostiky nebo BMS.
-
-## Provozní evidence
-
-Stránka provozní evidence umožňuje spravovat kompletní provozní historii vozidla.
-
-Obsahuje:
+### Digitální garáž
+
+- více vozidel pod jedním účtem,
+- fotografie vozidel,
+- výchozí vozidlo uživatele,
+- VIN a registrační značka,
+- technické a provozní parametry,
+- podpora různých typů pohonu,
+- individuální dashboard každého vozidla,
+- souhrnný Garage dashboard napříč vozidly.
+
+### Jízdy a spotřeba
+
+- import jízd z CSV/XLSX,
+- pluginová architektura importů,
+- automatická detekce podporovaného formátu,
+- automatické rozpoznání vozidla podle VIN,
+- ruční přidávání a editace jízd,
+- stránkovaná historie,
+- filtrování podle období a roku,
+- export jízd zpět do CSV,
+- spotřeba energie nebo paliva podle typu pohonu,
+- klasifikace jízd pro knihu jízd.
+
+### Analytika
+
+- celková vzdálenost,
+- počet jízd,
+- průměrná spotřeba,
+- meziroční statistiky,
+- sezónní spotřeba,
+- vývoj nákladů na kilometr,
+- porovnání vozidel,
+- provozní náklady,
+- TCO včetně odpisu/depreciace,
+- odhad State of Health baterie,
+- jednoduché personalizované insighty.
+
+### Provoz vozidla
 
 - nabíjení,
 - tankování,
-- servisní záznamy,
+- servisní historie,
+- ostatní výdaje,
+- připomínky podle data i kilometrů,
 - servisní přílohy,
-- ostatní provozní náklady,
-- připomínky,
-- knihu jízd,
-- souhrny nákladů,
-- výpočet ceny za kilometr.
+- kniha jízd,
+- chronologická Timeline.
 
-### Nabíjení a tankování
+### Dokumentové centrum
 
-U záznamu lze evidovat například:
+- upload PDF a obrázků,
+- ukládání originálů mimo veřejný webroot,
+- SHA-256 deduplikace,
+- lokální parsery poskytovatelů,
+- AI fallback přes OpenAI nebo Gemini,
+- opakované vytěžení dokumentu,
+- možnost vynutit lokální parser nebo AI,
+- historie jednotlivých pokusů o vytěžení,
+- náhled dat před potvrzením,
+- bezpečné vytvoření provozních záznamů až po potvrzení uživatelem.
 
-- datum,
+### Connected Car / AutoSync
+
+- pluginová architektura přímých OEM konektorů podle výrobce vozidla,
+- první plnohodnotný konektor pro oficiální **MyŠkoda Public API**,
+- integrační widget přímo v editaci konkrétního vozidla,
+- šifrované ukládání API credentials,
+- kontrola VIN vráceného výrobcem proti vozidlu v EV Stats,
+- ruční synchronizace i automatický AutoSync přes CLI/cron,
+- respektování API rate limitů a retry intervalů,
+- normalizované snapshoty telemetrie,
+- provider-agnostický event stream,
+- historie synchronizačních běhů,
+- Connected Car události v Timeline,
+- registry připravený pro další OEM konektory.
+
+### Administrace a provozní monitoring
+
+- správa uživatelů,
+- hierarchie administrátor → správce vozidel → řidič,
+- přiřazování vozidel,
+- monitoring importních běhů,
+- přehled selhaných importů,
+- monitoring dokumentových importů,
+- monitoring neznámých importních formátů,
+- updater aplikace z GitHubu.
+
+---
+
+## Podporované typy vozidel
+
+Aplikace používá jednotný model vozidla a podle typu pohonu upravuje zobrazené metriky.
+
+Podporované hodnoty:
+
+| Typ | Význam |
+|---|---|
+| `BEV` | bateriový elektromobil |
+| `PHEV` | plug-in hybrid |
+| `HEV` | hybrid |
+| `PETROL` | benzín |
+| `DIESEL` | nafta |
+| `LPG` | LPG |
+| `CNG` | CNG |
+
+Elektromobily mohou pracovat s hodnotami SoC, kapacitou baterie, kWh a SoH. Spalovací vozidla používají litry, objem nádrže a spotřebu paliva.
+
+---
+
+# Connected Car / AutoSync
+
+Connected Car je postavený jako **pluginová vrstva přímých konektorů automobilek**. Analytika, Timeline a budoucí Anomaly Engine neznají formát konkrétního OEM API; pracují pouze s normalizovanou telemetrií a eventy.
+
+Aktuálně je produkčně připraven první konektor **MyŠkoda Public API**. Kód není svázaný s jedním agregátorem a další značku lze doplnit registrací další implementace `VehicleConnectorInterface`.
+
+```text
+Škoda Public API     Tesla Fleet API     BMW CarData     další OEM
+       │                    │                  │              │
+       └────────────────────┴──────────┬───────┴──────────────┘
+                                       ▼
+                         VehicleConnectorRegistry
+                                       │
+                                       ▼
+                         VehicleConnectorInterface
+                                       │
+                               OEM normalizer
+                                       │
+                         ┌─────────────┴─────────────┐
+                         ▼                           ▼
+                 Telemetry snapshots             Events
+                         │                           │
+                         └─────────────┬─────────────┘
+                                       ▼
+                          Timeline / Insights /
+                          budoucí Anomaly Engine
+```
+
+### Aktuálně implementovaný tok
+
+1. Správce otevře **Vozidla → Upravit vozidlo**.
+2. EV Stats podle výrobce vybere dostupné konektory z `VehicleConnectorRegistry`.
+3. U vozidla Škoda se zobrazí widget **MyŠkoda Public API**.
+4. Uživatel vloží API klíč vytvořený v aplikaci MyŠkoda pro dané vozidlo.
+5. Credential se zašifruje aplikačním master key `VEHICLE_CREDENTIALS_KEY`; plaintext se do databáze neukládá.
+6. EV Stats provede request pro VIN uložený u vozidla a ověří, že API nevrátilo jiné VIN.
+7. OEM odpověď se převede do společného telemetry modelu.
+8. Snapshot se uloží idempotentně; ze změn proti předchozímu snapshotu mohou vzniknout doménové eventy.
+9. Odometr z online zdroje může zvýšit aktuální stav vozidla, nikdy jej však nesnižuje.
+10. Další synchronizaci řídí `next_sync_at`, API rate-limit metadata a případný `Retry-After`.
+
+### Bezpečnost Connected Car
+
+- API klíče/tokeny se neukládají plaintextem.
+- Šifrovací master key je pouze v `.env` a **nesmí** být uložen v databázi ani repozitáři.
+- UI po uložení zobrazuje pouze maskovaný hint (např. poslední 4 znaky), ne skutečný secret.
+- Credentials se neposílají zpět do HTML/JavaScriptu.
+- Server vždy ověřuje přístup uživatele ke konkrétnímu vozidlu.
+- Konektor Škoda ověřuje shodu VIN.
+- Synchronizace ukládá auditní běhy a bezpečně zpracovává expiraci credentialu, rate limit a dočasné chyby API.
+- Remote commands jsou v první verzi záměrně vypnuté; konektor je read-only.
+
+---
+
+## Telemetry a Event model
+
+Migrace `sql/migrate_v20.sql` vytvořila původní Connected Car foundation. Migrace `sql/migrate_v21.sql` ji převádí na přímý per-vehicle OEM connector model. Starou aplikovanou migraci v20 **neupravujte ani nemažte**; migrační runner kontroluje její checksum.
+
+### `vehicle_connector_connections`
+
+Jedno šifrované propojení konkrétního vozidla s konkrétním OEM konektorem.
+
+Ukládá například:
+
+- interní `vehicle_id` a vlastníka spojení,
+- `provider` / ID konektoru,
+- externí VIN/ID a název,
+- capability metadata,
+- **šifrované credentials**, jejich fingerprint a maskovaný hint,
+- expiraci credentialu,
+- stav spojení a poslední chybu,
+- poslední/další synchronizaci,
+- `Retry-After`,
+- aktuální rate-limit kvótu a reset,
+- provider-specific metadata bez secretů.
+
+### `vehicle_telemetry_snapshots`
+
+Normalizovaná časová řada telemetrie.
+
+Aktuálně podporovaná pole:
+
+- `soc_pct`,
+- `range_km`,
+- `odometer_km`,
+- `latitude`,
+- `longitude`,
+- `is_charging`,
+- `is_plugged_in`,
+- `charging_power_kw`,
+- `battery_temperature_c`,
+- `fuel_level_pct`,
+- čas pozorování,
+- zdroj,
+- raw JSON poskytovatele.
+
+Každý snapshot má fingerprint, který omezuje opakované ukládání stejného stavu.
+
+### `vehicle_events`
+
+Normalizovaný event stream vozidla. Události jsou provider-agnostické a obsahují typ, čas, závažnost, titulek, zdroj, datový payload a idempotentní event key.
+
+Aktuální projector umí například:
+
+- začátek/konec nabíjení,
+- připojení/odpojení nabíjecího kabelu,
+- SoC pod 20 %,
+- dosažení 80 % během nabíjení,
+- tisícikilometrové milníky odometru.
+
+### `vehicle_sync_runs`
+
+Audit synchronizačních běhů. Ukládá connection, spouštějícího uživatele, trigger (`manual`, `cron`, `webhook`, `initial`), status, počty snapshotů/eventů, chybu a časy začátku/konce.
+
+---
+
+## Dashboard a analytika
+
+### Dashboard vozidla
+
+Dashboard zobrazuje metriky odpovídající typu pohonu daného vozidla.
+
+Typicky obsahuje:
+
+- statistiku jízd,
+- vzdálenost,
+- spotřebu,
+- provozní náklady,
+- cenu na kilometr,
+- bateriová data u BEV/PHEV,
+- SoH,
+- grafy po měsících,
+- historii jízd,
+- insighty.
+
+### Garage dashboard
+
+Garage dashboard agreguje data napříč všemi vozidly, ke kterým má uživatel přístup.
+
+Aktuálně počítá například:
+
+- porovnání vozidel,
+- počet jízd,
+- vzdálenost,
+- spotřebu,
+- provozní náklady,
+- depreciaci,
+- celkové TCO,
+- provozní cenu za kilometr,
+- TCO za kilometr,
+- meziroční statistiky,
+- měsíční vývoj ceny/km,
+- sezónní spotřebu.
+
+TCO je kompletní pouze tehdy, pokud má vozidlo vyplněnou pořizovací cenu, datum pořízení a aktuální hodnotu.
+
+---
+
+## State of Health baterie
+
+EV Stats umožňuje evidovat dvě kategorie SoH:
+
+1. ručně zadanou hodnotu z BMS nebo diagnostiky,
+2. orientační odhad z dostupných jízdních dat.
+
+Preferovaným zdrojem pro servisní nebo technické rozhodování je vždy BMS/diagnostika.
+
+Odhad ze spotřeby a změny SoC je pouze analytická pomůcka, protože výrobci pracují různě s použitelnou kapacitou, rezervami baterie a reportovaným SoC.
+
+---
+
+# Import jízd
+
+EV Stats používá pluginový importní systém.
+
+Import může:
+
+- rozpoznat konkrétní formát,
+- načíst CSV nebo podporované XLSX,
+- normalizovat data do interního modelu,
+- rozpoznat vozidlo podle VIN,
+- zabránit importu do cizího vozidla,
+- při oprávněném scénáři založit nové vozidlo,
+- logovat běh importu,
+- přeskočit duplicitní data.
+
+### Aktuální importní pluginy
+
+Projekt obsahuje například:
+
+- `SkodaMySkodaPlugin`,
+- `SkodaCitigoIvPlugin`,
+- `KiaConnectPlugin`,
+- `KiaConnectXlsxPlugin`,
+- generický CSV mapper jako fallback pro neznámé formáty.
+
+Architektura je rozdělena tak, aby značkově specifické chování nebylo rozptýlené po controllerech nebo dashboardu.
+
+---
+
+## Manuální mapování neznámých importů
+
+Pokud importní soubor nerozpozná žádný známý plugin, EV Stats může nabídnout druhý krok s ručním namapováním sloupců.
+
+Typický postup:
+
+1. uživatel nahraje CSV/XLSX,
+2. systém načte hlavičku a několik ukázkových řádků,
+3. uživatel přiřadí zdrojové sloupce k interním polím,
+4. minimálně je nutné namapovat začátek jízdy a vzdálenost,
+5. import se zpracuje jednotným mapperem,
+6. originální soubor je archivován jako vzorek neznámého formátu,
+7. importní běh je zaznamenán pro administrátorský monitoring.
+
+Originální vzorky jsou uloženy mimo veřejný webroot v:
+
+```text
+storage/import-samples/
+```
+
+Tato funkce umožňuje používat EV Stats i s dosud nepodporovaným formátem a současně sbírat vzorky pro vývoj budoucích nativních pluginů.
+
+---
+
+# Dokumentové centrum a AI vytěžování
+
+Dokumentové centrum slouží pro účtenky, faktury za nabíjení, servisní faktury a další dokumenty související s vozidlem.
+
+## Bezpečný workflow
+
+```text
+Upload
+  ↓
+validace typu a velikosti
+  ↓
+SHA-256 deduplikace
+  ↓
+lokální provider parser
+  ↓
+AI fallback, pokud je potřeba
+  ↓
+normalizovaný náhled
+  ↓
+ruční kontrola uživatelem
+  ↓
+potvrzení
+  ↓
+provozní evidence
+```
+
+AI sama bez potvrzení uživatele nevytváří finanční položky v provozní evidenci.
+
+### Lokální parsery
+
+Aktuálně projekt obsahuje například:
+
+- `PowerpassElliInvoiceParser`,
+- `CezFuturegoInvoiceParser`,
+- `EonDriveInvoiceParser`,
+- `JsonDocumentParser`.
+
+Lokální parser je preferovaný před externí AI, pokud daný dokument spolehlivě rozpozná.
+
+### Opakované vytěžení
+
+Již uložený dokument lze znovu vytěžit. Každý nový pokus vytváří nový `document_import_run`, takže je zachována historie zpracování.
+
+Lze použít:
+
+- automatický režim,
+- lokální parser,
+- AI extrakci.
+
+Po potvrzení nového vytěžení lze nahradit dřívější provozní položky vytvořené ze stejného dokumentu.
+
+### OpenAI
+
+Konfigurace:
+
+```dotenv
+AI_PROVIDER=openai
+OPENAI_API_KEY=replace_me
+OPENAI_MODEL=gpt-5.6-luna
+```
+
+### Google Gemini
+
+Konfigurace:
+
+```dotenv
+AI_PROVIDER=gemini
+GEMINI_API_KEY=replace_me
+GEMINI_MODEL=gemini-3.8-flash
+```
+
+Gemini adaptér má interní fallback mechanismus pro dočasně nedostupné modely. U stavů jako timeout, rate limit nebo vybrané 5xx chyby zkusí další kompatibilní model.
+
+Pro úplné vypnutí externí AI:
+
+```dotenv
+AI_PROVIDER=none
+```
+
+### Ukládání dokumentů
+
+Originály jsou uloženy mimo veřejný webroot, typicky v:
+
+```text
+storage/documents/
+```
+
+Fotografie vozidel jsou uloženy odděleně v:
+
+```text
+storage/vehicle-media/
+```
+
+---
+
+# Provozní evidence
+
+Provozní evidence slučuje dlouhodobý životní cyklus vozidla.
+
+## Nabíjení a tankování
+
+Lze evidovat například:
+
+- datum a čas,
 - stav tachometru,
 - množství energie nebo paliva,
+- jednotku,
 - cenu,
-- místo,
+- místo nebo stanici,
 - poznámku.
 
-### Servisní historie
+## Servis
 
-Servisní záznamy umožňují ukládat:
+Servisní záznam může obsahovat:
 
-- datum servisu,
+- datum,
 - stav kilometrů,
-- typ úkonu,
+- kategorii,
+- název úkonu,
+- servis/providera,
 - cenu,
 - poznámku,
-- servisní přílohy.
+- přílohy.
 
-Servisní přílohy se ukládají mimo veřejný webroot do adresáře storage/service/.
+Servisní přílohy jsou uloženy mimo veřejný webroot.
 
-Přístup k přílohám kontroluje aplikace podle oprávnění uživatele k danému vozidlu.
+## Ostatní výdaje
 
-### Ostatní provozní náklady
-
-Do evidence lze zadávat také další náklady, například:
+Například:
 
 - pojištění,
 - dálniční známky,
@@ -300,284 +515,1051 @@ Do evidence lze zadávat také další náklady, například:
 - parkování,
 - mytí,
 - příslušenství,
-- jiné provozní výdaje.
+- ostatní provozní výdaje.
 
-### Připomínky
+## Připomínky
 
-Připomínky lze nastavit podle:
+Připomínka může být navázána na:
 
-- konkrétního data,
-- stavu kilometrů,
-- kombinace data a kilometrů.
+- datum,
+- stav kilometrů,
+- kombinaci obou hodnot.
 
-Hodí se například pro servisní intervaly, STK, výměnu pneumatik nebo kontrolu pojištění.
+Použitelné například pro:
 
-### Kniha jízd
+- servis,
+- STK,
+- výměnu pneumatik,
+- pojištění,
+- pravidelné kontroly.
 
-Kniha jízd umožňuje evidovat a klasifikovat jízdy.
+## Kniha jízd
 
-Podporované klasifikace:
+Jízdy lze klasifikovat například jako:
 
-- soukromá,
+- soukromé,
 - služební,
 - dojíždění,
 - ostatní.
 
-## Profil uživatele
+---
 
-Každý přihlášený uživatel má vlastní profil.
+## Timeline
 
-V profilu může:
+Timeline skládá více datových zdrojů do jedné chronologie.
 
-- změnit jméno,
-- změnit e-mail,
-- změnit heslo,
-- vybrat výchozí vozidlo.
+Aktuálně zahrnuje:
 
-Změna hesla vyžaduje zadání současného hesla.
+- jízdy,
+- nabíjení/tankování,
+- servis,
+- ostatní náklady,
+- Connected Car události.
 
-Pokud výchozí vozidlo není nastavené nebo k němu už uživatel nemá přístup, systém automaticky použije první dostupné vozidlo.
+Díky tomu lze zobrazit historii vozidla jako jeden časový životopis místo několika oddělených tabulek.
 
-## Obnova zapomenutého hesla
+---
 
-Na přihlašovací stránce je dostupná obnova hesla.
+# Uživatelé, role a oprávnění
+
+EV Stats používá hierarchický model uživatelů.
+
+```text
+Administrátor
+    │
+    ├── Správce vozidel A
+    │       ├── Řidič 1
+    │       └── Řidič 2
+    │
+    └── Správce vozidel B
+            └── Řidič 3
+```
+
+Interní role jsou:
+
+- `admin`,
+- `manager`,
+- `user`.
+
+## Administrátor
+
+Má plná systémová oprávnění.
+
+Může například:
+
+- spravovat všechny uživatele,
+- vytvářet správce vozidel,
+- spravovat všechna vozidla,
+- přiřazovat vozidla,
+- sledovat globální import monitoring,
+- provádět aktualizace aplikace.
+
+## Správce vozidel (`manager`)
+
+Může spravovat vlastní skupinu vozidel a podřízené řidiče podle pravidel oprávnění.
+
+Veřejně registrovaný uživatel dostává ve výchozím stavu právě roli správce vozidel.
+
+## Řidič (`user`)
+
+Pracuje pouze s vozidly, která mu byla zpřístupněna nebo přiřazena podle oprávnění aplikace.
+
+### Server-side autorizace
+
+Oprávnění se nekontrolují pouze v UI. Každý důležitý přístup k vozidlu, dokumentu, médiu nebo importu je ověřován také na serveru.
+
+---
+
+# Registrace a demo
+
+## Veřejná registrace
+
+Registrace je dvoufázová.
+
+Formulář obsahuje:
+
+- jméno a příjmení,
+- e-mail,
+- heslo,
+- heslo znovu.
 
 Postup:
 
-1. Uživatel zadá e-mailovou adresu.
-2. Systém vytvoří kryptograficky náhodný token.
-3. Do databáze se uloží pouze SHA-256 hash tokenu.
-4. Token je časově omezený.
-5. Po použití se token zneplatní.
-6. Uživatel si nastaví nové heslo.
+1. uživatel odešle formulář,
+2. proběhne Google reCAPTCHA v3,
+3. vytvoří se neaktivovaný účet,
+4. na e-mail přijde potvrzovací odkaz,
+5. po potvrzení se účet aktivuje,
+6. administrátor může obdržet oznámení o nové registraci.
 
-Aplikace z bezpečnostních důvodů neprozrazuje, zda zadaný e-mail v systému existuje.
+## Veřejné demo
 
-Pro lokální vývoj lze nastavit:
+Landing page umožňuje vstoupit do read-only demo účtu.
 
-    APP_DEBUG=1
+Demo:
 
-Pokud není nakonfigurované odesílání e-mailů, může se v debug režimu resetovací odkaz zobrazit přímo na stránce.
+- používá syntetická data,
+- nemá použitelné heslo,
+- přihlašuje se přes samostatný demo endpoint,
+- nesmí měnit data,
+- nesmí uploadovat soubory.
 
-Na produkci musí být vždy nastaveno:
+Bootstrap aplikace centrálně blokuje zapisující HTTP metody demo uživatele.
 
-    APP_DEBUG=0
+---
 
-## Aktualizace aplikace
+# PWA
 
-Administrátor může spustit aktualizaci aplikace přes stránku:
+EV Stats obsahuje základ instalovatelné Progressive Web App.
 
-    public/update.php
+Součástí jsou:
 
-Aktualizátor:
+- `manifest.webmanifest`,
+- `service-worker.js`,
+- mobilní navigace,
+- instalace aplikace z podporovaného mobilního prohlížeče.
 
-1. stáhne ZIP balíček z GitHubu,
-2. zkontroluje strukturu balíčku,
-3. vytvoří zálohu spravovaných souborů,
-4. spustí dosud neprovedené databázové migrace,
-5. synchronizuje aplikační adresáře,
-6. nepřepisuje soubor .env.
+Service worker je záměrně omezen na statické assety a nemá cachovat autentizované HTML, API odpovědi ani uživatelská data.
 
-Aktualizace nikdy nemaže uživatelské servisní přílohy ve storage/service/.
+---
 
-Pro správnou funkci aktualizátoru musí mít PHP proces právo zapisovat do adresáře aplikace.
+# Bezpečnost
 
-## Bezpečnost
+Bezpečnost je navržena ve více vrstvách.
 
-Aplikace používá několik bezpečnostních mechanismů:
+Podrobný audit je uložen v:
 
-- hashování hesel přes password_hash(),
-- ověřování hesel přes password_verify(),
-- CSRF tokeny u formulářů,
-- session cookie s příznaky HttpOnly a SameSite=Lax,
-- příznak Secure při HTTPS,
-- resetovací tokeny uložené pouze jako hash,
-- časově omezené resetovací odkazy,
-- kontrolu oprávnění při přístupu k vozidlům,
-- kontrolu oprávnění při stahování servisních příloh,
-- blokování přístupu k neveřejným adresářům přes .htaccess.
-
-## Architektura
-
-Projekt je rozdělen do několika vrstev.
-
-    public/
-        HTTP vstupní body aplikace
-
-    src/App/Http/Controller/
-        zpracování HTTP požadavků
-
-    src/App/Service/
-        aplikační a business logika
-
-    src/App/Repository/
-        práce s databází
-
-    src/App/Csv/
-        obecná importní a exportní infrastruktura
-
-    src/App/Csv/Plugin/
-        pluginy pro konkrétní CSV formáty
-
-    templates/
-        prezentační šablony
-
-    sql/
-        databázové schéma a migrace
-
-    storage/
-        neveřejné uživatelské soubory
-
-Controllery neobsahují SQL ani složitou business logiku. Tyto části jsou oddělené do service a repository vrstev.
-
-## CSV pluginy
-
-Každý CSV plugin implementuje rozhraní pro práci s konkrétním formátem exportu.
-
-Plugin typicky zajišťuje:
-
-- identifikaci formátu CSV,
-- návrh výchozích údajů vozidla,
-- převod CSV řádku do interního modelu,
-- definici exportní hlavičky,
-- převod interní jízdy zpět do CSV.
-
-Pluginy jsou načítány automaticky z adresáře:
-
-    src/App/Csv/Plugin/
-
-Nový formát proto stačí přidat jako samostatnou třídu pluginu.
-
-Zjednodušený příklad pluginu:
-```php
-    <?php
-
-    declare(strict_types=1);
-
-    namespace App\Csv\Plugin;
-
-    final class ExampleVehiclePlugin extends AbstractCsvVehiclePlugin
-    {
-        public function id(): string
-        {
-            return 'example_vehicle';
-        }
-
-        public function label(): string
-        {
-            return 'Example Vehicle';
-        }
-
-        public function supports(array $header): bool
-        {
-            return $this->hasColumns($header, ['Start Date', 'End Date', 'Distance']);
-        }
-
-        public function inspect(?string $vin): array
-        {
-            return [
-                'suggested_name' => 'Example Vehicle',
-                'battery_kwh' => 75.0,
-                'battery_nominal_kwh' => 75.0,
-            ];
-        }
-
-        public function parse(array $row): ?array
-        {
-            return null;
-        }
-
-        public function exportHeaders(): array
-        {
-            return ['Start Date', 'End Date', 'Distance'];
-        }
-
-        public function exportRow(array $trip): array
-        {
-            return [];
-        }
-    }
+```text
+SECURITY_AUDIT.md
 ```
 
-## Důležitý princip datového modelu
+## Hlavní ochrany
 
-Databázová tabulka jízd slouží jako společný normalizovaný model.
+- `password_hash()` / `password_verify()`,
+- automatický rehash starších hesel,
+- minimální délka nového hesla,
+- kryptografické CSRF tokeny,
+- CSRF ochrana zapisujících formulářů,
+- parametrizované SQL dotazy,
+- escapování výstupu,
+- session strict mode,
+- `HttpOnly`, `SameSite=Lax` a při HTTPS `Secure`,
+- regenerace session ID,
+- server-side idle timeout,
+- login rate limiting,
+- password reset rate limiting,
+- reset tokeny uložené pouze jako SHA-256 hash,
+- bezpečné server-side kontroly přístupu k vozidlům,
+- oddělení dat podle uživatelských oprávnění,
+- bezpečná validace uploadů podle skutečného MIME typu,
+- limity velikosti obrázků, ZIP/XLSX a PDF dekomprese,
+- náhodné názvy uložených souborů,
+- uploady mimo veřejný webroot,
+- CSV spreadsheet injection ochrana,
+- ochrany updateru proti path traversal a nebezpečným ZIP souborům,
+- Content Security Policy,
+- `X-Content-Type-Options: nosniff`,
+- `X-Frame-Options: DENY`,
+- `Referrer-Policy`,
+- `Permissions-Policy`,
+- HSTS v produkci přes HTTPS.
 
-Značkově specifické názvy sloupců, odlišné formáty dat, zvláštnosti exportů nebo výpočty specifické pro konkrétní vozidlo patří pouze do CSV pluginu.
+## Google Analytics
 
-Neměly by být přímo v controllerech, repository ani dashboardu.
+Google Analytics je integrován do společné hlavičky aplikace. Přihlášený administrátor je z měření vynechán.
 
-## Testování
+Pokud provozujete aplikaci veřejně, zohledněte analytiku v zásadách ochrany soukromí.
 
-Projekt používá testovací frameworky:
+## Externí AI
 
-- PHPUnit,
-- Behat.
+Pokud je aktivní OpenAI nebo Gemini, dokument může být za účelem vytěžení odeslán příslušnému externímu poskytovateli.
 
-Spuštění testů závisí na konkrétní lokální konfiguraci projektu a vývojového prostředí.
+Proto není správné tvrdit, že „data nikdy neopouštějí server“, pokud je externí AI aktivní.
 
-Obvykle se používají příkazy podobné:
+## Connected Car
 
-    vendor/bin/phpunit
+Credentials OEM konektorů jsou šifrovány pomocí aplikačního master key `VEHICLE_CREDENTIALS_KEY`. EV Stats ukládá do databáze pouze ciphertext, fingerprint a maskovaný hint. Master key musí zůstat pouze v `.env`, nesmí být commitnut do Git repozitáře a při jeho ztrátě nelze uložené credentials dešifrovat.
 
-    vendor/bin/behat
+Každý OEM konektor má vlastní credential schéma. U MyŠkoda Public API se používá API klíč vytvořený uživatelem pro konkrétní vozidlo; EV Stats nevyžaduje heslo k účtu MyŠkoda.
 
-## Provozní doporučení
+---
 
-- Pravidelně zálohujte databázi.
-- Pravidelně zálohujte adresář storage/.
-- Soubor .env uchovávejte mimo veřejný přístup.
-- Na produkci mějte APP_DEBUG=0.
-- Pro veřejný provoz používejte HTTPS.
-- Před aktualizací aplikace proveďte zálohu databáze i souborů.
-- Neměňte již jednou provedené databázové migrace; pro změny vytvářejte nové migrační soubory.
+# Požadavky
 
-## Licence
+Doporučené minimum:
 
-Doplňte podle licence projektu.
+- PHP **7.4+**,
+- MariaDB 10.5+ nebo MySQL 8+,
+- Apache nebo Nginx,
+- PDO MySQL,
+- cURL,
+- ZipArchive,
+- mbstring,
+- XML,
+- GD,
+- `fileinfo`,
+- HTTPS pro produkční provoz.
 
-## Dokumentové centrum a AI import
+Pro e-mailové funkce je potřeba funkční `mail()` nebo odpovídající mail transport na serveru.
 
-Aplikace obsahuje rozšiřitelný dokumentový import pro účtenky za tankování,
-faktury za nabíjení, servisní faktury a další dokumenty vozidla. Originály jsou
-uložené mimo veřejný webroot ve `storage/documents`, fotografie vozidel v
-`storage/vehicle-media`.
+Pro updater musí mít PHP proces právo zapisovat do aplikačních adresářů.
 
-Workflow je záměrně bezpečný: upload -> SHA-256 deduplikace -> deterministický
-parser -> AI fallback -> náhled -> ruční potvrzení -> provozní evidence. AI tedy
-nikdy sama bez potvrzení uživatele nevytváří finanční záznamy.
+---
 
-Konfigurace v `.env`:
+# Instalace
 
-```env
-# none | openai | gemini
+## 1. Nahrání projektu
+
+Naklonujte nebo nahrajte projekt na server.
+
+```bash
+git clone https://github.com/filipekp/ev_dashboard.git
+cd ev_dashboard
+```
+
+Preferovaný document root:
+
+```text
+/cesta/k/projektu/public
+```
+
+Pokud hosting neumí změnit document root, kořenový `.htaccess` směruje požadavky do `public/` a zároveň chrání neveřejné části projektu.
+
+## 2. Vytvoření databáze
+
+Vytvořte prázdnou MySQL/MariaDB databázi s `utf8mb4`.
+
+Pro novou instalaci importujte:
+
+```text
+sql/schema.sql
+```
+
+Například:
+
+```bash
+mysql -u ev_stats -p ev_stats < sql/schema.sql
+```
+
+Schéma obsahuje také aktuální Connected Car v20 tabulky.
+
+## 3. Konfigurace prostředí
+
+Zkopírujte:
+
+```bash
+cp .env.example .env
+```
+
+Následně nastavte minimálně databázi a URL aplikace.
+
+```dotenv
+APP_ENV=production
+APP_DEBUG=0
+APP_BASE_URL=https://ev.example.cz
+
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=ev_stats
+DB_USER=ev_stats
+DB_PASS=change_me
+```
+
+Soubor `.env` nikdy necommitujte do repozitáře.
+
+## 4. Oprávnění adresářů
+
+Webserver musí mít možnost zapisovat alespoň do provozních adresářů používaných pro uploady, rate-limit data, updater a další runtime soubory.
+
+Typicky:
+
+```bash
+chown -R www-data:www-data storage .updates
+```
+
+Konkrétní práva upravte podle hostingu a bezpečnostní politiky serveru.
+
+## 5. První spuštění
+
+Otevřete aplikaci v prohlížeči.
+
+Pokud ještě není vytvořen administrátor, aplikace nabídne první setup.
+
+Po vytvoření administrátorského účtu lze začít přidávat vozidla, uživatele a importovat data.
+
+---
+
+# Aktualizace existující instalace
+
+Při aktualizaci vždy zálohujte:
+
+- databázi,
+- `.env`,
+- celý `storage/`,
+- případně stávající aplikační adresář.
+
+Aplikace obsahuje vlastní updater dostupný administrátorovi přes:
+
+```text
+update.php
+```
+
+Updater může podle konfigurace používat:
+
+- poslední publikovaný GitHub Release,
+- nebo vývojovou větev.
+
+Konfigurace:
+
+```dotenv
+UPDATE_REPOSITORY=filipekp/ev_dashboard
+UPDATE_CHANNEL=release
+UPDATE_BRANCH=dev
+```
+
+Možné hodnoty `UPDATE_CHANNEL`:
+
+```text
+release
+```
+
+nebo:
+
+```text
+dev
+```
+
+Updater spouští dosud neprovedené databázové migrace a nepřepisuje `.env`.
+
+## Přechod na OEM Connector framework v5.1
+
+Pokud aktualizujete instalaci, ve které už byla aplikována Connected Car migrace v20, **neměňte ani nemažte** `sql/migrate_v20.sql`. Nová migrace `sql/migrate_v21.sql`:
+
+- odstraní starou account/link vrstvu agregátoru,
+- převede tabulku connection na `vehicle_connector_connections`,
+- doplní šifrované credentials, expirace, scheduling a rate-limit metadata,
+- zachová historické telemetry/event záznamy jako legacy Connected Car historii,
+- připraví databázi na přímé OEM konektory.
+
+Doporučený upgrade bez závislosti na webovém UI:
+
+```bash
+docker compose exec ev-dashboard php bin/migrate.php --status
+docker compose exec ev-dashboard php bin/migrate.php
+```
+
+Před připojením prvního OEM API vygenerujte master key:
+
+```bash
+docker compose exec ev-dashboard php bin/generate-vehicle-credentials-key.php
+```
+
+Výstup `VEHICLE_CREDENTIALS_KEY=...` vložte do `.env` a kontejner/aplikaci restartujte.
+
+---
+
+# Konfigurace `.env`
+
+## Aplikace
+
+```dotenv
+APP_ENV=production
+APP_NAME="EV Stats"
+APP_BASE_URL=https://ev.example.cz
+APP_DEBUG=0
+SESSION_NAME=ev_stats_session
+```
+
+V produkci musí být `APP_BASE_URL` explicitně nastavené na správnou HTTPS doménu.
+
+## Databáze
+
+```dotenv
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=ev_stats
+DB_USER=ev_stats
+DB_PASS=change_me
+```
+
+Používejte samostatného DB uživatele pouze s oprávněními nezbytnými pro aplikaci.
+
+## Session a rate limiting
+
+```dotenv
+SESSION_IDLE_SECONDS=43200
+LOGIN_RATE_LIMIT_ATTEMPTS=10
+LOGIN_RATE_LIMIT_WINDOW=900
+PASSWORD_RESET_RATE_LIMIT_ATTEMPTS=5
+PASSWORD_RESET_RATE_LIMIT_WINDOW=3600
+MINIMUM_PASSWORD_LENGTH=12
+```
+
+## E-mail
+
+```dotenv
+MAIL_FROM=noreply@example.cz
+```
+
+## Registrace
+
+```dotenv
+REGISTRATION_PARENT_ADMIN_ID=1
+REGISTRATION_ADMIN_NOTIFY_EMAIL=
+REGISTRATION_VERIFICATION_MINUTES=1440
+```
+
+Veřejně registrovaný uživatel se vytváří jako správce vozidel a je podřízen administrátorovi z `REGISTRATION_PARENT_ADMIN_ID`.
+
+## Google reCAPTCHA v3
+
+```dotenv
+RECAPTCHA_SITE_KEY=replace_with_public_site_key
+RECAPTCHA_SECRET_KEY=replace_with_private_secret_key
+RECAPTCHA_MINIMUM_SCORE=0.5
+RECAPTCHA_EXPECTED_HOSTNAME=
+```
+
+Na produkci doporučujeme nastavit také očekávaný hostname.
+
+## Demo
+
+```dotenv
+DEMO_ENABLED=true
+DEMO_USER_EMAIL=demo@evstats.local
+```
+
+## Updater
+
+```dotenv
+UPDATE_REPOSITORY=filipekp/ev_dashboard
+UPDATE_CHANNEL=release
+UPDATE_BRANCH=dev
+```
+
+## AI
+
+OpenAI:
+
+```dotenv
 AI_PROVIDER=openai
-OPENAI_API_KEY=...
+OPENAI_API_KEY=
 OPENAI_MODEL=gpt-5.6-luna
-
-# Alternativně:
-# AI_PROVIDER=gemini
-# GEMINI_API_KEY=...
-# GEMINI_MODEL=gemini-3.8-flash
 ```
 
-Nové provider-specific importy patří do `src/App/Document/Parser`. Parser pouze
-implementuje `DocumentParserInterface` a vrátí společný normalizovaný model.
-Pokud žádný parser dokument nepodporuje, použije se nakonfigurovaný AI adaptér.
-Součástí projektu je lokální `PowerpassElliInvoiceParser`, který umí textové PDF
-faktury Powerpass / Elli bez AI nebo externího API. Z faktury načte jednotlivé
-nabíjecí relace včetně stanice, EVSE ID, času, kWh, ceny za kWh a výsledné ceny.
-Další providery (E.ON Drive, IONITY, ČEZ/PRE apod.) lze doplnit stejným způsobem
-bez změn controllerů a databázové logiky.
+Gemini:
 
-Po nasazení spusťte migrace přes stávající updater; migrace `migrate_v13.sql`
-vytvoří tabulky pro média, dokumenty, audit importů a samostatné vazby dokumentů
-na vzniklé provozní záznamy.
+```dotenv
+AI_PROVIDER=gemini
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.8-flash
+```
 
+Bez externí AI:
 
+```dotenv
+AI_PROVIDER=none
+```
 
-## Landing page a veřejné demo
+## OEM Connected Car konektory
 
-Od migrace `migrate_v19.sql` je kořenová stránka aplikace veřejná landing page. Nepřihlášený návštěvník na ní najde marketingový přehled funkcí, odkazy na přihlášení a registraci a tlačítko pro vstup do read-only dema.
+Master key pro šifrování credentialů vygenerujte CLI utilitou, ne ručním heslem:
 
-Demo účet se vytváří migrací pod e-mailem `demo@evstats.local` a obsahuje syntetické vozidlo, jízdy a nabíjecí záznamy. Nemá použitelné heslo; přístup probíhá výhradně přes `demo-login.php`. Bootstrap centrálně blokuje všechny `POST`, `PUT`, `PATCH` a `DELETE` requesty demo uživatele, takže demo nemůže měnit data ani nahrávat soubory. V `.env` lze režim vypnout nebo změnit e-mail pomocí `DEMO_ENABLED` a `DEMO_USER_EMAIL`.
+```bash
+php bin/generate-vehicle-credentials-key.php
+```
+
+Do `.env` vložte výstup:
+
+```dotenv
+VEHICLE_CREDENTIALS_KEY=base64_32_random_bytes
+
+SKODA_API_URL=https://public.api.connect.skoda-auto.cz
+SKODA_API_TIMEOUT_SECONDS=30
+SKODA_SYNC_INTERVAL_SECONDS=600
+SKODA_RATE_LIMIT_RESERVE=3
+```
+
+`VEHICLE_CREDENTIALS_KEY` po prvním ostrém nasazení bez plánované migrace credentialů neměňte. Rotace tohoto key vyžaduje bezpečné přešifrování uložených credentials.
+
+---
+
+# MyŠkoda Public API
+
+První nativní OEM plugin je určen pro vozidla s výrobcem `SKODA` / `ŠKODA`.
+
+## Připojení vozidla
+
+1. V aplikaci MyŠkoda vytvořte Public API klíč a povolte v něm konkrétní vozidlo.
+2. V EV Stats zkontrolujte, že vozidlo má správně vyplněný VIN a výrobce Škoda.
+3. Otevřete **Vozidla → Upravit**.
+4. V sekci **Connected Car** vložte API klíč.
+5. Zvolte **Otestovat a připojit**.
+6. EV Stats načte stav přes `/api/v1/vehicles/{VIN}`, ověří VIN a uloží první normalizovaný snapshot.
+7. Po úspěchu lze používat ruční synchronizaci nebo cron AutoSync.
+
+Konektor ukládá a používá mimo jiné informaci o expiraci API key a `RateLimit-*` hlavičky. Výchozí AutoSync interval je 10 minut, ale scheduler může další sync odložit podle zbývající kvóty nebo `Retry-After`.
+
+První verze je **read-only**. Ovládání nabíjení/klimatizace z EV Stats není zatím povoleno.
+
+### Přidání další automobilky
+
+Další OEM konektor se přidává jako samostatný plugin implementující `VehicleConnectorInterface`; telemetry/event/analytická vrstva se kvůli další značce nemění.
+
+---
+
+# Automatická synchronizace přes cron
+
+Ruční synchronizace je dostupná v Connected Car UI.
+
+Pro automatický AutoSync lze spouštět CLI:
+
+```bash
+php /cesta/k/ev-stats/bin/sync-vehicles.php
+```
+
+Výstup je JSON se souhrnem běhu.
+
+### Synchronizace konkrétní connection
+
+```bash
+php /cesta/k/ev-stats/bin/sync-vehicles.php --connection=12
+```
+
+### Příklad cronu každých 15 minut
+
+```cron
+*/15 * * * * /usr/bin/php /var/www/ev-stats/bin/sync-vehicles.php >> /var/log/evstats-sync.log 2>&1
+```
+
+Doporučený interval závisí na provider API limitech, cenovém modelu a požadované čerstvosti dat.
+
+---
+
+# Docker
+
+Projekt obsahuje `Dockerfile` a `docker-compose.yml`.
+
+Aktuální image vychází z Ubuntu 20.04 a instaluje Apache + PHP 7.4 s potřebnými rozšířeními.
+
+## Build
+
+```bash
+docker compose build
+```
+
+## Spuštění
+
+```bash
+docker compose up -d
+```
+
+Výchozí lokální port:
+
+```text
+http://localhost:8090
+```
+
+Compose předpokládá existenci externí Docker sítě:
+
+```text
+proclient
+```
+
+Pokud neexistuje:
+
+```bash
+docker network create proclient
+```
+
+Databáze není v aktuálním `docker-compose.yml` definována jako součást projektu; očekává se dostupná MySQL/MariaDB instance připojená do stejné sítě nebo dosažitelná podle hodnot v `.env`.
+
+---
+
+# Architektura projektu
+
+```text
+public/
+    veřejné HTTP entrypointy
+    assets/
+    manifest.webmanifest
+    service-worker.js
+
+src/
+    App/
+        Http/Controller/
+        Service/
+        Repository/
+        Csv/
+        Import/
+        Document/
+        Integration/
+        Vehicle/
+
+templates/
+    stránky
+    partials/
+
+sql/
+    schema.sql
+    migrate_v*.sql
+
+storage/
+    neveřejné runtime soubory
+    dokumenty
+    média
+    servisní přílohy
+    importní vzorky
+
+bin/
+    CLI utility
+```
+
+## Vrstvy
+
+### Controller
+
+`src/App/Http/Controller/`
+
+Řeší:
+
+- HTTP request,
+- autentizaci,
+- CSRF,
+- základní validaci vstupu,
+- redirect/render.
+
+Controller by neměl obsahovat složité SQL nebo značkově specifickou business logiku.
+
+### Service
+
+`src/App/Service/`
+
+Obsahuje aplikační a business logiku.
+
+Například:
+
+- `DashboardService`,
+- `AnalyticsService`,
+- `VehicleOperationService`,
+- `DocumentImportService`,
+- `VehicleConnectorService`,
+- `VehicleSyncService`,
+- `VehicleTelemetryEventProjector`,
+- `VehicleTimelineService`,
+- `VehicleInsightService`.
+
+### Repository
+
+`src/App/Repository/`
+
+Zapouzdřuje databázové operace.
+
+Například:
+
+- `VehicleRepository`,
+- `TripRepository`,
+- `VehicleOperationRepository`,
+- `DocumentRepository`,
+- `VehicleDataRepository`,
+- `IntegrationImportRunRepository`.
+
+### Integrations
+
+`src/App/Integration/`
+
+Externí a generické integrační mechanismy. OEM Connected Car konektory jsou izolované po jednotlivých výrobcích:
+
+```text
+Integration/
+    GenericCsvMapper.php
+    TabularFileReader.php
+    Vehicle/
+        VehicleConnectorInterface.php
+        VehicleConnectorRegistry.php
+        VehicleConnectorException.php
+        Skoda/
+            SkodaConnector.php
+            SkodaPublicApiClient.php
+            SkodaVehicleNormalizer.php
+```
+
+Citlivé credentials řeší samostatná bezpečnostní vrstva `src/App/Security/CredentialCipher.php`.
+
+---
+
+# Databázové migrace
+
+Schéma nové instalace je v:
+
+```text
+sql/schema.sql
+```
+
+Průběžné upgrady jsou v:
+
+```text
+sql/migrate_v2.sql
+sql/migrate_v3.sql
+...
+sql/migrate_v20.sql
+sql/migrate_v21.sql
+```
+
+Migrační soubory po vydání neupravujte. Každá další databázová změna má dostat nové číslo migrace.
+
+Vestavěný updater vede evidenci již aplikovaných migrací a spouští pouze nové.
+
+## CLI migrátor
+
+Migrace lze spustit i bez funkčního webového rozhraní. To je užitečné zejména v Dockeru nebo v situaci, kdy nová verze aplikace vyžaduje databázovou migraci ještě před prvním HTTP requestem.
+
+Z kořene projektu:
+
+```bash
+php bin/migrate.php
+```
+
+Pouze kontrola stavu bez změny databáze:
+
+```bash
+php bin/migrate.php --status
+```
+
+Nápověda:
+
+```bash
+php bin/migrate.php --help
+```
+
+Pro aktuální `docker-compose.yml`, kde se aplikační služba jmenuje `ev-dashboard`:
+
+```bash
+docker compose exec ev-dashboard php bin/migrate.php --status
+docker compose exec ev-dashboard php bin/migrate.php
+```
+
+Pokud si název služby v `docker-compose.yml` změníte, nahraďte `ev-dashboard` odpovídajícím názvem.
+
+CLI migrátor:
+
+- nepoužívá webový bootstrap ani session,
+- načte pouze konfiguraci a databázovou vrstvu,
+- používá tabulku `schema_migrations`,
+- spouští pouze dosud neaplikované `migrate_*.sql`,
+- kontroluje SHA-256 checksum již aplikovaných migrací,
+- odmítne pokračovat, pokud byla stará aplikovaná migrace dodatečně změněna,
+- používá procesní zámek proti souběžnému spuštění.
+
+---
+
+# Vývoj nového importního pluginu
+
+CSV pluginy jsou v:
+
+```text
+src/App/Csv/Plugin/
+```
+
+Nový plugin má řešit pouze specifika daného exportního formátu.
+
+Nemá měnit dashboard ani interní databázový model.
+
+Zjednodušený příklad:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Csv\Plugin;
+
+final class ExampleVehiclePlugin extends AbstractCsvVehiclePlugin
+{
+    public function id(): string
+    {
+        return 'example_vehicle';
+    }
+
+    public function label(): string
+    {
+        return 'Example Vehicle';
+    }
+
+    public function supports(array $header): bool
+    {
+        return $this->hasColumns($header, [
+            'Start Date',
+            'End Date',
+            'Distance',
+        ]);
+    }
+
+    public function inspect(?string $vin): array
+    {
+        return [
+            'suggested_name' => 'Example Vehicle',
+        ];
+    }
+
+    public function parse(array $row): ?array
+    {
+        // Převod do interního normalizovaného modelu jízdy.
+        return null;
+    }
+
+    public function exportHeaders(): array
+    {
+        return ['Start Date', 'End Date', 'Distance'];
+    }
+
+    public function exportRow(array $trip): array
+    {
+        return [];
+    }
+}
+```
+
+Pro značkově odlišné XLSX formáty lze vytvořit samostatný `TripImportPluginInterface` plugin obdobně jako `KiaConnectXlsxPlugin`.
+
+---
+
+# Vývoj nového OEM konektoru
+
+Connected Car vrstva používá kontrakt:
+
+```text
+src/App/Integration/Vehicle/VehicleConnectorInterface.php
+```
+
+Každý výrobce má mít vlastní podadresář a vlastní API klient/normalizer. Doporučený tvar:
+
+```text
+Vehicle/
+    VehicleConnectorInterface.php
+    VehicleConnectorRegistry.php
+    VehicleConnectorException.php
+
+    Skoda/
+        SkodaConnector.php
+        SkodaPublicApiClient.php
+        SkodaVehicleNormalizer.php
+
+    Tesla/
+        TeslaConnector.php
+        TeslaFleetApiClient.php
+        TeslaVehicleNormalizer.php
+
+    Bmw/
+        BmwCarDataConnector.php
+        BmwCarDataClient.php
+        BmwVehicleNormalizer.php
+```
+
+Konektor zodpovídá pouze za vendor-specific část:
+
+1. určí podporované výrobce,
+2. popíše credential schema a capabilities,
+3. autentizuje se vůči OEM API,
+4. načte stav konkrétního vozidla,
+5. ověří bezpečnostně důležité identity (typicky VIN),
+6. převede odpověď do společného normalizovaného snapshotu,
+7. předá scheduleru metadata jako expirace credentialu, rate limit a další sync.
+
+Registrace nového pluginu se provádí v `Application::vehicleConnectors()`. Zbytek aplikace používá `VehicleConnectorRegistry`, takže `VehicleSyncService`, `VehicleDataRepository`, Timeline ani budoucí Anomaly Engine nemusí znát formát dané automobilky.
+
+### Credentialy
+
+Nové konektory nesmí ukládat API key, access token, refresh token ani heslo do logu, flash zprávy, HTML nebo plaintext databázového sloupce. Secret se před uložením předává přes `CredentialCipher`. OAuth konektory mají ukládat pouze tokeny, které skutečně potřebují; uživatelské heslo k automobilce se nemá ukládat, pokud OEM podporuje OAuth/API key flow.
+
+### Normalizovaný snapshot
+
+Konektor vrací jednotnou strukturu obsahující `external_id`, `vin`, `observed_at`, `capabilities`, `telemetry` a raw odpověď. V `telemetry` jsou podle dostupnosti například SoC, dojezd, odometr, poloha, charging state/power, teplota baterie a fuel level. Chybějící hodnoty zůstávají `null`; normalizer si je nesmí domýšlet.
+
+---
+
+# Testování a kontrola syntaxe
+
+Projekt obsahuje historickou přípravu pro PHPUnit/Behat podle konkrétní vývojové konfigurace.
+
+Před nasazením změn doporučujeme minimálně PHP syntax kontrolu:
+
+```bash
+find . -name '*.php' -print0 | xargs -0 -n1 php -l
+```
+
+JavaScript:
+
+```bash
+node --check public/assets/app.js
+```
+
+Dále doporučujeme ručně otestovat:
+
+- login/logout,
+- registraci a ověření e-mailu,
+- oprávnění rolí,
+- uploady,
+- import CSV/XLSX,
+- generický mapper,
+- dokumentové vytěžování,
+- opakované vytěžení,
+- export CSV,
+- updater,
+- Connected Car Link flow,
+- ruční synchronizaci,
+- CLI synchronizaci.
+
+---
+
+# Provozní doporučení
+
+Před veřejným produkčním provozem:
+
+1. používejte HTTPS,
+2. nastavte `APP_ENV=production`,
+3. nastavte `APP_DEBUG=0`,
+4. nastavte přesnou `APP_BASE_URL`,
+5. nepovolujte veřejný přístup k `.env`, `storage/`, `src/`, `sql/` ani `.updates/`,
+6. pravidelně zálohujte databázi,
+7. pravidelně zálohujte `storage/`,
+8. otestujte obnovu ze zálohy,
+9. používejte DB účet s minimálními oprávněními,
+10. pravidelně aktualizujte PHP, webserver a databázi,
+11. rotujte API/reCAPTCHA/DB secrets,
+12. sledujte neúspěšná přihlášení a importní chyby,
+13. nakonfigurujte SPF, DKIM a DMARC pro odesílací doménu,
+14. u produkčního Connected Car provozu sledujte OEM API limity, expirace credentialů a chyby synchronizace,
+15. před větším veřejným nasazením proveďte externí penetrační test.
+
+---
+
+# Roadmap
+
+Connected Car v5 foundation vytváří datový základ pro další dvě velké vrstvy.
+
+## 1. Anomaly Engine
+
+Plánované využití `vehicle_telemetry_snapshots`, jízd a provozních dat například pro:
+
+- neobvyklý růst spotřeby,
+- nezvyklý pokles SoC při stání,
+- změnu reálného dojezdu,
+- podezřelé změny nabíjení,
+- odchylky proti vlastnímu dlouhodobému normálu vozidla,
+- prediktivní upozornění.
+
+## 2. EV Stats Copilot
+
+AI vrstva nad vlastním datovým modelem vozidla.
+
+Příklady budoucích dotazů:
+
+- „Proč mi poslední měsíc vzrostla spotřeba?“
+- „Kolik mě auto stálo od koupě?“
+- „Jak se vyvíjí baterie?“
+- „Co mě čeká v příštích šesti měsících?“
+- „Najdi neobvyklé provozní náklady.“
+
+Copilot má vycházet z vypočtených a autorizovaných dat EV Stats, nikoli nahrazovat datovou vrstvu generickým chatbotem.
+
+## 3. Další plánované směry
+
+- další přímé OEM Connected Car konektory (Tesla, BMW, Kia/Hyundai, Volkswagen/Audi),
+- notification engine,
+- automatizační pravidla,
+- Vehicle Passport,
+- predikce budoucích nákladů,
+- Energy Brain / chytré nabíjení,
+- integrace FVE a wallboxů,
+- rozšířená evidence pneumatik,
+- inteligentní klasifikace knihy jízd.
+
+---
+
+# Důležitý princip projektu
+
+EV Stats má udržovat **jeden normalizovaný interní model** a izolovat specifika jednotlivých výrobců, providerů, CSV souborů a AI služeb do samostatných adaptérů a pluginů.
+
+To platí pro:
+
+- importy jízd,
+- dokumentové parsery,
+- Connected Car API,
+- budoucí automatizace.
+
+Díky tomu lze přidávat nové značky a zdroje dat bez přepisování dashboardu, analytiky a databázové logiky.
+
+---
+
+# Licence
+
+EV Stats je poskytován pod vlastní licencí **EV Stats Non-Commercial Source License 1.0**.
+
+Zdrojový kód je zdarma k použití, studiu, úpravám a nekomerční redistribuci. Komerční použití není bez samostatného písemného souhlasu autora dovoleno.
+
+Za komerční použití se považuje zejména:
+
+- prodej aplikace nebo odvozeného produktu,
+- poskytování aplikace jako placené služby nebo SaaS,
+- zahrnutí aplikace do placeného produktu či služby,
+- použití primárně za účelem komerčního prospěchu nebo finanční odměny,
+- použití právnickou nebo podnikající osobou v rámci její komerční činnosti, pokud nebyla sjednána jiná licence.
+
+Pro komerční použití kontaktujte autora a domluvte individuální smluvní a licenční podmínky.
+
+**Autor:** Pavel Filípek  
+**Kontakt:** https://www.filipek-czech.cz
+
+Úplné licenční podmínky jsou v souboru [`LICENSE`](LICENSE).
+
+> Poznámka: protože licence omezuje komerční použití, jde terminologicky o **source-available** licenci, nikoli o Open Source licenci podle definice Open Source Initiative (OSI).
+
+---
+
+## Autor
+
+**Pavel Filípek**  
+© 2026
+
+EV Stats

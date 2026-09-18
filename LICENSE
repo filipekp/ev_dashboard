@@ -1,0 +1,146 @@
+EV Stats Non-Commercial Source License 1.0
+
+Copyright (c) 2026 Pavel Filípek
+All rights reserved except as expressly granted by this License.
+
+1. PURPOSE
+
+This License makes the EV Stats source code available free of charge for
+non-commercial use while reserving commercial licensing rights to the Author.
+
+2. DEFINITIONS
+
+"Software" means the EV Stats software, source code, object code, documentation,
+configuration files, database migrations, templates, and other materials
+distributed with this License, except for third-party components that are
+provided under their own licenses.
+
+"Author" means Pavel Filípek.
+
+"Non-Commercial Use" means use that is not primarily intended for or directed
+toward commercial advantage, business operations, or monetary compensation.
+
+"Commercial Use" includes, without limitation:
+
+a) selling, licensing for a fee, renting, or otherwise monetizing the Software
+   or a modified version of it;
+
+b) providing the Software, or functionality substantially based on it, as a
+   paid hosted service, SaaS offering, managed service, subscription, or other
+   paid service;
+
+c) bundling or integrating the Software into a commercial product or service;
+
+d) using the Software primarily to obtain commercial advantage or monetary
+   compensation; and
+
+e) use of the Software by a company, entrepreneur, or other for-profit entity
+   as part of its commercial business activities, unless the Author has granted
+   written permission or a separate commercial license.
+
+3. NON-COMMERCIAL LICENSE GRANT
+
+Subject to the terms of this License, the Author grants you a worldwide,
+royalty-free, non-exclusive right for Non-Commercial Use to:
+
+a) use and run the Software;
+
+b) inspect and study the source code;
+
+c) copy the Software;
+
+d) modify the Software and create derivative works; and
+
+e) redistribute the Software or modified versions of the Software for
+   Non-Commercial Use.
+
+4. CONDITIONS OF REDISTRIBUTION
+
+Any redistribution of the Software or a modified version must:
+
+a) include this LICENSE file in full;
+
+b) retain existing copyright, authorship, and attribution notices;
+
+c) clearly state that the Software is licensed for Non-Commercial Use only;
+
+d) clearly identify significant modifications when a modified version is
+   redistributed; and
+
+e) not imply endorsement, sponsorship, or certification by the Author.
+
+You may not impose terms on redistributed copies that grant Commercial Use
+rights beyond those granted by this License.
+
+5. COMMERCIAL USE
+
+Commercial Use is not permitted under this License.
+
+If you wish to use EV Stats commercially, contact the Author to negotiate
+separate contractual and licensing terms:
+
+Pavel Filípek
+https://www.filipek-czech.cz
+
+Commercial permission is valid only when granted in a separate written
+agreement by the Author.
+
+6. CONTRIBUTIONS
+
+Unless a separate written agreement states otherwise, submitting a contribution
+to the EV Stats project does not grant the contributor any Commercial Use
+rights to the Software.
+
+By intentionally submitting a contribution for inclusion in the project, you
+represent that you have the right to submit it and allow the Author to use,
+modify, reproduce, distribute, and license that contribution as part of EV Stats.
+
+7. THIRD-PARTY SOFTWARE
+
+Third-party libraries, assets, tools, APIs, services, and other components may
+be governed by separate licenses or terms. This License does not replace or
+override those third-party licenses. You are responsible for complying with all
+applicable third-party terms.
+
+8. TRADEMARKS AND BRANDING
+
+This License does not grant any right to use the EV Stats name, logos,
+trademarks, service marks, or other branding in a way that suggests endorsement
+or an official relationship with the Author.
+
+Reasonable attribution that accurately identifies the origin of the Software is
+permitted.
+
+9. TERMINATION
+
+Your rights under this License terminate automatically if you materially breach
+its terms.
+
+If the breach is curable, your rights may be reinstated if you fully cure the
+breach within 30 days after becoming aware of it. This does not limit the
+Author's right to pursue remedies for unauthorized Commercial Use.
+
+10. NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR
+A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE AUTHOR SHALL NOT BE LIABLE FOR ANY
+CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH
+THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+11. NO OPEN SOURCE REPRESENTATION
+
+Because this License restricts Commercial Use, it is a source-available
+non-commercial license and is not an Open Source license as defined by the Open
+Source Initiative (OSI).
+
+12. SEPARATE AGREEMENTS
+
+A separate written agreement between you and the Author may grant additional
+rights, including Commercial Use rights. Where such an agreement applies, its
+terms take precedence over this License only to the extent explicitly stated in
+that agreement.
+
+END OF LICENSE

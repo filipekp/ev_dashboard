@@ -3,3 +3,4 @@
 VERSION
 storage/service/*
 !storage/service/.gitkeep
+/SECURITY_AUDIT.md

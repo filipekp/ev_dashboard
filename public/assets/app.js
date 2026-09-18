@@ -2,7 +2,19 @@
 
 /** Shared EV Stats browser interactions. */
 (() => {
+    const isStandalonePwa = () => window.matchMedia('(display-mode: standalone)').matches
+        || window.matchMedia('(display-mode: minimal-ui)').matches
+        || window.navigator.standalone === true;
+
     const initPwa = () => {
+        if (isStandalonePwa()) {
+            document.querySelectorAll('a[href^="logout.php"]').forEach((link) => {
+                const url = new URL(link.getAttribute('href'), window.location.href);
+                url.searchParams.set('pwa', '1');
+                link.setAttribute('href', `${url.pathname.split('/').pop()}${url.search}`);
+            });
+        }
+
         if (!('serviceWorker' in navigator)) {
             return;
         }
@@ -10,6 +22,24 @@
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('service-worker.js').catch(() => {
                 // PWA support is optional; the web application remains usable without it.
+            });
+        });
+    };
+
+    const initAutoSubmitSelects = () => {
+        document.querySelectorAll('select[data-auto-submit]').forEach((select) => {
+            select.addEventListener('change', () => {
+                const form = select.form;
+                if (!form) {
+                    return;
+                }
+
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                    return;
+                }
+
+                form.submit();
             });
         });
     };
@@ -124,6 +154,7 @@
     };
 
     initPwa();
+    initAutoSubmitSelects();
     initVehiclePickers();
     initMobileMoreMenu();
     initConfirmationForms();

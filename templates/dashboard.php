@@ -43,7 +43,7 @@ require __DIR__ . '/partials/header.php';
             <?php if (!empty($vehiclePhoto)): ?><img src="media.php?view=<?= (int)$vehiclePhoto['id'] ?>" alt="<?= h($vehicle['name']) ?>"><?php else: ?><div class="vehicle-silhouette">🚙</div><?php endif; ?>
         </div>
         <div class="hero-actions">
-            <a class="hero-action" href="documents.php?vehicle_id=<?= (int)$vehicle['id'] ?>"><b>✦ Import Hub</b><small>Faktury, účtenky, CSV & AI</small></a>
+            <a class="hero-action" href="import.php?vehicle_id=<?= (int)$vehicle['id'] ?>"><b>✦ Import Hub</b><small>Faktury, účtenky, CSV & AI</small></a>
             <a class="hero-action" href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>"><b>＋ Přidat záznam</b><small>Nabíjení, tankování, servis</small></a>
         </div>
     </section>
@@ -176,7 +176,7 @@ require __DIR__ . '/partials/header.php';
                 <input type="hidden" name="vehicle_id" value="<?= $vehicle['id'] ?>">
                 <input type="hidden" name="period" value="<?= $period === 'all' ? 'all' : 'year' ?>">
                 <label for="periodYear">Rok</label>
-                <select id="periodYear" name="year" onchange="this.form.submit()">
+                <select id="periodYear" name="year" data-auto-submit>
                     <?php if (!$years): ?>
                         <option value="<?= h($selectedYear) ?>"><?= h($selectedYear) ?></option>
                     <?php endif; ?>

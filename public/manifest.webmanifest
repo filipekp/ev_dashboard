@@ -4,7 +4,7 @@
   "description": "Přehled jízd, nákladů, spotřeby a provozu vašich vozidel.",
   "lang": "cs",
   "id": "./",
-  "start_url": "./index.php",
+  "start_url": "./index.php?pwa=1",
   "scope": "./",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],

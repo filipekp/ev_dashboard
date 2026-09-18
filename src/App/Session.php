@@ -33,6 +33,8 @@ final class Session
         }
 
         $isHttps = SecurityHeaders::isHttps();
+        $sessionLifetime = max(2592000, (int)$this->config->get('security.session_lifetime_seconds', 2592000));
+
         ini_set('session.use_only_cookies', '1');
         ini_set('session.use_strict_mode', '1');
         ini_set('session.cookie_httponly', '1');
@@ -40,6 +42,8 @@ final class Session
         ini_set('session.cookie_secure', $isHttps ? '1' : '0');
         ini_set('session.sid_length', '48');
         ini_set('session.sid_bits_per_character', '6');
+        ini_set('session.gc_maxlifetime', (string)$sessionLifetime);
+        ini_set('session.cookie_lifetime', (string)$sessionLifetime);
 
         session_name((string)$this->config->get('app.session_name', 'ev_stats'));
         session_set_cookie_params([
@@ -47,12 +51,17 @@ final class Session
             'samesite' => 'Lax',
             'secure' => $isHttps,
             'path' => '/',
+            'lifetime' => $sessionLifetime,
         ]);
         session_start();
 
         $now = time();
         $lastActivity = (int)($_SESSION['_last_activity'] ?? $now);
-        $idleTimeout = max(900, (int)$this->config->get('security.session_idle_seconds', 43200));
+        // Požadovaná relace má vydržet alespoň 30 dní. Starší instalace mohou
+        // stále obsahovat SESSION_IDLE_SECONDS=43200; proto nesmí tento legacy
+        // parametr zkrátit novou minimální životnost relace.
+        $configuredIdleTimeout = (int)$this->config->get('security.session_idle_seconds', $sessionLifetime);
+        $idleTimeout = max($sessionLifetime, $configuredIdleTimeout);
         if (($now - $lastActivity) > $idleTimeout) {
             $_SESSION = [];
             session_regenerate_id(true);
@@ -63,6 +72,18 @@ final class Session
         if ($lastRegenerated === 0 || ($now - $lastRegenerated) > 1800) {
             session_regenerate_id(true);
             $_SESSION['_last_regenerated'] = $now;
+        }
+
+        // Obnovujeme expiraci při každém aktivním requestu. PWA tak zůstane
+        // přihlášená 30 dní od posledního použití, ne pouze 30 dní od loginu.
+        if (!headers_sent()) {
+            setcookie(session_name(), session_id(), [
+                'expires' => $now + $sessionLifetime,
+                'path' => '/',
+                'secure' => $isHttps,
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ]);
         }
     }
 

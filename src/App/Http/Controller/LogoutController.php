@@ -20,20 +20,21 @@ final class LogoutController
 
     public function handle(): void
     {
+        $pwaContext = (string)($_GET['pwa'] ?? '') === '1';
+
         $_SESSION = [];
         if (ini_get('session.use_cookies')) {
             $params = session_get_cookie_params();
-            setcookie(
-                session_name(),
-                '',
-                time() - 42000,
-                (string)$params['path'],
-                (string)$params['domain'],
-                (bool)$params['secure'],
-                (bool)$params['httponly']
-            );
+            setcookie(session_name(), '', [
+                'expires' => time() - 42000,
+                'path' => (string)$params['path'],
+                'domain' => (string)$params['domain'],
+                'secure' => (bool)$params['secure'],
+                'httponly' => (bool)$params['httponly'],
+                'samesite' => (string)($params['samesite'] ?? 'Lax'),
+            ]);
         }
         session_destroy();
-        Http::redirect('index.php');
+        Http::redirect($pwaContext ? 'login.php?pwa=1' : 'index.php');
     }
 }

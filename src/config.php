@@ -83,7 +83,8 @@ return [
         'base_url' => $appBaseUrl,
     ],
     'security' => [
-        'session_idle_seconds' => (int)env('SESSION_IDLE_SECONDS', '43200'),
+        'session_lifetime_seconds' => (int)env('SESSION_LIFETIME_SECONDS', '2592000'),
+        'session_idle_seconds' => (int)env('SESSION_IDLE_SECONDS', '2592000'),
         'login_attempts' => (int)env('LOGIN_RATE_LIMIT_ATTEMPTS', '10'),
         'login_window_seconds' => (int)env('LOGIN_RATE_LIMIT_WINDOW', '900'),
         'password_reset_attempts' => (int)env('PASSWORD_RESET_RATE_LIMIT_ATTEMPTS', '5'),

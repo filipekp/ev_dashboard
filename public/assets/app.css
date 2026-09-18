@@ -6424,3 +6424,153 @@ body.modal-open {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+/* PWA install offer ------------------------------------------------------- */
+.pwa-install-offer {
+    position: fixed;
+    z-index: 140;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    left: 16px;
+    display: none;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 13px;
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 14px;
+    border: 1px solid rgba(124, 247, 196, .18);
+    border-radius: 18px;
+    background: rgba(10, 15, 20, .97);
+    box-shadow: 0 18px 55px rgba(0, 0, 0, .42);
+    backdrop-filter: blur(22px);
+}
+
+.pwa-install-offer__icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid rgba(124, 247, 196, .16);
+    border-radius: 14px;
+    background: rgba(124, 247, 196, .08);
+    color: var(--accent);
+    font-size: 22px;
+}
+
+.pwa-install-offer__content {
+    min-width: 0;
+}
+
+.pwa-install-offer__content > strong,
+.pwa-install-offer__content > span {
+    display: block;
+}
+
+.pwa-install-offer__content > strong {
+    color: #f4f7f9;
+    font-size: 14px;
+}
+
+.pwa-install-offer__content > span {
+    margin-top: 3px;
+    color: #8d99a8;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.pwa-install-offer__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pwa-install-offer__primary,
+.pwa-install-offer__dismiss {
+    min-height: 38px;
+    border-radius: 11px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.pwa-install-offer__primary {
+    padding: 8px 13px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #06100c;
+}
+
+.pwa-install-offer__primary:disabled {
+    cursor: default;
+    opacity: .55;
+}
+
+.pwa-install-offer__dismiss {
+    padding: 8px 4px;
+    border: 0;
+    background: transparent;
+    color: #82909f;
+}
+
+.pwa-install-offer__ios-help {
+    margin-top: 9px;
+    padding: 9px 10px;
+    border: 1px solid rgba(255, 255, 255, .07);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .035);
+    color: #a8b2bd;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.pwa-install-offer__ios-help b {
+    color: #eef3f6;
+}
+
+.pwa-install-offer__ios-help span {
+    color: var(--accent);
+    font-weight: 800;
+}
+
+@media (max-width: 900px) {
+    .pwa-install-offer {
+        display: grid;
+    }
+
+    .pwa-install-offer--above-nav {
+        bottom: calc(82px + env(safe-area-inset-bottom));
+    }
+}
+
+@media (max-width: 560px) {
+    .pwa-install-offer {
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 10px 12px;
+        padding: 12px;
+        border-radius: 16px;
+    }
+
+    .pwa-install-offer__icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        font-size: 20px;
+    }
+
+    .pwa-install-offer__actions {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: 1fr auto;
+    }
+
+    .pwa-install-offer__primary {
+        width: 100%;
+    }
+
+    .pwa-install-offer__dismiss {
+        padding-right: 8px;
+        padding-left: 8px;
+    }
+}

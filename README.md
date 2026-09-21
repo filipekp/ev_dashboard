@@ -1652,3 +1652,16 @@ Pro komerční použití kontaktujte autora a domluvte individuální smluvní a
 © 2026
 
 EV Stats
+
+## Telemetrické jízdy, nabíjení a deduplikace (v5.2)
+
+Migrace `migrate_v22.sql` rozšiřuje OEM telemetrii o odvozenou provozní historii:
+
+- dokončené pohybové bloky se ukládají jako jízdy se zdrojem `telemetry_*`;
+- import jízd porovnává kromě zdrojového hashe také tachometr, vzdálenost a časový překryv, takže CSV může doplnit přesnější data do již existující telemetrické jízdy místo vytvoření duplicity;
+- dokončené nabíjecí relace se ukládají do `vehicle_energy_entries` včetně SoC, času a odhadnuté energie;
+- výchozí cena elektřiny se nastavuje u vozidla a automaticky se použije pro telemetrické nabíjení;
+- importovaná faktura za nabíjení se nejprve pokusí časově a množstvím spárovat s telemetrickou relací; při shodě doplní cenu do existujícího záznamu;
+- pokud relace není propojena s fakturou, lze cenu za jednotku upravit přímo v provozní historii.
+
+Energie odvozená pouze z OEM snapshotů je označena jako odhad. Primárně se počítá ze změny SoC a využitelné kapacity baterie, při nedostupném SoC se použije integrace dostupného nabíjecího výkonu. Přesnost časů jízd odpovídá intervalu synchronizace OEM konektoru.

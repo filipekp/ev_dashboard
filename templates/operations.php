@@ -13,6 +13,10 @@ $fuelEnergyType = [
     'LPG' => 'lpg',
     'CNG' => 'cng',
 ][$powertrain] ?? 'petrol';
+$defaultElectricityPrice = isset($vehicle['default_electricity_price_per_kwh']) && $vehicle['default_electricity_price_per_kwh'] !== NULL
+    ? (float)$vehicle['default_electricity_price_per_kwh']
+    : NULL;
+$defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_currency'] ?? 'CZK'))) ?: 'CZK';
 ?>
 <main class="wrap operations-page">
   <?php if ($flash): ?>
@@ -42,6 +46,7 @@ $fuelEnergyType = [
       <form method="post" class="stack">
         <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
         <input type="hidden" name="action" value="add_energy">
+        <input type="hidden" name="currency" value="<?= h($defaultEnergyCurrency) ?>">
         <label>Datum a čas<input type="datetime-local" name="occurred_at" value="<?= date('Y-m-d\TH:i') ?>" required></label>
         <?php if ($hasTractionBattery && $hasFuelSystem): ?>
           <div class="form-grid-2">
@@ -57,7 +62,7 @@ $fuelEnergyType = [
         <?php endif; ?>
         <div class="form-grid-2">
           <label>Množství <?= $hasTractionBattery && !$hasFuelSystem ? '(kWh)' : ($hasFuelSystem && !$hasTractionBattery ? '(l / kg)' : '') ?><input type="number" step="0.001" min="0" name="quantity" required></label>
-          <label>Cena za jednotku<input type="number" step="0.01" min="0" name="unit_price"></label>
+          <label>Cena za jednotku<input type="number" step="0.01" min="0" name="unit_price" id="operationUnitPrice" data-default-electricity-price="<?= $defaultElectricityPrice !== NULL ? h((string)$defaultElectricityPrice) : '' ?>" value="<?= $hasTractionBattery && $defaultElectricityPrice !== NULL ? h((string)$defaultElectricityPrice) : '' ?>"></label>
         </div>
         <div class="form-grid-2">
           <label>Celková cena<input type="number" step="0.01" min="0" name="total_price"></label>
@@ -228,7 +233,39 @@ $fuelEnergyType = [
   </div>
 
   <section class="grid2">
-    <div class="card operations-section"><h2>⛽ Historie energie a paliva</h2><div class="table-scroll"><table class="data-table"><thead><tr><th>Datum</th><th>Typ</th><th>Množství</th><th>Cena</th><th>Místo</th></tr></thead><tbody><?php foreach ($energyEntries as $row): ?><tr><td><?= h(date('d.m.Y H:i', strtotime($row['occurred_at']))) ?></td><td><?= h($row['energy_type']) ?></td><td><?= cz((float)$row['quantity'], 2) ?> <?= h($row['unit']) ?></td><td><?= $row['total_price'] !== null ? cz((float)$row['total_price'], 0).' Kč' : '—' ?></td><td><?= h((string)($row['station'] ?? '')) ?></td></tr><?php endforeach; ?></tbody></table></div></div>
+    <div class="card operations-section">
+      <h2>⛽ Historie energie a paliva</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Datum</th><th>Typ</th><th>Množství</th><th>Cena / jednotku</th><th>Celkem</th><th>Místo</th><th>Zdroj</th></tr></thead><tbody>
+      <?php foreach ($energyEntries as $row):
+        $isElectric = (string)$row['energy_type'] === 'electricity';
+        $suggestedPrice = $row['unit_price'] !== NULL ? (float)$row['unit_price'] : ($isElectric ? $defaultElectricityPrice : NULL);
+        $sourceLabel = strpos((string)($row['source'] ?? ''), 'telemetry_') === 0 ? 'OEM telemetrie' : ((string)($row['source'] ?? '') === 'document' ? 'Doklad' : 'Ručně');
+      ?>
+        <tr>
+          <td><?= h(date('d.m.Y H:i', strtotime($row['occurred_at']))) ?><?php if (!empty($row['ended_at'])): ?><br><small>do <?= h(date('H:i', strtotime($row['ended_at']))) ?></small><?php endif; ?></td>
+          <td><?= h($row['energy_type']) ?><?php if ($row['start_soc'] !== NULL || $row['end_soc'] !== NULL): ?><br><small><?= $row['start_soc'] !== NULL ? cz((float)$row['start_soc'], 0).' %' : '—' ?> → <?= $row['end_soc'] !== NULL ? cz((float)$row['end_soc'], 0).' %' : '—' ?></small><?php endif; ?></td>
+          <td><?= !empty($row['is_estimated']) ? '≈ ' : '' ?><?= cz((float)$row['quantity'], 2) ?> <?= h($row['unit']) ?></td>
+          <td>
+            <?php if (!empty($row['document_linked'])): ?>
+              <?= $row['unit_price'] !== NULL ? cz((float)$row['unit_price'], 2).' '.h((string)$row['currency']) : '—' ?><br><small>z faktury</small>
+            <?php else: ?>
+              <form method="post" class="inline-form">
+                <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
+                <input type="hidden" name="action" value="update_energy_price">
+                <input type="hidden" name="energy_entry_id" value="<?= (int)$row['id'] ?>">
+                <input type="hidden" name="currency" value="<?= h((string)($row['currency'] ?: $defaultEnergyCurrency)) ?>">
+                <input type="number" name="unit_price" step="0.01" min="0" value="<?= $suggestedPrice !== NULL ? h((string)$suggestedPrice) : '' ?>" placeholder="Cena" style="max-width:7rem">
+                <button class="btn btn-compact" type="submit">Uložit</button>
+              </form>
+            <?php endif; ?>
+          </td>
+          <td><?= $row['total_price'] !== NULL ? cz((float)$row['total_price'], 2).' '.h((string)$row['currency']) : '—' ?></td>
+          <td><?= h((string)($row['station'] ?? '')) ?></td>
+          <td><?= h($sourceLabel) ?><?php if (!empty($row['is_estimated'])): ?><br><small>energie je odhad</small><?php endif; ?></td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody></table></div>
+    </div>
     <div class="card operations-section"><h2>🔧 Servisní historie</h2><div class="table-scroll"><table class="data-table"><thead><tr><th>Datum</th><th>Úkon</th><th>Km</th><th>Cena</th><th>Přílohy</th></tr></thead><tbody><?php foreach ($services as $row): ?><tr><td><?= h(date('d.m.Y', strtotime($row['serviced_at']))) ?></td><td><b><?= h($row['title']) ?></b><br><small><?= h($row['category']) ?></small></td><td><?= $row['odometer_km'] !== null ? cz((float)$row['odometer_km'], 0) : '—' ?></td><td><?= $row['cost'] !== null ? cz((float)$row['cost'], 0).' Kč' : '—' ?></td><td><?php foreach ($serviceAttachments[(int)$row['id']] ?? [] as $attachment): ?><a href="attachment.php?id=<?= (int)$attachment['id'] ?>"><?= h($attachment['original_name']) ?></a><br><?php endforeach; ?></td></tr><?php endforeach; ?></tbody></table></div></div>
   </section>
 
@@ -238,9 +275,14 @@ $fuelEnergyType = [
 <script nonce="<?= h(cspNonce()) ?>">
   const operationEntryType = document.getElementById('operationEntryType');
   const operationEnergyType = document.getElementById('operationEnergyType');
+  const operationUnitPrice = document.getElementById('operationUnitPrice');
   if (operationEntryType && operationEnergyType) {
     operationEntryType.addEventListener('change', () => {
-      operationEnergyType.value = operationEntryType.value === 'charging' ? 'electricity' : <?= json_encode($fuelEnergyType) ?>;
+      const charging = operationEntryType.value === 'charging';
+      operationEnergyType.value = charging ? 'electricity' : <?= json_encode($fuelEnergyType) ?>;
+      if (operationUnitPrice) {
+        operationUnitPrice.value = charging ? (operationUnitPrice.dataset.defaultElectricityPrice || '') : '';
+      }
     });
   }
 </script>

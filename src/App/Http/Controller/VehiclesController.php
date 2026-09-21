@@ -180,6 +180,15 @@ final class VehiclesController
         $acquisitionDate = trim((string)($_POST['acquisition_date'] ?? ''));
         $acquisitionPrice = $this->decimal($_POST['acquisition_price'] ?? null);
         $currentValue = $this->decimal($_POST['current_value'] ?? null);
+        $defaultElectricityPrice = $this->decimal($_POST['default_electricity_price_per_kwh'] ?? null);
+        $defaultEnergyCurrency = strtoupper(trim((string)($_POST['default_energy_currency'] ?? 'CZK'))) ?: 'CZK';
+
+        if ($defaultElectricityPrice !== null && $defaultElectricityPrice < 0) {
+            throw new RuntimeException('Výchozí cena elektřiny nesmí být záporná.');
+        }
+        if (!preg_match('/^[A-Z]{3,8}$/', $defaultEnergyCurrency)) {
+            throw new RuntimeException('Neplatná měna výchozí ceny energie.');
+        }
 
         if (in_array($powertrain, ['BEV', 'PHEV'], true) && ($battery === null || $battery <= 0)) {
             throw new RuntimeException('Pro BEV/PHEV vyplňte využitelnou kapacitu baterie.');
@@ -190,13 +199,14 @@ final class VehiclesController
 
         $values = [$name, $vin, $manufacturer, $powertrain, $battery ?: 0, $nominal ?: ($battery ?: null), $tank,
             $registrationPlate ?: null, $firstRegistration ?: null, $acquisitionDate ?: null, $acquisitionPrice,
-            $currentValue, $odometer, $soh, $soh, $home ?: null];
+            $currentValue, $odometer, $soh, $soh, $home ?: null, $defaultElectricityPrice, $defaultEnergyCurrency];
 
         if ($action === 'create') {
             $query = $this->app->pdo()->prepare(
                 'INSERT INTO vehicles (name,vin,manufacturer,powertrain_type,battery_kwh,battery_nominal_kwh,fuel_tank_l,'
                 . 'registration_plate,first_registration_date,acquisition_date,acquisition_price,current_value,odometer_km,'
-                . 'soh_manual_pct,soh_manual_at,home_label) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,IF(? IS NULL,NULL,NOW()),?)'
+                . 'soh_manual_pct,soh_manual_at,home_label,default_electricity_price_per_kwh,default_energy_currency) '
+                . 'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,IF(? IS NULL,NULL,NOW()),?,?,?)'
             );
             $query->execute($values);
             $vehicleId = (int)$this->app->pdo()->lastInsertId();
@@ -208,7 +218,8 @@ final class VehiclesController
         $query = $this->app->pdo()->prepare(
             'UPDATE vehicles SET name=?,vin=?,manufacturer=?,powertrain_type=?,battery_kwh=?,battery_nominal_kwh=?,fuel_tank_l=?,'
             . 'registration_plate=?,first_registration_date=?,acquisition_date=?,acquisition_price=?,current_value=?,odometer_km=?,'
-            . 'soh_manual_pct=?,soh_manual_at=IF(? IS NULL,NULL,NOW()),home_label=? WHERE id=?'
+            . 'soh_manual_pct=?,soh_manual_at=IF(? IS NULL,NULL,NOW()),home_label=?,default_electricity_price_per_kwh=?,'
+            . 'default_energy_currency=? WHERE id=?'
         );
         $query->execute($values);
         $this->app->session()->flash('Vozidlo bylo upraveno.');

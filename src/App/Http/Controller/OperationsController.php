@@ -98,6 +98,11 @@ final class OperationsController
                     $this->app->session()->flash('Tankování / nabíjení bylo uloženo.');
                     break;
 
+                case 'update_energy_price':
+                    $service->updateEnergyPrice($vehicleId, $_POST);
+                    $this->app->session()->flash('Cena nabíjení byla uložena.');
+                    break;
+
                 case 'add_service':
                     $service->addServiceRecord($vehicleId, $_POST, $_FILES['attachment'] ?? null);
                     $this->app->session()->flash('Servisní záznam byl uložen.');

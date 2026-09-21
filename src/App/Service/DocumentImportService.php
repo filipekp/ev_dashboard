@@ -225,21 +225,37 @@ final class DocumentImportService
 
             foreach ($data['energy_entries'] as $row) {
                 $energyType = (string)$row['energy_type'];
-                $operationId = $this->operations->addEnergyEntry($vehicleId, [
-                    'occurred_at' => $row['occurred_at'],
-                    'entry_type' => $row['entry_type'],
-                    'energy_type' => $energyType,
-                    'quantity' => $row['quantity'],
-                    'unit' => $energyType === 'electricity'
-                        ? 'kWh'
-                        : ($energyType === 'cng' ? 'kg' : 'l'),
-                    'unit_price' => $row['unit_price'],
-                    'total_price' => $row['total_price'],
-                    'currency' => $currency,
-                    'odometer_km' => $row['odometer_km'],
-                    'station' => $row['station'],
-                    'note' => $row['note'],
-                ]);
+                $matched = $energyType === 'electricity'
+                    ? $this->operations->findMatchingTelemetryEnergyEntry($vehicleId, $row)
+                    : null;
+
+                if ($matched !== null) {
+                    $operationId = (int)$matched['id'];
+                    $this->operations->applyDocumentEnergyData($vehicleId, $operationId, $row, $currency);
+                } else {
+                    $operationId = $this->operations->addEnergyEntry($vehicleId, [
+                        'occurred_at' => $row['occurred_at'],
+                        'ended_at' => null,
+                        'entry_type' => $row['entry_type'],
+                        'energy_type' => $energyType,
+                        'quantity' => $row['quantity'],
+                        'unit' => $energyType === 'electricity'
+                            ? 'kWh'
+                            : ($energyType === 'cng' ? 'kg' : 'l'),
+                        'unit_price' => $row['unit_price'],
+                        'total_price' => $row['total_price'],
+                        'currency' => $currency,
+                        'odometer_km' => $row['odometer_km'],
+                        'start_soc' => null,
+                        'end_soc' => null,
+                        'station' => $row['station'],
+                        'note' => $row['note'],
+                        'source' => 'document',
+                        'source_key' => null,
+                        'is_estimated' => false,
+                        'price_source' => $row['unit_price'] !== null || $row['total_price'] !== null ? 'document' : 'none',
+                    ]);
+                }
                 $this->documents->linkOperation($documentId, $vehicleId, 'energy', $operationId);
             }
 

@@ -68,7 +68,50 @@ final class VehicleOperationService
             'odometer_km' => $this->decimal($input['odometer_km'] ?? null),
             'station' => $this->nullableText($input['station'] ?? null),
             'note' => $this->nullableText($input['note'] ?? null),
+            'source' => 'manual',
+            'source_key' => null,
+            'is_estimated' => false,
+            'price_source' => $unitPrice !== null || $totalPrice !== null ? 'manual' : 'none',
         ]);
+    }
+
+    /** @param array<string,mixed> $input */
+    public function updateEnergyPrice(int $vehicleId, array $input): void
+    {
+        $entryId = (int)($input['energy_entry_id'] ?? 0);
+        if ($entryId <= 0) {
+            throw new RuntimeException('Záznam nabíjení nebyl nalezen.');
+        }
+
+        $entry = $this->repository->energyEntry($vehicleId, $entryId);
+        if ($entry === null) {
+            throw new RuntimeException('Záznam nabíjení nebyl nalezen.');
+        }
+        if (!empty($entry['document_linked'])) {
+            throw new RuntimeException('Cena je převzatá ze spárované faktury. Nejprve upravte nebo zrušte vazbu dokladu.');
+        }
+
+        $unitPrice = $this->decimal($input['unit_price'] ?? null);
+        $totalPrice = $this->decimal($input['total_price'] ?? null);
+        if ($unitPrice !== null && $unitPrice < 0) {
+            throw new RuntimeException('Cena za jednotku nesmí být záporná.');
+        }
+        if ($totalPrice !== null && $totalPrice < 0) {
+            throw new RuntimeException('Celková cena nesmí být záporná.');
+        }
+        if ($totalPrice === null && $unitPrice !== null) {
+            $totalPrice = round((float)$entry['quantity'] * $unitPrice, 2);
+        }
+
+        $currency = strtoupper(trim((string)($input['currency'] ?? $entry['currency'] ?? 'CZK'))) ?: 'CZK';
+        $this->repository->updateEnergyPrice(
+            $vehicleId,
+            $entryId,
+            $unitPrice,
+            $totalPrice,
+            $currency,
+            $unitPrice !== null || $totalPrice !== null ? 'manual' : 'none'
+        );
     }
 
     /** @param array<string,mixed> $input @param array<string,mixed>|null $file */

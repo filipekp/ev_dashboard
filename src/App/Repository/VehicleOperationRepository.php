@@ -31,12 +31,14 @@ final class VehicleOperationRepository
     {
         $query = $this->pdo->prepare(
             'INSERT INTO vehicle_energy_entries
-                (vehicle_id, occurred_at, entry_type, energy_type, quantity, unit, unit_price, total_price, currency, odometer_km, station, note)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                (vehicle_id, occurred_at, ended_at, entry_type, energy_type, quantity, unit, unit_price, total_price, currency,
+                 odometer_km, start_soc, end_soc, station, note, source, source_key, is_estimated, price_source)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $query->execute([
             $vehicleId,
             $data['occurred_at'],
+            $data['ended_at'] ?? null,
             $data['entry_type'],
             $data['energy_type'],
             $data['quantity'],
@@ -45,11 +47,125 @@ final class VehicleOperationRepository
             $data['total_price'],
             $data['currency'],
             $data['odometer_km'],
+            $data['start_soc'] ?? null,
+            $data['end_soc'] ?? null,
             $data['station'],
             $data['note'],
+            $data['source'] ?? 'manual',
+            $data['source_key'] ?? null,
+            !empty($data['is_estimated']) ? 1 : 0,
+            $data['price_source'] ?? (($data['unit_price'] ?? null) !== null ? 'manual' : 'none'),
         ]);
 
         return (int)$this->pdo->lastInsertId();
+    }
+
+    /** @return array<string,mixed>|null */
+    public function energyEntry(int $vehicleId, int $entryId): ?array
+    {
+        $query = $this->pdo->prepare(
+            "SELECT e.*, EXISTS(SELECT 1 FROM document_operation_links l WHERE l.vehicle_id=e.vehicle_id AND l.operation_type='energy' AND l.operation_id=e.id) document_linked
+             FROM vehicle_energy_entries e WHERE e.id=? AND e.vehicle_id=? LIMIT 1"
+        );
+        $query->execute([$entryId, $vehicleId]);
+        $row = $query->fetch();
+
+        return $row ?: null;
+    }
+
+    public function updateEnergyPrice(
+        int $vehicleId,
+        int $entryId,
+        ?float $unitPrice,
+        ?float $totalPrice,
+        string $currency,
+        string $priceSource = 'manual'
+    ): void {
+        $query = $this->pdo->prepare(
+            'UPDATE vehicle_energy_entries SET unit_price=?,total_price=?,currency=?,price_source=? WHERE id=? AND vehicle_id=?'
+        );
+        $query->execute([$unitPrice, $totalPrice, $currency, $priceSource, $entryId, $vehicleId]);
+    }
+
+    /** @param array<string,mixed> $row @return array<string,mixed>|null */
+    public function findMatchingTelemetryEnergyEntry(int $vehicleId, array $row): ?array
+    {
+        $occurredAtText = trim((string)($row['occurred_at'] ?? ''));
+        $occurredAt = strtotime($occurredAtText);
+        $quantity = isset($row['quantity']) && is_numeric($row['quantity']) ? (float)$row['quantity'] : null;
+        if ($occurredAt === false || $quantity === null || $quantity <= 0) {
+            return null;
+        }
+
+        // Doklady často obsahují pouze datum bez přesného času. Po normalizaci
+        // je takový údaj 00:00:00; v tom případě párujeme celý kalendářní den.
+        $timePart = substr($occurredAtText, 11, 8);
+        $dateOnly = $timePart === '' || $timePart === '00:00:00';
+        if ($dateOnly) {
+            $from = date('Y-m-d 00:00:00', $occurredAt);
+            $to = date('Y-m-d 23:59:59', $occurredAt);
+        } else {
+            $from = date('Y-m-d H:i:s', $occurredAt - 7200);
+            $to = date('Y-m-d H:i:s', $occurredAt + 7200);
+        }
+
+        $query = $this->pdo->prepare(
+            "SELECT e.* FROM vehicle_energy_entries e
+             WHERE e.vehicle_id=? AND e.entry_type='charging' AND e.energy_type='electricity'
+               AND e.source LIKE 'telemetry_%'
+               AND NOT EXISTS (SELECT 1 FROM document_operation_links l WHERE l.vehicle_id=e.vehicle_id AND l.operation_type='energy' AND l.operation_id=e.id)
+               AND e.occurred_at>=? AND e.occurred_at<=?
+             ORDER BY ABS(TIMESTAMPDIFF(SECOND,e.occurred_at,?)), ABS(e.quantity-?)
+             LIMIT 20"
+        );
+        $query->execute([
+            $vehicleId,
+            $from,
+            $to,
+            date('Y-m-d H:i:s', $occurredAt),
+            $quantity,
+        ]);
+
+        $rowOdometer = isset($row['odometer_km']) && is_numeric($row['odometer_km']) ? (float)$row['odometer_km'] : null;
+        foreach ($query->fetchAll() as $candidate) {
+            $candidateQuantity = (float)$candidate['quantity'];
+            $tolerance = max(1.0, max($quantity, $candidateQuantity) * 0.18);
+            if (abs($candidateQuantity - $quantity) > $tolerance) {
+                continue;
+            }
+
+            $candidateOdometer = isset($candidate['odometer_km']) && is_numeric($candidate['odometer_km'])
+                ? (float)$candidate['odometer_km']
+                : null;
+            if ($rowOdometer !== null && $candidateOdometer !== null && abs($rowOdometer - $candidateOdometer) > 5.0) {
+                continue;
+            }
+
+            return $candidate;
+        }
+
+        return null;
+    }
+
+    /** @param array<string,mixed> $row */
+    public function applyDocumentEnergyData(int $vehicleId, int $entryId, array $row, string $currency): void
+    {
+        $query = $this->pdo->prepare(
+            'UPDATE vehicle_energy_entries SET quantity=?,unit_price=?,total_price=?,currency=?,odometer_km=COALESCE(?,odometer_km),
+             station=COALESCE(?,station),note=COALESCE(?,note),is_estimated=0,price_source=? WHERE id=? AND vehicle_id=?'
+        );
+        $query->execute([
+            $row['quantity'],
+            $row['unit_price'],
+            $row['total_price'],
+            $currency,
+            $row['odometer_km'],
+            $row['station'],
+            $row['note'],
+            ($row['unit_price'] ?? null) !== null || ($row['total_price'] ?? null) !== null ? 'document' : 'none',
+            $entryId,
+            $vehicleId,
+        ]);
     }
 
     /** @param array<string,mixed> $data */
@@ -154,7 +270,9 @@ final class VehicleOperationRepository
     public function energyEntries(int $vehicleId, int $limit = 100, ?string $from = null): array
     {
         $query = $this->pdo->prepare(
-            'SELECT * FROM vehicle_energy_entries WHERE vehicle_id=?' . ($from !== null ? ' AND occurred_at>=?' : '') . ' ORDER BY occurred_at DESC, id DESC LIMIT ' . (int)$limit
+            "SELECT e.*, EXISTS(SELECT 1 FROM document_operation_links l WHERE l.vehicle_id=e.vehicle_id AND l.operation_type='energy' AND l.operation_id=e.id) document_linked
+             FROM vehicle_energy_entries e WHERE e.vehicle_id=?" . ($from !== null ? ' AND e.occurred_at>=?' : '')
+            . ' ORDER BY e.occurred_at DESC, e.id DESC LIMIT ' . (int)$limit
         );
         $params = [$vehicleId]; if ($from !== null) { $params[] = $from; }
         $query->execute($params);

@@ -98,6 +98,8 @@
                         'acquisition_price'       => $v['acquisition_price'] ?? NULL,
                         'current_value'           => $v['current_value'] ?? NULL,
                         'odometer_km'             => $v['odometer_km'] ?? NULL,
+                        'default_electricity_price_per_kwh' => $v['default_electricity_price_per_kwh'] ?? NULL,
+                        'default_energy_currency' => $v['default_energy_currency'] ?? 'CZK',
                         'user_ids'                => $assigned[$vehicleId] ?? [],
                         'connector'               => $v['connector'] ?? NULL,
                         'connector_options'       => $v['connector_options'] ?? [],
@@ -187,8 +189,10 @@
                                                                                    min="0"></label>
                         <label><span>Aktuální tachometr (km)</span><input id="vehicleOdometer" name="odometer_km" type="number" step="0.1"
                                                                           min="0"></label>
+                        <label data-electric-field><span>Výchozí cena elektřiny / kWh</span><input id="vehicleDefaultElectricityPrice" name="default_electricity_price_per_kwh" type="number" step="0.01" min="0"></label>
+                        <label data-electric-field><span>Měna energie</span><input id="vehicleDefaultEnergyCurrency" name="default_energy_currency" maxlength="8" value="CZK"></label>
                     </div>
-                    <small class="form-note" data-electric-field>Přesná hodnota SoH z BMS/diagnostiky má přednost před odhadem z jízd.</small>
+                    <small class="form-note" data-electric-field>Přesná hodnota SoH z BMS/diagnostiky má přednost před odhadem z jízd. Výchozí cena se použije u automaticky rozpoznaného nabíjení, dokud ji nenahradí faktura nebo ruční cena.</small>
                 </div>
 
                 <div class="form-panel">

@@ -7,7 +7,9 @@ namespace App\Service;
 use App\Integration\Vehicle\RefreshableVehicleConnectorInterface;
 use App\Integration\Vehicle\VehicleConnectorException;
 use App\Integration\Vehicle\VehicleConnectorRegistry;
+use App\Repository\TripRepository;
 use App\Repository\VehicleDataRepository;
+use App\Repository\VehicleOperationRepository;
 use App\Security\CredentialCipher;
 use PDO;
 use RuntimeException;
@@ -37,6 +39,9 @@ final class VehicleSyncService
     /** @var VehicleTelemetryEventProjector */
     private $projector;
 
+    /** @var VehicleTelemetryDerivedDataService */
+    private $derivedData;
+
     public function __construct(
         PDO $pdo,
         VehicleDataRepository $repository,
@@ -48,6 +53,12 @@ final class VehicleSyncService
         $this->connectors = $connectors;
         $this->cipher = $cipher;
         $this->projector = new VehicleTelemetryEventProjector();
+        $this->derivedData = new VehicleTelemetryDerivedDataService(
+            $pdo,
+            $repository,
+            new TripRepository($pdo),
+            new VehicleOperationRepository($pdo)
+        );
     }
 
     /** @return array{snapshots:int,events:int} */
@@ -150,6 +161,11 @@ final class VehicleSyncService
                 }
                 $this->updateVehicleOperationalState($vehicleId, $normalized);
             }
+
+            // Projekce je idempotentní, proto běží i po duplicitním snapshotu.
+            // Pokud předchozí sync skončil po uložení snapshotu chybou, další běh
+            // tak může dokončit odvozenou jízdu nebo nabíjecí relaci.
+            $this->derivedData->project($vehicleId, $connectionId, $provider, $inserted);
 
             $nextSyncAt = isset($metadata['next_sync_at']) && is_string($metadata['next_sync_at'])
                 ? $metadata['next_sync_at']

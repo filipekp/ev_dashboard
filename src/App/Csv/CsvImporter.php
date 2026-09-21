@@ -84,6 +84,8 @@
                     }
                     if ($this->trips->insertIgnore($vehicleId, $trip)) {
                         $inserted++;
+                    } else {
+                        $skipped++;
                     }
                 }
                 $this->pdo->commit();

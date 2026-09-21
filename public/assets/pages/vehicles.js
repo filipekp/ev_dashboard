@@ -12,6 +12,7 @@
     batteryNominal: byId('vehicleBatteryNominal'), soh: byId('vehicleSoh'), home: byId('vehicleHome'), tank: byId('vehicleTank'),
     plate: byId('vehiclePlate'), firstRegistration: byId('vehicleFirstRegistration'), acquisitionDate: byId('vehicleAcquisitionDate'),
     acquisitionPrice: byId('vehicleAcquisitionPrice'), currentValue: byId('vehicleCurrentValue'), odometer: byId('vehicleOdometer'),
+    defaultElectricityPrice: byId('vehicleDefaultElectricityPrice'), defaultEnergyCurrency: byId('vehicleDefaultEnergyCurrency'),
     title: byId('vehicleEditorTitle'), kicker: byId('vehicleEditorKicker'), subtitle: byId('vehicleEditorSubtitle'),
     submit: byId('vehicleSubmit'), deleteZone: byId('vehicleDeleteZone'), deleteButton: byId('vehicleDeleteButton')
   };
@@ -193,6 +194,8 @@
     fields.acquisitionPrice.value = editing ? value(vehicle.acquisition_price) : '';
     fields.currentValue.value = editing ? value(vehicle.current_value) : '';
     fields.odometer.value = editing ? value(vehicle.odometer_km) : '';
+    fields.defaultElectricityPrice.value = editing ? value(vehicle.default_electricity_price_per_kwh) : '';
+    fields.defaultEnergyCurrency.value = editing ? (value(vehicle.default_energy_currency) || 'CZK') : 'CZK';
     setAssignments(editing ? vehicle.user_ids : []);
     syncPowertrain();
     syncConnector(vehicle);

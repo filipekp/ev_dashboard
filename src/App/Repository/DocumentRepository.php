@@ -282,8 +282,23 @@ final class DocumentRepository
             return 0;
         }
 
+        $energySource = $this->pdo->prepare(
+            'SELECT source,price_source FROM vehicle_energy_entries WHERE id=? AND vehicle_id=? FOR UPDATE'
+        );
         $deleteEnergy = $this->pdo->prepare(
             'DELETE FROM vehicle_energy_entries WHERE id=? AND vehicle_id=?'
+        );
+        $detachEnergyPrice = $this->pdo->prepare(
+            "UPDATE vehicle_energy_entries e
+             JOIN vehicles v ON v.id=e.vehicle_id
+             SET e.unit_price=v.default_electricity_price_per_kwh,
+                 e.total_price=CASE
+                     WHEN v.default_electricity_price_per_kwh IS NULL THEN NULL
+                     ELSE ROUND(e.quantity * v.default_electricity_price_per_kwh, 2)
+                 END,
+                 e.currency=COALESCE(NULLIF(v.default_energy_currency,''),e.currency),
+                 e.price_source=CASE WHEN v.default_electricity_price_per_kwh IS NULL THEN 'none' ELSE 'default' END
+             WHERE e.id=? AND e.vehicle_id=? AND e.price_source='document'"
         );
         $deleteService = $this->pdo->prepare(
             'DELETE FROM vehicle_service_records WHERE id=? AND vehicle_id=?'
@@ -299,7 +314,15 @@ final class DocumentRepository
             $operationId = (int)$link['operation_id'];
             switch ((string)$link['operation_type']) {
                 case 'energy':
-                    $deleteEnergy->execute([$operationId, $vehicleId]);
+                    $energySource->execute([$operationId, $vehicleId]);
+                    $energy = $energySource->fetch();
+                    if ($energy && (string)($energy['source'] ?? '') === 'document') {
+                        $deleteEnergy->execute([$operationId, $vehicleId]);
+                    } else {
+                        // Telemetrický záznam existoval už před fakturou; při novém vytěžení
+                        // odstraníme pouze cenu z dokumentu, nikoli samotnou nabíjecí relaci.
+                        $detachEnergyPrice->execute([$operationId, $vehicleId]);
+                    }
                     break;
                 case 'service':
                     $serviceAttachmentCount->execute([$operationId]);

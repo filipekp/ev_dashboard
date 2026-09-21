@@ -237,6 +237,18 @@ final class VehicleDataRepository
         return $row ?: null;
     }
 
+    /** @return array<int,array<string,mixed>> */
+    public function recentTelemetry(int $connectionId, int $limit = 60): array
+    {
+        $limit = max(3, min(240, $limit));
+        $q = $this->pdo->prepare(
+            'SELECT * FROM vehicle_telemetry_snapshots WHERE connection_id=? ORDER BY observed_at DESC,id DESC LIMIT ' . $limit
+        );
+        $q->execute([$connectionId]);
+
+        return $q->fetchAll();
+    }
+
     /**
      * Vrátí nejnovější telemetry snapshot aktivního OEM konektoru pro vozidlo.
      *

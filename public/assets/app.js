@@ -209,6 +209,93 @@
         });
     };
 
+
+    const initThemeSwitcher = () => {
+        const labels = { light: 'Světlý', dark: 'Tmavý', auto: 'Podle systému' };
+        const icons = { light: '☀', dark: '●', auto: '◐' };
+        const bootstrapIcons = { light: 'bi-sun', dark: 'bi-moon-stars', auto: 'bi-circle-half' };
+        const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+        const resolve = preference => preference === 'auto'
+            ? (media.matches ? 'dark' : 'light')
+            : preference;
+
+        const readPreference = () => {
+            try {
+                const value = window.localStorage.getItem('evstats-theme') || 'auto';
+                return ['light', 'dark', 'auto'].includes(value) ? value : 'auto';
+            } catch (error) {
+                return 'auto';
+            }
+        };
+
+        const refreshCharts = () => {
+            if (!window.Chart || !window.Chart.instances) return;
+            const styles = getComputedStyle(document.documentElement);
+            const grid = styles.getPropertyValue('--chart-grid').trim() || 'rgba(148,163,184,.12)';
+            const text = styles.getPropertyValue('--chart-text').trim() || '#64748b';
+            const strong = styles.getPropertyValue('--cockpit-text').trim() || text;
+            const muted = styles.getPropertyValue('--cockpit-muted').trim() || text;
+            const panel = styles.getPropertyValue('--cockpit-panel').trim() || '#101225';
+            window.Chart.defaults.color = text;
+            Object.values(window.Chart.instances).forEach(chart => {
+                Object.values(chart.options.scales || {}).forEach(scale => {
+                    if (scale.grid) scale.grid.color = grid;
+                    if (scale.angleLines) scale.angleLines.color = grid;
+                    if (scale.ticks) scale.ticks.color = text;
+                    if (scale.pointLabels) scale.pointLabels.color = text;
+                    if (scale.title) scale.title.color = text;
+                });
+                if (chart.options.plugins?.legend?.labels) chart.options.plugins.legend.labels.color = text;
+                if (chart.options.plugins?.tooltip) {
+                    chart.options.plugins.tooltip.backgroundColor = panel;
+                    chart.options.plugins.tooltip.titleColor = strong;
+                    chart.options.plugins.tooltip.bodyColor = muted;
+                    chart.options.plugins.tooltip.borderColor = grid;
+                }
+                chart.update('none');
+            });
+        };
+
+        const paint = preference => {
+            const resolved = resolve(preference);
+            document.documentElement.dataset.themePreference = preference;
+            document.documentElement.setAttribute('data-bs-theme', resolved);
+            document.querySelectorAll('[data-theme-label]').forEach(el => { el.textContent = labels[preference]; });
+            document.querySelectorAll('[data-theme-icon]').forEach(el => { el.textContent = icons[preference]; });
+            document.querySelectorAll('[data-theme-bootstrap-icon]').forEach(el => {
+                el.classList.remove('bi-sun', 'bi-moon-stars', 'bi-circle-half');
+                el.classList.add(bootstrapIcons[preference]);
+            });
+            document.querySelectorAll('[data-theme-choice]').forEach(button => {
+                button.classList.toggle('active', button.dataset.themeChoice === preference);
+                button.setAttribute('aria-pressed', button.dataset.themeChoice === preference ? 'true' : 'false');
+            });
+            refreshCharts();
+        };
+
+        paint(readPreference());
+
+        document.querySelectorAll('[data-theme-choice]').forEach(button => {
+            button.addEventListener('click', () => {
+                const preference = button.dataset.themeChoice || 'auto';
+                try { window.localStorage.setItem('evstats-theme', preference); } catch (error) {}
+                paint(preference);
+            });
+        });
+
+        const onSystemThemeChanged = () => {
+            if (readPreference() === 'auto') {
+                paint('auto');
+            }
+        };
+        if (typeof media.addEventListener === 'function') {
+            media.addEventListener('change', onSystemThemeChanged);
+        } else if (typeof media.addListener === 'function') {
+            media.addListener(onSystemThemeChanged);
+        }
+    };
+
     const initAutoSubmitSelects = () => {
         document.querySelectorAll('select[data-auto-submit]').forEach((select) => {
             select.addEventListener('change', () => {
@@ -299,6 +386,81 @@
         });
     };
 
+
+    const initCommandPalette = () => {
+        const modal = document.getElementById('commandPalette');
+        const input = modal?.querySelector('[data-command-search]');
+        const items = Array.from(modal?.querySelectorAll('[data-command-item]') || []);
+        const empty = modal?.querySelector('[data-command-empty]');
+
+        const filter = () => {
+            const query = (input?.value || '').trim().toLocaleLowerCase('cs');
+            let visible = 0;
+            items.forEach((item) => {
+                const matches = query === '' || (item.textContent || '').toLocaleLowerCase('cs').includes(query);
+                item.hidden = !matches;
+                if (matches) visible += 1;
+            });
+            if (empty) empty.hidden = visible !== 0;
+        };
+
+        input?.addEventListener('input', filter);
+        modal?.addEventListener('shown.bs.modal', () => {
+            if (input) {
+                input.value = '';
+                filter();
+                input.focus();
+            }
+        });
+        input?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            const first = items.find((item) => !item.hidden);
+            if (first) first.click();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+                event.preventDefault();
+                if (modal && window.bootstrap) {
+                    bootstrap.Modal.getOrCreateInstance(modal).show();
+                }
+            }
+        });
+    };
+
+    const initBootstrapEnhancements = () => {
+        if (!window.bootstrap) return;
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((element) => {
+            bootstrap.Tooltip.getOrCreateInstance(element);
+        });
+    };
+
+    const initModalScrolling = () => {
+        if (!window.bootstrap) {
+            return;
+        }
+
+        document.querySelectorAll('.modal-dialog-scrollable .modal-content > form').forEach((form) => {
+            if (form.querySelector('.modal-body') || form.querySelector('.modal-footer')) {
+                form.classList.add('modal-scroll-form');
+            }
+        });
+
+        const syncRootLock = () => {
+            const hasOpenModal = document.querySelector('.modal.show') !== null;
+            document.documentElement.classList.toggle('modal-open-root', hasOpenModal);
+        };
+
+        document.addEventListener('show.bs.modal', () => {
+            document.documentElement.classList.add('modal-open-root');
+        });
+        document.addEventListener('hidden.bs.modal', () => {
+            window.requestAnimationFrame(syncRootLock);
+        });
+
+        syncRootLock();
+    };
+
     const initConfirmationForms = () => {
         document.addEventListener('submit', (event) => {
             const form = event.target instanceof HTMLFormElement ? event.target : null;
@@ -337,9 +499,13 @@
     };
 
     initPwa();
+    initThemeSwitcher();
     initAutoSubmitSelects();
     initVehiclePickers();
     initMobileMoreMenu();
+    initCommandPalette();
+    initBootstrapEnhancements();
+    initModalScrolling();
     initConfirmationForms();
     initSelfVehicleForm();
 })();

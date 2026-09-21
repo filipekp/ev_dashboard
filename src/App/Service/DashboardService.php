@@ -156,14 +156,22 @@
             $q = $this->pdo->prepare("SELECT COUNT(*) FROM trips WHERE $where AND distance_km>=80");
             $q->execute($params);
             $longTripCount = (int)$q->fetchColumn();
-            $q             = $this->pdo->prepare("SELECT * FROM trips WHERE $where AND distance_km>=80 ORDER BY started_at DESC LIMIT 100");
+            $longTripPerPage = 20;
+            $longTripPage = max(1, (int)($query['long_page'] ?? 1));
+            $longTripPages = max(1, (int)ceil($longTripCount / $longTripPerPage));
+            $longTripPage = min($longTripPage, $longTripPages);
+            $longTripOffset = ($longTripPage - 1) * $longTripPerPage;
+            $q = $this->pdo->prepare(
+                "SELECT * FROM trips WHERE $where AND distance_km>=80 ORDER BY started_at DESC LIMIT "
+                . $longTripPerPage . " OFFSET " . $longTripOffset
+            );
             $q->execute($params);
-            $longTrips     = $q->fetchAll();
+            $longTrips = $q->fetchAll();
             $monthsForYear = array_values(array_filter($monthOptions, static function ($m) use ($selectedYear) {
                 return substr((string)$m, 0, 4) === $selectedYear;
             }));
             $homeLabel     = (string)($vehicle['home_label'] ?? '');
-            $perPage       = 25;
+            $perPage       = 20;
             $historyPage   = max(1, (int)($query['page'] ?? 1));
             $historyPages  = max(1, (int)ceil($tripCount / $perPage));
             if ($historyPage > $historyPages) {

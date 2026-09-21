@@ -889,7 +889,7 @@ summary {
     display: none;
 }
 
-.modal-backdrop {
+.legacy-modal-backdrop {
     position: fixed;
     inset: 0;
     z-index: 1000;
@@ -1093,7 +1093,7 @@ summary {
     white-space: nowrap;
 }
 
-.pagination {
+.legacy-pagination {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     gap: 12px;
@@ -1103,7 +1103,7 @@ summary {
     border-top: 1px solid var(--line);
 }
 
-.pagination a {
+.legacy-pagination a {
     justify-self: start;
     text-decoration: none;
     background: #17233a;
@@ -1113,11 +1113,11 @@ summary {
     font-weight: 700;
 }
 
-.pagination a:last-child {
+.legacy-pagination a:last-child {
     justify-self: end;
 }
 
-.pagination span {
+.legacy-pagination span {
     color: #91aecf;
     text-align: center;
 }
@@ -1178,16 +1178,16 @@ summary {
         text-align: center;
     }
 
-    .pagination {
+    .legacy-pagination {
         grid-template-columns: 1fr 1fr;
     }
 
-    .pagination span {
+    .legacy-pagination span {
         grid-column: 1/-1;
         grid-row: 1;
     }
 
-    .pagination a {
+    .legacy-pagination a {
         grid-row: 2;
     }
 
@@ -6572,5 +6572,3114 @@ body.modal-open {
     .pwa-install-offer__dismiss {
         padding-right: 8px;
         padding-left: 8px;
+    }
+}
+
+/* ========================================================================
+   EV Stats · Bootstrap dashboard layer
+   ------------------------------------------------------------------------
+   Bootstrap 5.3 is the component base. These variables and overrides keep
+   legacy EV Stats screens visually consistent while allowing light/dark/auto
+   mode through Bootstrap's data-bs-theme attribute.
+   ======================================================================== */
+:root,
+[data-bs-theme="light"] {
+    color-scheme: light;
+    --bg: #f4f7fb;
+    --panel: #ffffff;
+    --panel2: #f8fafc;
+    --line: #e2e8f0;
+    --text: #172033;
+    --muted: #64748b;
+    --accent: #0f766e;
+    --accent-rgb: 15, 118, 110;
+    --accent-contrast: #ffffff;
+    --cyan: #0891b2;
+    --green: #059669;
+    --orange: #d97706;
+    --pink: #e11d48;
+    --app-sidebar-bg: rgba(255, 255, 255, .96);
+    --app-card-bg: rgba(255, 255, 255, .94);
+    --app-card-solid: #ffffff;
+    --app-card-alt: #f8fafc;
+    --app-hover: #f1f5f9;
+    --app-border: #e2e8f0;
+    --app-border-strong: #cbd5e1;
+    --app-shadow: 0 18px 45px rgba(15, 23, 42, .08);
+    --app-shadow-sm: 0 8px 24px rgba(15, 23, 42, .06);
+    --app-accent-soft: rgba(var(--accent-rgb), .10);
+    --app-accent-border: rgba(var(--accent-rgb), .24);
+    --app-overlay: rgba(15, 23, 42, .48);
+    --app-link: #0f766e;
+    --chart-grid: rgba(100, 116, 139, .18);
+    --chart-text: #64748b;
+    --sidebar: 272px;
+    --bs-body-bg: var(--bg);
+    --bs-body-color: var(--text);
+    --bs-border-color: var(--line);
+    --bs-secondary-color: var(--muted);
+    --bs-tertiary-bg: var(--panel2);
+    --bs-emphasis-color: var(--text);
+}
+
+[data-bs-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0b1120;
+    --panel: #111827;
+    --panel2: #0f172a;
+    --line: #263244;
+    --text: #e7edf7;
+    --muted: #94a3b8;
+    --accent: #5eead4;
+    --accent-rgb: 94, 234, 212;
+    --accent-contrast: #06201d;
+    --cyan: #67e8f9;
+    --green: #6ee7b7;
+    --orange: #fbbf24;
+    --pink: #fb7185;
+    --app-sidebar-bg: rgba(10, 17, 31, .96);
+    --app-card-bg: rgba(17, 24, 39, .94);
+    --app-card-solid: #111827;
+    --app-card-alt: #0f172a;
+    --app-hover: #172033;
+    --app-border: #263244;
+    --app-border-strong: #34435a;
+    --app-shadow: 0 22px 55px rgba(0, 0, 0, .25);
+    --app-shadow-sm: 0 10px 30px rgba(0, 0, 0, .18);
+    --app-accent-soft: rgba(var(--accent-rgb), .10);
+    --app-accent-border: rgba(var(--accent-rgb), .22);
+    --app-overlay: rgba(2, 6, 23, .72);
+    --app-link: #7dd3fc;
+    --chart-grid: rgba(148, 163, 184, .14);
+    --chart-text: #94a3b8;
+    --bs-body-bg: var(--bg);
+    --bs-body-color: var(--text);
+    --bs-border-color: var(--line);
+    --bs-secondary-color: var(--muted);
+    --bs-tertiary-bg: var(--panel2);
+    --bs-emphasis-color: var(--text);
+}
+
+html {
+    background: var(--bg);
+}
+
+body {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at 88% -10%, rgba(var(--accent-rgb), .10), transparent 28rem),
+        var(--bg);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.5;
+}
+
+body, input, select, textarea, button {
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: var(--app-link);
+}
+
+a:hover {
+    color: var(--accent);
+}
+
+.wrap {
+    max-width: 1760px;
+    margin-left: var(--sidebar);
+    padding: 30px 36px 64px;
+}
+
+.wrap.narrow {
+    max-width: 1480px;
+}
+
+/* Shared surface system -------------------------------------------------- */
+.card,
+.dashboard-card,
+.form-panel,
+.operations-head,
+.page-hero,
+.document-hero,
+.garage-heading,
+.timeline-body,
+.metric-card,
+.monitoring-kpi,
+.live-vehicle-state,
+.privacy-summary {
+    color: var(--text);
+    background: var(--app-card-bg);
+    border-color: var(--app-border);
+    box-shadow: var(--app-shadow-sm);
+}
+
+.card {
+    border: 1px solid var(--app-border);
+    border-radius: 20px;
+    background-image: none;
+}
+
+.card p,
+.card .form-help,
+.form-panel-help,
+.form-note,
+.muted,
+.table-subline,
+.empty-assignment {
+    color: var(--muted);
+}
+
+.dashboard-hero,
+.page-hero,
+.vehicle-hero,
+.document-hero,
+.garage-heading,
+.monitoring-hero,
+.operations-head {
+    border: 1px solid var(--app-border) !important;
+    background:
+        radial-gradient(circle at 90% 5%, rgba(var(--accent-rgb), .13), transparent 18rem),
+        var(--app-card-bg) !important;
+    box-shadow: var(--app-shadow);
+}
+
+.vehicle-hero {
+    min-height: 280px;
+}
+
+.vehicle-hero::after {
+    border-color: var(--app-accent-border);
+}
+
+.vehicle-hero-copy > p,
+.garage-heading p,
+.page-hero p,
+.document-hero p,
+.operations-head p,
+.monitoring-hero p {
+    color: var(--muted) !important;
+}
+
+.hero-chips span,
+.period-filter,
+.period,
+.metric-card,
+.garage-summary > div,
+.extraction-summary > div,
+.telemetry-mini-grid span,
+.connector-metrics > div,
+.architecture-flow span,
+.privacy-note,
+.connected-car-icon {
+    background: var(--app-card-alt) !important;
+    border-color: var(--app-border) !important;
+    color: var(--text);
+}
+
+.eyebrow,
+.section-kicker {
+    color: var(--accent) !important;
+}
+
+/* Navigation ------------------------------------------------------------ */
+.app-sidebar {
+    width: var(--sidebar);
+    padding: 22px 16px 18px;
+    background: var(--app-sidebar-bg);
+    border-right: 1px solid var(--app-border);
+    box-shadow: 10px 0 34px rgba(15, 23, 42, .035);
+    backdrop-filter: blur(22px) saturate(150%);
+}
+
+.sidebar-brand {
+    color: var(--text);
+}
+
+.sidebar-brand-mark {
+    color: var(--accent);
+    background: var(--app-accent-soft);
+    border-color: var(--app-accent-border);
+}
+
+.sidebar-brand small,
+.sidebar-nav > small,
+.sidebar-profile small,
+.sidebar-logout,
+.vehicle-picker-label,
+.vehicle-picker-meta {
+    color: var(--muted);
+}
+
+.sidebar-nav a {
+    color: var(--muted);
+    border: 1px solid transparent;
+}
+
+.sidebar-nav a span {
+    color: var(--muted);
+}
+
+.sidebar-nav a:hover {
+    color: var(--text);
+    background: var(--app-hover);
+    border-color: var(--app-border);
+}
+
+.sidebar-nav a.is-active {
+    color: var(--text);
+    background: var(--app-accent-soft);
+    border-color: var(--app-accent-border);
+    box-shadow: inset 3px 0 var(--accent);
+}
+
+.sidebar-nav a.is-active span {
+    color: var(--accent);
+}
+
+.sidebar-bottom {
+    border-color: var(--app-border);
+}
+
+.sidebar-profile {
+    color: var(--text);
+}
+
+.sidebar-profile:hover {
+    background: var(--app-hover);
+}
+
+.sidebar-profile .avatar,
+.mobile-avatar,
+.avatar-mini {
+    color: var(--accent);
+    background: var(--app-accent-soft);
+    border-color: var(--app-accent-border);
+}
+
+.vehicle-picker-trigger,
+.vehicle-picker-menu {
+    color: var(--text);
+    background: var(--app-card-solid);
+    border-color: var(--app-border);
+    box-shadow: var(--app-shadow-sm);
+}
+
+.vehicle-picker-trigger:hover,
+.vehicle-picker-option:hover,
+.vehicle-picker-option.is-selected,
+.vehicle-picker-add:hover {
+    background: var(--app-hover);
+}
+
+.vehicle-picker-option,
+.vehicle-picker-add {
+    color: var(--text);
+    border-color: var(--app-border);
+}
+
+.vehicle-picker-option small {
+    color: var(--muted);
+}
+
+.theme-switcher {
+    margin: 0 0 8px;
+}
+
+.theme-switcher-trigger {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+    color: var(--text);
+    border: 1px solid var(--app-border);
+    border-radius: 13px;
+    background: var(--app-card-alt);
+    text-align: left;
+}
+
+.theme-switcher-trigger > span:first-child {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    color: var(--accent);
+    background: var(--app-accent-soft);
+}
+
+.theme-switcher-trigger b,
+.theme-switcher-trigger small {
+    display: block;
+}
+
+.theme-switcher-trigger small {
+    margin-top: 1px;
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.theme-dropdown,
+.dropdown-menu {
+    --bs-dropdown-bg: var(--app-card-solid);
+    --bs-dropdown-border-color: var(--app-border);
+    --bs-dropdown-link-color: var(--text);
+    --bs-dropdown-link-hover-color: var(--text);
+    --bs-dropdown-link-hover-bg: var(--app-hover);
+    --bs-dropdown-link-active-bg: var(--app-accent-soft);
+    --bs-dropdown-link-active-color: var(--text);
+    box-shadow: var(--app-shadow);
+}
+
+.theme-dropdown .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+/* Vehicle workspace ----------------------------------------------------- */
+.vehicle-workspace {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    margin: -4px 0 22px;
+    padding: 10px 12px;
+    position: sticky;
+    top: 12px;
+    z-index: 30;
+    border-radius: 17px;
+    backdrop-filter: blur(18px) saturate(150%);
+}
+
+.vehicle-workspace-title {
+    min-width: 140px;
+    padding: 0 8px;
+}
+
+.vehicle-workspace-title small,
+.vehicle-workspace-title strong {
+    display: block;
+}
+
+.vehicle-workspace-title small {
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .12em;
+}
+
+.vehicle-workspace-title strong {
+    margin-top: 2px;
+    font-size: 12px;
+}
+
+.vehicle-workspace-tabs {
+    display: flex;
+    gap: 5px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.vehicle-workspace-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex: 0 0 auto;
+    padding: 8px 11px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.vehicle-workspace-tab:hover {
+    color: var(--text);
+    background: var(--app-hover);
+}
+
+.vehicle-workspace-tab.is-active {
+    color: var(--accent);
+    background: var(--app-accent-soft);
+    border-color: var(--app-accent-border);
+}
+
+.vehicle-workspace-import {
+    white-space: nowrap;
+}
+
+/* Buttons --------------------------------------------------------------- */
+.btn {
+    --bs-btn-border-radius: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: .48rem .8rem;
+    color: var(--text);
+    background-color: var(--app-card-alt);
+    border-color: var(--app-border-strong);
+    font-weight: 700;
+    font-size: 12px;
+    line-height: 1.2;
+    text-decoration: none;
+    box-shadow: none;
+}
+
+.btn:hover,
+.btn:focus-visible {
+    color: var(--text);
+    background-color: var(--app-hover);
+    border-color: var(--app-border-strong);
+}
+
+.btn.primary,
+.btn-primary {
+    --bs-btn-bg: var(--accent);
+    --bs-btn-border-color: var(--accent);
+    --bs-btn-hover-bg: var(--accent);
+    --bs-btn-hover-border-color: var(--accent);
+    --bs-btn-active-bg: var(--accent);
+    --bs-btn-active-border-color: var(--accent);
+    color: var(--accent-contrast) !important;
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+}
+
+.btn.primary:hover,
+.btn-primary:hover {
+    filter: brightness(.94);
+}
+
+.btn-outline-secondary {
+    --bs-btn-color: var(--text);
+    --bs-btn-border-color: var(--app-border-strong);
+    --bs-btn-hover-bg: var(--app-hover);
+    --bs-btn-hover-color: var(--text);
+    --bs-btn-hover-border-color: var(--app-border-strong);
+}
+
+.btn-danger,
+.btn.danger {
+    color: #fff !important;
+    background: #dc2626 !important;
+    border-color: #dc2626 !important;
+}
+
+.link-button,
+.text-link {
+    color: var(--app-link);
+}
+
+/* Forms ----------------------------------------------------------------- */
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+select,
+textarea,
+.form-control,
+.form-select {
+    color: var(--text);
+    background-color: var(--app-card-alt);
+    border: 1px solid var(--app-border-strong);
+    border-radius: 11px;
+    box-shadow: none;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus,
+select:focus,
+textarea:focus,
+.form-control:focus,
+.form-select:focus {
+    color: var(--text);
+    background-color: var(--app-card-solid);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 .2rem var(--app-accent-soft);
+    outline: 0;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: color-mix(in srgb, var(--muted) 74%, transparent);
+}
+
+label,
+.modal-field-grid label,
+.stack label {
+    color: var(--text);
+}
+
+label > span,
+.modal-field-grid label > span {
+    color: var(--muted);
+}
+
+.form-panel {
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+}
+
+.check,
+.assignment {
+    border-color: var(--app-border) !important;
+    background: var(--app-card-alt) !important;
+}
+
+.form-check-input:checked,
+input[type="checkbox"]:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+/* Tables ---------------------------------------------------------------- */
+.table-wrap,
+.table-scroll,
+.table-responsive {
+    border-color: var(--app-border);
+}
+
+.table,
+.data-table,
+.monitoring-table,
+table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--text);
+    --bs-table-border-color: var(--app-border);
+    --bs-table-hover-bg: var(--app-hover);
+    --bs-table-hover-color: var(--text);
+    color: var(--text);
+}
+
+.table > :not(caption) > * > *,
+.data-table th,
+.data-table td,
+.monitoring-table th,
+.monitoring-table td,
+table th,
+table td {
+    color: inherit;
+    border-color: var(--app-border);
+    background: transparent;
+}
+
+.table thead th,
+.data-table thead th,
+.monitoring-table thead th,
+table thead th {
+    color: var(--muted);
+    background: var(--app-card-alt);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .075em;
+    text-transform: uppercase;
+}
+
+.table-hover > tbody > tr:hover > *,
+.data-table tbody tr:hover td,
+.monitoring-table tbody tr:hover td {
+    background: var(--app-hover);
+}
+
+.table-card,
+.admin-list-card,
+.operations-section,
+.connected-vehicles-card,
+.connected-runs-card,
+.monitoring-section {
+    overflow: hidden;
+}
+
+.table-card-head,
+.section-heading,
+.monitoring-section-head,
+.list-toolbar {
+    border-color: var(--app-border);
+}
+
+/* Pagination ------------------------------------------------------------ */
+.entity-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 2px 2px;
+    border-top: 1px solid var(--app-border);
+    margin-top: 14px;
+}
+
+.entity-pagination-summary {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.entity-pagination .pagination {
+    --bs-pagination-color: var(--text);
+    --bs-pagination-bg: var(--app-card-alt);
+    --bs-pagination-border-color: var(--app-border);
+    --bs-pagination-hover-color: var(--text);
+    --bs-pagination-hover-bg: var(--app-hover);
+    --bs-pagination-hover-border-color: var(--app-border-strong);
+    --bs-pagination-focus-bg: var(--app-hover);
+    --bs-pagination-focus-box-shadow: 0 0 0 .2rem var(--app-accent-soft);
+    --bs-pagination-active-color: var(--accent-contrast);
+    --bs-pagination-active-bg: var(--accent);
+    --bs-pagination-active-border-color: var(--accent);
+    --bs-pagination-disabled-color: var(--muted);
+    --bs-pagination-disabled-bg: var(--app-card-alt);
+    --bs-pagination-disabled-border-color: var(--app-border);
+}
+
+.entity-pagination .page-link {
+    min-width: 34px;
+    min-height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px !important;
+    margin-left: 4px;
+    font-weight: 700;
+}
+
+/* Garage ---------------------------------------------------------------- */
+.garage-page {
+    display: grid;
+    gap: 18px;
+}
+
+.garage-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+    margin: 0;
+    padding: 28px 30px;
+}
+
+.garage-heading h1 {
+    color: var(--text);
+}
+
+.dashboard-summary-grid,
+.garage-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+}
+
+.metric-card,
+.garage-summary > div {
+    min-height: 120px;
+    padding: 18px;
+    border: 1px solid var(--app-border);
+    border-radius: 17px;
+}
+
+.metric-card small,
+.garage-summary small,
+.garage-card-stats small,
+.garage-card-title-row small {
+    color: var(--muted);
+}
+
+.metric-card b,
+.garage-summary b {
+    color: var(--text);
+}
+
+.vehicle-card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.garage-vehicle-card {
+    padding: 0;
+    overflow: hidden;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.garage-vehicle-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--app-border-strong);
+    box-shadow: var(--app-shadow);
+}
+
+.garage-vehicle-card.is-active {
+    border-color: var(--app-accent-border);
+    box-shadow: 0 0 0 1px var(--app-accent-border), var(--app-shadow-sm);
+}
+
+.garage-photo {
+    position: relative;
+    min-height: 220px;
+    overflow: hidden;
+    background: var(--app-card-alt);
+}
+
+.garage-photo img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+}
+
+.garage-photo-empty {
+    height: 220px;
+    display: grid;
+    place-content: center;
+    gap: 6px;
+    text-align: center;
+    color: var(--muted);
+}
+
+.garage-photo-empty span {
+    font-size: 54px;
+    filter: grayscale(1);
+    opacity: .7;
+}
+
+.garage-edit-button {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    z-index: 4;
+    color: var(--text);
+    text-decoration: none;
+    background: var(--app-card-solid);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    box-shadow: var(--app-shadow-sm);
+}
+
+.garage-edit-button:hover {
+    color: var(--accent);
+    border-color: var(--app-accent-border);
+}
+
+.powertrain-badge,
+.garage-active-badge {
+    color: var(--text) !important;
+    background: color-mix(in srgb, var(--app-card-solid) 90%, transparent) !important;
+    border-color: var(--app-border) !important;
+    backdrop-filter: blur(12px);
+}
+
+.garage-active-badge {
+    color: var(--accent) !important;
+    border-color: var(--app-accent-border) !important;
+}
+
+.garage-card-body {
+    padding: 20px;
+}
+
+.garage-card-title-row,
+.garage-card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.garage-card-title-row h2 {
+    margin: 2px 0 0;
+    font-size: 20px;
+}
+
+.garage-card-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 18px 0;
+}
+
+.garage-card-stats > span {
+    padding: 10px;
+    border-radius: 12px;
+    background: var(--app-card-alt);
+}
+
+.garage-card-stats small,
+.garage-card-stats b {
+    display: block;
+}
+
+.garage-card-stats b {
+    margin-top: 3px;
+    color: var(--text);
+    font-size: 12px;
+}
+
+.garage-card-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.vehicle-status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 5px var(--app-accent-soft);
+}
+
+/* Timeline -------------------------------------------------------------- */
+.timeline-shell,
+.timeline-list {
+    background: transparent;
+}
+
+.timeline-event {
+    color: var(--text);
+}
+
+.timeline-body {
+    background: var(--app-card-bg) !important;
+    border: 1px solid var(--app-border) !important;
+}
+
+.timeline-body small,
+.timeline-body p {
+    color: var(--muted) !important;
+}
+
+.timeline-dot {
+    color: var(--text);
+    background: var(--app-card-solid);
+    border-color: var(--app-border);
+}
+
+.insight-card,
+.insight-strip > div,
+.insight-strip > article {
+    color: var(--text);
+    background: var(--app-card-bg);
+    border-color: var(--app-border);
+    box-shadow: var(--app-shadow-sm);
+}
+
+.insight-card p,
+.insight-strip p,
+.insight-strip em,
+.insight-strip small {
+    color: var(--muted);
+}
+
+/* Operations & documents ----------------------------------------------- */
+.operations-kpis > div,
+.cost-summary > div,
+.document-ai-badge,
+.extraction-summary > div,
+.document-review-actions,
+.status-pill,
+.source-chip,
+.monitoring-status,
+.provider-status,
+.sync-status,
+.connector-status {
+    border-color: var(--app-border);
+}
+
+.operations-forms,
+.operations-grid {
+    gap: 14px;
+}
+
+.operations-section,
+.extraction-review,
+.document-upload-grid .card {
+    background: var(--app-card-bg);
+}
+
+.document-ai-badge,
+.connected-hero-status,
+.provider-status,
+.sync-status,
+.connector-status {
+    background: var(--app-card-alt);
+    color: var(--text);
+}
+
+.status-active,
+.sync-success,
+.status-success,
+.status-confirmed,
+.monitoring-status.is-success {
+    color: #047857 !important;
+    background: #d1fae5 !important;
+}
+
+[data-bs-theme="dark"] .status-active,
+[data-bs-theme="dark"] .sync-success,
+[data-bs-theme="dark"] .status-success,
+[data-bs-theme="dark"] .status-confirmed,
+[data-bs-theme="dark"] .monitoring-status.is-success {
+    color: #a7f3d0 !important;
+    background: rgba(16, 185, 129, .16) !important;
+}
+
+.status-error,
+.sync-failed,
+.monitoring-status.is-error,
+.connector-status[data-state="error"] {
+    color: #b91c1c !important;
+    background: #fee2e2 !important;
+}
+
+[data-bs-theme="dark"] .status-error,
+[data-bs-theme="dark"] .sync-failed,
+[data-bs-theme="dark"] .monitoring-status.is-error,
+[data-bs-theme="dark"] .connector-status[data-state="error"] {
+    color: #fecaca !important;
+    background: rgba(239, 68, 68, .16) !important;
+}
+
+.status-pending,
+.sync-running,
+.monitoring-status.is-running,
+.monitoring-status.is-warning {
+    color: #92400e !important;
+    background: #fef3c7 !important;
+}
+
+[data-bs-theme="dark"] .status-pending,
+[data-bs-theme="dark"] .sync-running,
+[data-bs-theme="dark"] .monitoring-status.is-running,
+[data-bs-theme="dark"] .monitoring-status.is-warning {
+    color: #fde68a !important;
+    background: rgba(245, 158, 11, .14) !important;
+}
+
+.vehicle-photo-card,
+.vehicle-photo-card img,
+.extraction-history,
+.document-reextract-form,
+.review-confirm {
+    border-color: var(--app-border);
+}
+
+/* Connected Car & monitoring ------------------------------------------- */
+.connected-vehicle-row,
+.connected-feature-list li,
+.connector-replace {
+    border-color: var(--app-border);
+}
+
+.connected-vehicle-row {
+    background: var(--app-card-solid);
+}
+
+.connected-vehicle-main p,
+.connected-vehicle-main small,
+.telemetry-mini-grid small,
+.connected-vehicle-actions small,
+.connected-hero-status small,
+.connected-feature-list span {
+    color: var(--muted);
+}
+
+.provider-logo {
+    color: var(--accent-contrast);
+    background: var(--accent);
+}
+
+.connected-error-detail,
+.connected-row-error,
+.connector-error {
+    color: #b91c1c;
+    background: #fee2e2;
+}
+
+[data-bs-theme="dark"] .connected-error-detail,
+[data-bs-theme="dark"] .connected-row-error,
+[data-bs-theme="dark"] .connector-error {
+    color: #fecaca;
+    background: rgba(239, 68, 68, .14);
+}
+
+.connector-warning {
+    color: #92400e;
+    background: #fffbeb;
+}
+
+[data-bs-theme="dark"] .connector-warning {
+    color: #fde68a;
+    background: rgba(245, 158, 11, .12);
+}
+
+.monitoring-kpi,
+.monitoring-section,
+.monitoring-filters {
+    background: var(--app-card-bg);
+    border-color: var(--app-border);
+}
+
+.monitoring-kpi span,
+.monitoring-kpi small,
+.monitoring-period small,
+.monitoring-period span {
+    color: var(--muted);
+}
+
+.monitoring-period {
+    background: var(--app-card-alt);
+    border-color: var(--app-border);
+}
+
+.monitoring-inline-error,
+.monitoring-error-cell code,
+code {
+    color: color-mix(in srgb, var(--pink) 85%, var(--text));
+    background: var(--app-card-alt);
+}
+
+/* Bootstrap modal harmonisation ---------------------------------------- */
+.modal-content,
+.admin-editor-modal .modal-content {
+    color: var(--text);
+    background: var(--app-card-solid);
+    border-color: var(--app-border);
+    border-radius: 20px;
+    box-shadow: 0 26px 90px rgba(0, 0, 0, .30);
+}
+
+.modal-header,
+.modal-footer {
+    border-color: var(--app-border);
+}
+
+.modal-header {
+    background: var(--app-card-alt);
+}
+
+.btn-close {
+    opacity: .7;
+}
+
+[data-bs-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.modal-backdrop.show {
+    opacity: .56;
+}
+
+/* Legacy server-rendered dialogs intentionally use a different class so
+   Bootstrap's own .modal-backdrop can work normally. */
+.legacy-modal-backdrop,
+.app-modal-backdrop {
+    background: var(--app-overlay);
+}
+
+.modal-card,
+.app-modal-dialog {
+    color: var(--text);
+    background: var(--app-card-solid);
+    border-color: var(--app-border);
+    box-shadow: 0 26px 90px rgba(0, 0, 0, .30);
+}
+
+.modal-head,
+.app-modal-head {
+    border-color: var(--app-border);
+}
+
+.modal-head p,
+.app-modal-body p {
+    color: var(--muted);
+}
+
+.modal-close,
+.app-modal-close {
+    color: var(--text);
+    background: var(--app-card-alt);
+    border-color: var(--app-border);
+}
+
+/* Notices / alerts ------------------------------------------------------ */
+.notice,
+.error {
+    border-radius: 13px;
+    box-shadow: none;
+}
+
+.notice {
+    color: #065f46;
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+}
+
+.error {
+    color: #991b1b;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+[data-bs-theme="dark"] .notice {
+    color: #a7f3d0;
+    background: rgba(16, 185, 129, .12);
+    border-color: rgba(52, 211, 153, .25);
+}
+
+[data-bs-theme="dark"] .error {
+    color: #fecaca;
+    background: rgba(239, 68, 68, .12);
+    border-color: rgba(248, 113, 113, .25);
+}
+
+.alert {
+    border-radius: 14px;
+}
+
+/* PWA and mobile surfaces ---------------------------------------------- */
+.pwa-install-offer {
+    background: var(--app-card-solid);
+    border-color: var(--app-accent-border);
+    box-shadow: var(--app-shadow);
+}
+
+.pwa-install-offer__content > strong,
+.pwa-install-offer__ios-help b {
+    color: var(--text);
+}
+
+.pwa-install-offer__content > span,
+.pwa-install-offer__dismiss,
+.pwa-install-offer__ios-help {
+    color: var(--muted);
+}
+
+.pwa-install-offer__ios-help {
+    background: var(--app-card-alt);
+    border-color: var(--app-border);
+}
+
+/* Authentication and utility screens ---------------------------------- */
+.auth-card,
+.landing-card,
+.setup-card,
+.profile-card,
+.update-card {
+    color: var(--text);
+    background: var(--app-card-bg) !important;
+    border-color: var(--app-border) !important;
+    box-shadow: var(--app-shadow);
+}
+
+/* Responsive dashboard ------------------------------------------------- */
+@media (max-width: 1320px) {
+    .vehicle-card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    :root,
+    [data-bs-theme="light"],
+    [data-bs-theme="dark"] {
+        --sidebar: 0px;
+    }
+
+    body {
+        padding-top: 62px;
+        padding-bottom: 74px;
+    }
+
+    .wrap,
+    .wrap.narrow {
+        max-width: none;
+        margin-left: 0;
+        padding: 18px 16px 34px;
+    }
+
+    .mobile-topbar,
+    .mobile-bottom-nav {
+        background: color-mix(in srgb, var(--app-card-solid) 94%, transparent);
+        border-color: var(--app-border);
+        backdrop-filter: blur(18px) saturate(150%);
+    }
+
+    .mobile-topbar {
+        color: var(--text);
+    }
+
+    .mobile-brand,
+    .mobile-vehicle-link,
+    .mobile-bottom-nav a,
+    .mobile-bottom-nav button.mobile-more-trigger {
+        color: var(--muted);
+    }
+
+    .mobile-bottom-nav a.is-active,
+    .mobile-bottom-nav button.mobile-more-trigger.is-active,
+    .mobile-bottom-nav button.mobile-more-trigger[aria-expanded="true"] {
+        color: var(--accent);
+    }
+
+    .mobile-bottom-nav .mobile-add span {
+        color: var(--accent-contrast);
+        background: var(--accent);
+        box-shadow: 0 8px 24px rgba(var(--accent-rgb), .26);
+    }
+
+    .mobile-more-menu {
+        color: var(--text);
+        background: var(--app-card-solid);
+        border-color: var(--app-border);
+    }
+
+    .mobile-more-head,
+    .mobile-more-links > a,
+    .mobile-theme-row {
+        border-color: var(--app-border);
+    }
+
+    .mobile-more-links > a {
+        color: var(--text);
+    }
+
+    .mobile-more-links > a:hover,
+    .mobile-more-links > a.is-active {
+        background: var(--app-hover);
+    }
+
+    .mobile-more-links small,
+    .mobile-theme-row small {
+        color: var(--muted);
+    }
+
+    .mobile-more-backdrop {
+        background: var(--app-overlay);
+    }
+
+    .vehicle-workspace {
+        position: relative;
+        top: auto;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .vehicle-workspace-title {
+        grid-column: 1 / -1;
+        min-width: 0;
+    }
+
+    .vehicle-workspace-tabs {
+        grid-column: 1;
+    }
+
+    .vehicle-workspace-import {
+        grid-column: 2;
+        grid-row: 2;
+    }
+
+    .garage-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 22px;
+    }
+
+    .dashboard-summary-grid,
+    .garage-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .vehicle-card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .connected-vehicle-row {
+        grid-template-columns: 1fr;
+    }
+
+    .connected-vehicle-actions {
+        justify-items: start;
+    }
+
+    .telemetry-mini-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .wrap,
+    .wrap.narrow {
+        padding-right: 12px;
+        padding-left: 12px;
+    }
+
+    .card {
+        border-radius: 17px;
+    }
+
+    .dashboard-summary-grid,
+    .garage-summary {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .metric-card,
+    .garage-summary > div {
+        min-height: 104px;
+        padding: 14px;
+    }
+
+    .garage-card-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .entity-pagination {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .entity-pagination .pagination {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }
+
+    .vehicle-workspace {
+        padding: 9px;
+    }
+
+    .vehicle-workspace-import {
+        display: none;
+    }
+
+    .vehicle-workspace-tabs {
+        grid-column: 1 / -1;
+    }
+}
+
+.vehicle-editor-shortcuts {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 9px 16px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--app-border);
+    background: var(--app-card-alt);
+}
+
+.vehicle-editor-shortcuts[hidden] {
+    display: none;
+}
+
+.vehicle-editor-shortcuts a,
+.vehicle-editor-shortcuts span {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 750;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.vehicle-editor-shortcuts a:hover {
+    color: var(--text);
+    background: var(--app-hover);
+    border-color: var(--app-border);
+}
+
+.vehicle-editor-shortcuts span {
+    color: var(--accent);
+    background: var(--app-accent-soft);
+    border-color: var(--app-accent-border);
+}
+
+/* ========================================================================
+   EV Stats 5.0 — Cockpit UI
+   ------------------------------------------------------------------------
+   A deliberately different layout inspired by EV control-room dashboards:
+   fixed top command bar, compact right navigation rail, dense metric cards,
+   interactive surfaces and a map-first trip explorer.
+   ======================================================================== */
+:root,
+[data-bs-theme="light"] {
+    --cockpit-bg: #f1f2fa;
+    --cockpit-bg-2: #e8eaf6;
+    --cockpit-panel: #ffffff;
+    --cockpit-panel-2: #f7f7fc;
+    --cockpit-panel-3: #eef0fa;
+    --cockpit-line: #dfe2f0;
+    --cockpit-text: #191a2e;
+    --cockpit-muted: #777d98;
+    --cockpit-primary: #5b55f7;
+    --cockpit-primary-rgb: 91, 85, 247;
+    --cockpit-cyan: #089dcc;
+    --cockpit-teal: #00a994;
+    --cockpit-orange: #ef8b28;
+    --cockpit-danger: #ec5068;
+    --cockpit-topbar: rgba(255, 255, 255, .90);
+    --cockpit-rail: #111126;
+    --cockpit-rail-text: #a3a6bd;
+    --cockpit-shadow: 0 18px 48px rgba(31, 34, 74, .09);
+    --cockpit-shadow-hover: 0 24px 62px rgba(31, 34, 74, .14);
+    --cockpit-rail-width: 94px;
+    --cockpit-topbar-height: 74px;
+
+    --bg: var(--cockpit-bg);
+    --panel: var(--cockpit-panel);
+    --panel2: var(--cockpit-panel-2);
+    --line: var(--cockpit-line);
+    --text: var(--cockpit-text);
+    --muted: var(--cockpit-muted);
+    --accent: var(--cockpit-primary);
+    --accent-rgb: var(--cockpit-primary-rgb);
+    --cyan: var(--cockpit-cyan);
+    --green: var(--cockpit-teal);
+    --orange: var(--cockpit-orange);
+    --pink: var(--cockpit-danger);
+    --app-card-bg: var(--cockpit-panel);
+    --app-card-solid: var(--cockpit-panel);
+    --app-card-alt: var(--cockpit-panel-2);
+    --app-hover: var(--cockpit-panel-3);
+    --app-border: var(--cockpit-line);
+    --app-border-strong: #cbd0e4;
+    --app-shadow: var(--cockpit-shadow);
+    --app-shadow-sm: 0 8px 24px rgba(31, 34, 74, .06);
+    --app-accent-soft: rgba(var(--cockpit-primary-rgb), .09);
+    --app-accent-border: rgba(var(--cockpit-primary-rgb), .24);
+    --app-link: var(--cockpit-primary);
+    --chart-grid: rgba(94, 100, 139, .15);
+    --chart-text: #727995;
+    --sidebar: 0px;
+}
+
+[data-bs-theme="dark"] {
+    --cockpit-bg: #23243f;
+    --cockpit-bg-2: #1a1b34;
+    --cockpit-panel: #0d0e26;
+    --cockpit-panel-2: #11132f;
+    --cockpit-panel-3: #171938;
+    --cockpit-line: #2b2e50;
+    --cockpit-text: #f4f5ff;
+    --cockpit-muted: #8f93b2;
+    --cockpit-primary: #695cff;
+    --cockpit-primary-rgb: 105, 92, 255;
+    --cockpit-cyan: #16b9eb;
+    --cockpit-teal: #17cdb1;
+    --cockpit-orange: #ff9a3e;
+    --cockpit-danger: #ff5470;
+    --cockpit-topbar: rgba(10, 11, 33, .94);
+    --cockpit-rail: #090a20;
+    --cockpit-rail-text: #777c9f;
+    --cockpit-shadow: 0 20px 58px rgba(0, 0, 0, .22);
+    --cockpit-shadow-hover: 0 30px 76px rgba(0, 0, 0, .34);
+    --cockpit-rail-width: 94px;
+    --cockpit-topbar-height: 74px;
+
+    --bg: var(--cockpit-bg);
+    --panel: var(--cockpit-panel);
+    --panel2: var(--cockpit-panel-2);
+    --line: var(--cockpit-line);
+    --text: var(--cockpit-text);
+    --muted: var(--cockpit-muted);
+    --accent: var(--cockpit-primary);
+    --accent-rgb: var(--cockpit-primary-rgb);
+    --cyan: var(--cockpit-cyan);
+    --green: var(--cockpit-teal);
+    --orange: var(--cockpit-orange);
+    --pink: var(--cockpit-danger);
+    --app-card-bg: var(--cockpit-panel);
+    --app-card-solid: var(--cockpit-panel);
+    --app-card-alt: var(--cockpit-panel-2);
+    --app-hover: var(--cockpit-panel-3);
+    --app-border: var(--cockpit-line);
+    --app-border-strong: #3a3e67;
+    --app-shadow: var(--cockpit-shadow);
+    --app-shadow-sm: 0 10px 30px rgba(0, 0, 0, .16);
+    --app-accent-soft: rgba(var(--cockpit-primary-rgb), .12);
+    --app-accent-border: rgba(var(--cockpit-primary-rgb), .32);
+    --app-link: #8f85ff;
+    --chart-grid: rgba(145, 150, 192, .18);
+    --chart-text: #9297b7;
+    --sidebar: 0px;
+}
+
+html,
+body {
+    min-height: 100%;
+    background: var(--cockpit-bg);
+}
+
+body {
+    padding-top: var(--cockpit-topbar-height);
+    background-image:
+        radial-gradient(circle at 12% 4%, rgba(var(--cockpit-primary-rgb), .10), transparent 25rem),
+        linear-gradient(135deg, var(--cockpit-bg), var(--cockpit-bg-2));
+    color: var(--cockpit-text);
+}
+
+/* Desktop shell --------------------------------------------------------- */
+.cockpit-topbar {
+    position: fixed;
+    inset: 0 var(--cockpit-rail-width) auto 0;
+    z-index: 1040;
+    height: var(--cockpit-topbar-height);
+    display: grid;
+    grid-template-columns: minmax(270px, .75fr) minmax(300px, 1fr) minmax(300px, .75fr);
+    align-items: center;
+    gap: 18px;
+    padding: 0 24px;
+    background: var(--cockpit-topbar);
+    border-bottom: 1px solid var(--cockpit-line);
+    backdrop-filter: blur(22px) saturate(145%);
+}
+
+.cockpit-topbar-start,
+.cockpit-topbar-actions {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.cockpit-topbar-start {
+    gap: 22px;
+}
+
+.cockpit-topbar-actions {
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.cockpit-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--cockpit-text);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.cockpit-brand:hover {
+    color: var(--cockpit-text);
+}
+
+.cockpit-brand-mark {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    border-radius: 12px;
+    color: #fff;
+    background: linear-gradient(145deg, var(--cockpit-primary), #8d4cf4);
+    box-shadow: 0 8px 22px rgba(var(--cockpit-primary-rgb), .30);
+}
+
+.cockpit-brand b,
+.cockpit-brand small,
+.cockpit-page-title small,
+.cockpit-page-title b {
+    display: block;
+}
+
+.cockpit-brand b {
+    font-size: 16px;
+    letter-spacing: -.03em;
+}
+
+.cockpit-brand small,
+.cockpit-page-title small {
+    color: var(--cockpit-muted);
+    font-size: 8px;
+    font-weight: 750;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+}
+
+.cockpit-page-title {
+    min-width: 0;
+    padding-left: 20px;
+    border-left: 1px solid var(--cockpit-line);
+}
+
+.cockpit-page-title b {
+    max-width: 210px;
+    overflow: hidden;
+    margin-top: 1px;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cockpit-topbar-center {
+    display: flex;
+    justify-content: center;
+}
+
+.cockpit-command {
+    width: min(520px, 100%);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 13px;
+    color: var(--cockpit-muted);
+    background: var(--cockpit-panel-2);
+    border: 1px solid var(--cockpit-line);
+    border-radius: 11px;
+    text-align: left;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.cockpit-command:hover {
+    border-color: rgba(var(--cockpit-primary-rgb), .55);
+    box-shadow: 0 0 0 3px rgba(var(--cockpit-primary-rgb), .08);
+    transform: translateY(-1px);
+}
+
+.cockpit-command span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cockpit-command kbd,
+.command-palette-body kbd {
+    padding: 3px 7px;
+    color: var(--cockpit-muted);
+    background: var(--cockpit-panel-3);
+    border: 1px solid var(--cockpit-line);
+    border-radius: 6px;
+    box-shadow: none;
+    font-size: 9px;
+}
+
+.cockpit-icon-button {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    color: var(--cockpit-muted);
+    background: var(--cockpit-panel-2);
+    border: 1px solid var(--cockpit-line);
+    border-radius: 11px;
+    text-decoration: none;
+}
+
+.cockpit-icon-button:hover {
+    color: var(--cockpit-primary);
+    background: var(--cockpit-panel-3);
+    border-color: rgba(var(--cockpit-primary-rgb), .35);
+}
+
+.cockpit-icon-button.dropdown-toggle::after {
+    display: none;
+}
+
+.cockpit-avatar {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    color: #fff;
+    background: linear-gradient(145deg, var(--cockpit-primary), #16b9eb);
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.cockpit-vehicle-picker {
+    position: relative;
+}
+
+.cockpit-vehicle-picker .vehicle-picker-trigger {
+    min-width: 190px;
+    display: grid;
+    grid-template-columns: 34px 1fr auto;
+    align-items: center;
+    gap: 9px;
+    padding: 6px 9px;
+    border-radius: 11px;
+    box-shadow: none;
+}
+
+.cockpit-vehicle-dot {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    color: var(--cockpit-teal);
+    background: color-mix(in srgb, var(--cockpit-teal) 12%, transparent);
+    border-radius: 9px;
+}
+
+.cockpit-vehicle-copy {
+    min-width: 0;
+    text-align: left;
+}
+
+.cockpit-vehicle-copy small,
+.cockpit-vehicle-copy b {
+    display: block;
+}
+
+.cockpit-vehicle-copy small {
+    color: var(--cockpit-muted);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: .09em;
+}
+
+.cockpit-vehicle-copy b {
+    max-width: 145px;
+    overflow: hidden;
+    color: var(--cockpit-text);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cockpit-rail {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 1050;
+    width: var(--cockpit-rail-width);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 17px 10px 14px;
+    background: var(--cockpit-rail);
+    border-left: 1px solid rgba(255, 255, 255, .045);
+    color: var(--cockpit-rail-text);
+}
+
+.cockpit-rail-brand {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    margin: 0 auto 20px;
+    color: #fff;
+    background: linear-gradient(145deg, #734dff, #b43cf0);
+    border-radius: 13px;
+    box-shadow: 0 10px 28px rgba(105, 92, 255, .34);
+    font-size: 18px;
+}
+
+.cockpit-rail-nav,
+.cockpit-rail-bottom {
+    display: grid;
+    gap: 5px;
+}
+
+.cockpit-rail-nav small {
+    margin: 14px 0 5px;
+    color: #4f5370;
+    font-size: 7px;
+    font-weight: 850;
+    letter-spacing: .11em;
+    text-align: center;
+}
+
+.cockpit-rail a {
+    position: relative;
+    display: grid;
+    place-items: center;
+    gap: 3px;
+    min-height: 52px;
+    padding: 6px 3px;
+    color: var(--cockpit-rail-text);
+    border: 1px solid transparent;
+    border-radius: 11px;
+    text-decoration: none;
+    transition: color .16s ease, background .16s ease, transform .16s ease;
+}
+
+.cockpit-rail a i {
+    font-size: 16px;
+}
+
+.cockpit-rail a span {
+    max-width: 74px;
+    overflow: hidden;
+    font-size: 8px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cockpit-rail a:hover,
+.cockpit-rail a.is-active {
+    color: #fff;
+    background: rgba(105, 92, 255, .15);
+    border-color: rgba(105, 92, 255, .18);
+    transform: translateX(-2px);
+}
+
+.cockpit-rail a.is-active::after {
+    content: "";
+    position: absolute;
+    top: 11px;
+    right: -10px;
+    width: 3px;
+    height: 30px;
+    background: #5f7cff;
+    border-radius: 3px 0 0 3px;
+    box-shadow: 0 0 16px #5f7cff;
+}
+
+.cockpit-rail-bottom {
+    margin-top: auto;
+    padding-top: 11px;
+    border-top: 1px solid rgba(255, 255, 255, .06);
+}
+
+.cockpit-rail-bottom > small {
+    color: #40445f;
+    font-size: 7px;
+    text-align: center;
+}
+
+/* Command palette ------------------------------------------------------- */
+.command-palette-modal .modal-dialog {
+    max-width: 610px;
+}
+
+.command-palette-modal .modal-content {
+    overflow: hidden;
+    border-radius: 18px;
+}
+
+.command-palette-search {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--cockpit-line);
+}
+
+.command-palette-search > i {
+    color: var(--cockpit-primary);
+    font-size: 18px;
+}
+
+.command-palette-search input {
+    width: 100%;
+    padding: 5px 0;
+    color: var(--cockpit-text);
+    background: transparent;
+    border: 0;
+    outline: 0;
+    font-size: 17px;
+}
+
+.command-palette-body {
+    max-height: min(58vh, 520px);
+    display: grid;
+    gap: 4px;
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.command-palette-body > small {
+    padding: 9px 9px 4px;
+    color: var(--cockpit-muted);
+    font-size: 8px;
+    font-weight: 850;
+    letter-spacing: .12em;
+}
+
+.command-palette-body > a {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 11px;
+    color: var(--cockpit-text);
+    border: 1px solid transparent;
+    border-radius: 11px;
+    text-decoration: none;
+}
+
+.command-palette-body > a:hover {
+    background: var(--cockpit-panel-2);
+    border-color: var(--cockpit-line);
+}
+
+.command-palette-body > a > i {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    color: var(--cockpit-primary);
+    background: rgba(var(--cockpit-primary-rgb), .10);
+    border-radius: 9px;
+}
+
+.command-palette-body a b,
+.command-palette-body a small {
+    display: block;
+}
+
+.command-palette-body a b {
+    font-size: 12px;
+}
+
+.command-palette-body a small {
+    margin-top: 1px;
+    color: var(--cockpit-muted);
+    font-size: 10px;
+}
+
+.command-palette-empty {
+    padding: 25px;
+    color: var(--cockpit-muted);
+    text-align: center;
+}
+
+/* Main content ---------------------------------------------------------- */
+.wrap,
+.wrap.narrow {
+    width: auto;
+    max-width: none;
+    margin: 0 var(--cockpit-rail-width) 0 0;
+    padding: 24px 26px 56px;
+}
+
+.site-footer {
+    margin-right: var(--cockpit-rail-width);
+}
+
+.card,
+.dashboard-card,
+.form-panel,
+.operations-head,
+.page-hero,
+.document-hero,
+.garage-heading,
+.timeline-body,
+.metric-card,
+.monitoring-kpi,
+.live-vehicle-state,
+.privacy-summary {
+    background: var(--cockpit-panel) !important;
+    border: 1px solid var(--cockpit-line) !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+}
+
+.card {
+    padding: 17px;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.card:hover {
+    border-color: color-mix(in srgb, var(--cockpit-primary) 24%, var(--cockpit-line)) !important;
+}
+
+.card h1,
+.card h2,
+.card h3,
+.page-hero h1,
+.garage-heading h1,
+.operations-head h1,
+.document-hero h1 {
+    letter-spacing: -.035em;
+}
+
+.card h2 {
+    font-size: 15px;
+    font-weight: 750;
+}
+
+.eyebrow,
+.section-kicker {
+    color: var(--cockpit-primary) !important;
+    font-size: 8px !important;
+    font-weight: 850 !important;
+    letter-spacing: .14em !important;
+}
+
+/* Vehicle dashboard ----------------------------------------------------- */
+.dashboard-wrap {
+    display: block;
+}
+
+.vehicle-hero {
+    position: relative;
+    min-height: 260px;
+    display: grid;
+    grid-template-columns: minmax(300px, 1fr) minmax(340px, .9fr);
+    grid-template-rows: 1fr auto;
+    gap: 0 28px;
+    padding: 24px 28px !important;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 72% 48%, rgba(var(--cockpit-primary-rgb), .18), transparent 17rem),
+        linear-gradient(135deg, var(--cockpit-panel), color-mix(in srgb, var(--cockpit-panel) 88%, var(--cockpit-primary))) !important;
+}
+
+.vehicle-hero::before {
+    content: "";
+    position: absolute;
+    width: 360px;
+    height: 360px;
+    right: 4%;
+    bottom: -55%;
+    border: 1px solid rgba(var(--cockpit-primary-rgb), .20);
+    border-radius: 50%;
+    box-shadow: 0 0 0 42px rgba(var(--cockpit-primary-rgb), .035), 0 0 0 88px rgba(var(--cockpit-primary-rgb), .02);
+}
+
+.vehicle-hero-copy {
+    position: relative;
+    z-index: 2;
+    align-self: center;
+}
+
+.vehicle-hero-copy h1 {
+    margin: 7px 0 4px;
+    font-size: clamp(27px, 3vw, 42px);
+    font-weight: 760;
+}
+
+.vehicle-hero-copy > p {
+    color: var(--cockpit-muted) !important;
+    font-size: 12px;
+}
+
+.hero-chips {
+    margin-top: 18px;
+}
+
+.hero-chips span {
+    padding: 7px 10px !important;
+    color: var(--cockpit-text) !important;
+    background: rgba(var(--cockpit-primary-rgb), .08) !important;
+    border-color: rgba(var(--cockpit-primary-rgb), .18) !important;
+    border-radius: 8px !important;
+    font-size: 10px;
+}
+
+.hero-live-chip {
+    color: var(--cockpit-teal) !important;
+}
+
+.vehicle-hero-visual {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    min-height: 180px;
+}
+
+.vehicle-hero-visual img {
+    width: min(470px, 92%);
+    max-height: 205px;
+    object-fit: contain;
+    filter: drop-shadow(0 26px 26px rgba(0, 0, 0, .26));
+    transition: transform .35s ease;
+}
+
+.vehicle-hero:hover .vehicle-hero-visual img {
+    transform: translateY(-4px) scale(1.015);
+}
+
+.vehicle-silhouette {
+    font-size: 90px;
+    filter: drop-shadow(0 18px 24px rgba(0, 0, 0, .20));
+}
+
+.hero-actions {
+    position: relative;
+    z-index: 3;
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.hero-action {
+    min-width: 190px;
+    padding: 9px 12px;
+    color: var(--cockpit-text) !important;
+    background: color-mix(in srgb, var(--cockpit-panel-2) 88%, transparent);
+    border: 1px solid var(--cockpit-line);
+    border-radius: 10px;
+    text-decoration: none;
+}
+
+.hero-action:hover {
+    background: rgba(var(--cockpit-primary-rgb), .10);
+    border-color: rgba(var(--cockpit-primary-rgb), .30);
+}
+
+.hero-action b,
+.hero-action small {
+    display: block;
+}
+
+.hero-action b {
+    font-size: 11px;
+}
+
+.hero-action small {
+    margin-top: 2px;
+    color: var(--cockpit-muted);
+    font-size: 9px;
+}
+
+.vehicle-workspace {
+    position: sticky;
+    top: calc(var(--cockpit-topbar-height) + 8px);
+    z-index: 1010;
+    margin: 12px 0 16px;
+    padding: 7px 8px !important;
+    background: color-mix(in srgb, var(--cockpit-panel) 92%, transparent) !important;
+    border: 1px solid var(--cockpit-line) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .06);
+    backdrop-filter: blur(16px);
+}
+
+.vehicle-workspace-title {
+    padding-left: 6px;
+}
+
+.vehicle-workspace-title small {
+    font-size: 7px;
+}
+
+.vehicle-workspace-tabs a {
+    padding: 8px 10px !important;
+    color: var(--cockpit-muted) !important;
+    border-radius: 8px !important;
+    font-size: 10px;
+}
+
+.vehicle-workspace-tabs a:hover,
+.vehicle-workspace-tabs a.is-active {
+    color: #fff !important;
+    background: var(--cockpit-primary) !important;
+    box-shadow: 0 7px 18px rgba(var(--cockpit-primary-rgb), .25);
+}
+
+.vehicle-workspace-import {
+    border-radius: 8px !important;
+}
+
+.live-vehicle-state {
+    margin-bottom: 14px;
+    overflow: hidden;
+}
+
+.live-vehicle-state-head {
+    padding: 12px 15px !important;
+    background: var(--cockpit-panel-2);
+    border-bottom: 1px solid var(--cockpit-line);
+}
+
+.live-vehicle-state-dot {
+    background: var(--cockpit-teal) !important;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--cockpit-teal) 14%, transparent), 0 0 14px var(--cockpit-teal);
+}
+
+.live-vehicle-metrics {
+    gap: 0 !important;
+}
+
+.live-vehicle-metric {
+    min-height: 94px;
+    padding: 16px !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-right: 1px solid var(--cockpit-line) !important;
+    border-radius: 0 !important;
+}
+
+.live-vehicle-metric:last-child {
+    border-right: 0 !important;
+}
+
+.live-vehicle-metric strong {
+    margin: 5px 0 2px;
+    font-size: 23px !important;
+}
+
+.dashboard-summary-grid,
+.kpis,
+.garage-summary {
+    gap: 12px !important;
+}
+
+.kpis {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.kpi,
+.metric-card,
+.garage-summary > div {
+    min-height: 118px !important;
+    padding: 15px !important;
+    background: var(--cockpit-panel) !important;
+    border: 1px solid var(--cockpit-line) !important;
+    border-radius: 13px !important;
+    box-shadow: none !important;
+}
+
+.kpi strong,
+.metric-card strong,
+.garage-summary strong {
+    font-size: 24px !important;
+    font-weight: 600;
+}
+
+.kpi small,
+.metric-card small,
+.garage-summary small {
+    color: var(--cockpit-muted) !important;
+    font-size: 8px !important;
+    font-weight: 800;
+    letter-spacing: .08em;
+}
+
+.kpi span {
+    margin-top: 9px;
+    padding-top: 8px;
+    border-color: var(--cockpit-line);
+    font-size: 9px;
+}
+
+.grid2,
+.dashboard-revolution-grid {
+    gap: 12px !important;
+    margin-bottom: 12px !important;
+}
+
+.chart-card canvas {
+    max-height: 265px;
+}
+
+.energy-list > div,
+.route-list > div,
+.route-cards > div,
+.battery,
+.insight-card,
+.mini-event {
+    background: var(--cockpit-panel-2) !important;
+    border-color: var(--cockpit-line) !important;
+    border-radius: 10px !important;
+}
+
+/* Tables --------------------------------------------------------------- */
+.table-card {
+    overflow: hidden;
+}
+
+.table-card-head,
+.section-head {
+    margin-bottom: 12px;
+}
+
+.table-wrap {
+    border: 1px solid var(--cockpit-line);
+    border-radius: 10px;
+    background: var(--cockpit-panel-2);
+}
+
+table {
+    margin: 0;
+    color: var(--cockpit-text);
+}
+
+thead th {
+    padding: 10px 11px !important;
+    color: var(--cockpit-muted) !important;
+    background: color-mix(in srgb, var(--cockpit-panel-3) 82%, transparent) !important;
+    border-color: var(--cockpit-line) !important;
+    font-size: 8px !important;
+    font-weight: 850 !important;
+    letter-spacing: .08em;
+}
+
+tbody td {
+    padding: 10px 11px !important;
+    border-color: var(--cockpit-line) !important;
+    font-size: 11px;
+    vertical-align: middle;
+}
+
+tbody tr {
+    transition: background .15s ease;
+}
+
+tbody tr:hover {
+    background: rgba(var(--cockpit-primary-rgb), .045) !important;
+}
+
+.route-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.route-map-trigger {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 8px;
+    color: var(--cockpit-primary);
+    background: rgba(var(--cockpit-primary-rgb), .08);
+    border: 1px solid rgba(var(--cockpit-primary-rgb), .20);
+    border-radius: 7px;
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.route-map-trigger:hover {
+    color: #fff;
+    background: var(--cockpit-primary);
+}
+
+.trip-row-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.icon-action {
+    display: inline-grid !important;
+    width: 30px !important;
+    height: 30px !important;
+    place-items: center;
+    padding: 0 !important;
+    color: var(--cockpit-muted) !important;
+    background: var(--cockpit-panel-2) !important;
+    border: 1px solid var(--cockpit-line) !important;
+    border-radius: 8px !important;
+}
+
+.icon-action:hover,
+.map-action:hover {
+    color: #fff !important;
+    background: var(--cockpit-primary) !important;
+    border-color: var(--cockpit-primary) !important;
+}
+
+/* Forms and Bootstrap components --------------------------------------- */
+.form-control,
+.form-select,
+input,
+select,
+textarea {
+    color: var(--cockpit-text);
+    background-color: var(--cockpit-panel-2);
+    border-color: var(--cockpit-line);
+    border-radius: 9px;
+}
+
+.form-control:focus,
+.form-select:focus,
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: rgba(var(--cockpit-primary-rgb), .66);
+    box-shadow: 0 0 0 .2rem rgba(var(--cockpit-primary-rgb), .10);
+}
+
+.btn {
+    border-radius: 9px;
+    font-weight: 700;
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--cockpit-primary);
+    --bs-btn-border-color: var(--cockpit-primary);
+    --bs-btn-hover-bg: color-mix(in srgb, var(--cockpit-primary) 84%, #000);
+    --bs-btn-hover-border-color: color-mix(in srgb, var(--cockpit-primary) 84%, #000);
+}
+
+.dropdown-menu {
+    color: var(--cockpit-text);
+    background: var(--cockpit-panel);
+    border-color: var(--cockpit-line);
+    border-radius: 12px;
+    box-shadow: var(--cockpit-shadow);
+}
+
+.dropdown-item {
+    color: var(--cockpit-text);
+    border-radius: 7px;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus,
+.dropdown-item.active {
+    color: var(--cockpit-text);
+    background: var(--cockpit-panel-3);
+}
+
+.vehicle-picker-menu {
+    right: 0;
+    left: auto;
+    min-width: 310px;
+    margin-top: 8px;
+    border-radius: 12px;
+    box-shadow: var(--cockpit-shadow);
+}
+
+.vehicle-picker-option,
+.vehicle-picker-add {
+    border-radius: 8px;
+}
+
+.modal-content,
+.admin-editor-modal .modal-content {
+    background: var(--cockpit-panel) !important;
+    border-color: var(--cockpit-line) !important;
+    border-radius: 16px !important;
+}
+
+.modal-header {
+    background: var(--cockpit-panel-2) !important;
+}
+
+/* Garage --------------------------------------------------------------- */
+.garage-heading {
+    padding: 22px 24px !important;
+    background:
+        linear-gradient(105deg, rgba(var(--cockpit-primary-rgb), .12), transparent 50%),
+        var(--cockpit-panel) !important;
+}
+
+.vehicle-card-grid {
+    gap: 12px !important;
+}
+
+.garage-vehicle-card,
+.vehicle-card {
+    position: relative;
+    overflow: hidden;
+    background: var(--cockpit-panel) !important;
+    border: 1px solid var(--cockpit-line) !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.garage-vehicle-card:hover,
+.vehicle-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(var(--cockpit-primary-rgb), .42) !important;
+    box-shadow: var(--cockpit-shadow-hover) !important;
+}
+
+/* Operations, documents, admin pages ---------------------------------- */
+.operations-grid,
+.operations-forms,
+.document-upload-grid,
+.monitoring-grid,
+.admin-grid {
+    gap: 12px !important;
+}
+
+.operations-section,
+.extraction-review,
+.monitoring-section,
+.monitoring-filters,
+.connected-vehicle-row {
+    background: var(--cockpit-panel) !important;
+    border-color: var(--cockpit-line) !important;
+    border-radius: 13px !important;
+    box-shadow: none !important;
+}
+
+/* Trip explorer map ---------------------------------------------------- */
+.route-map-modal .modal-dialog {
+    max-width: min(1240px, calc(100vw - 44px));
+}
+
+.route-map-modal .modal-content {
+    overflow: hidden;
+}
+
+.route-map-modal-head {
+    align-items: flex-start;
+}
+
+.route-map-modal-head h2 {
+    margin: 3px 0 0;
+    font-size: 18px;
+}
+
+.route-map-modal-head p {
+    margin: 3px 0 0;
+    color: var(--cockpit-muted);
+    font-size: 11px;
+}
+
+.route-map-modal-body {
+    padding: 14px;
+    background: var(--cockpit-bg-2);
+}
+
+.route-map-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.route-map-stats > div {
+    min-height: 70px;
+    padding: 11px 13px;
+    background: var(--cockpit-panel);
+    border: 1px solid var(--cockpit-line);
+    border-radius: 10px;
+}
+
+.route-map-stats small,
+.route-map-stats strong {
+    display: block;
+}
+
+.route-map-stats small {
+    color: var(--cockpit-muted);
+    font-size: 7px;
+    font-weight: 850;
+    letter-spacing: .09em;
+}
+
+.route-map-stats strong {
+    margin-top: 7px;
+    font-size: 17px;
+    font-weight: 650;
+}
+
+.route-map-shell {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--cockpit-line);
+    border-radius: 12px;
+    background: #d9dce6;
+}
+
+.route-map-canvas {
+    width: 100%;
+    height: min(58vh, 600px);
+    min-height: 390px;
+}
+
+.route-map-loading {
+    position: absolute;
+    inset: 16px auto auto 50%;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    color: #fff;
+    background: rgba(9, 10, 32, .86);
+    border: 1px solid rgba(255, 255, 255, .10);
+    border-radius: 9px;
+    transform: translateX(-50%);
+    backdrop-filter: blur(12px);
+    font-size: 10px;
+}
+
+.route-map-loading[hidden] {
+    display: none;
+}
+
+.route-map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 9px 2px 0;
+    color: var(--cockpit-muted);
+    font-size: 9px;
+}
+
+.route-map-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.route-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.route-dot.start { background: #17cdb1; }
+.route-dot.stop { background: #f4b942; }
+.route-dot.charge { background: #695cff; }
+.route-dot.finish { background: #ff5470; }
+
+.route-map-div-icon {
+    background: transparent !important;
+    border: 0 !important;
+}
+
+.route-map-pin {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    color: #fff;
+    border: 3px solid rgba(255, 255, 255, .92);
+    border-radius: 50%;
+    box-shadow: 0 7px 20px rgba(0, 0, 0, .28);
+    font-size: 12px;
+}
+
+.route-map-pin.start { background: #17cdb1; }
+.route-map-pin.stop { background: #f4b942; }
+.route-map-pin.charge { background: #695cff; }
+.route-map-pin.finish { background: #ff5470; }
+
+.route-popup b,
+.route-popup span {
+    display: block;
+}
+
+.route-popup span {
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.route-map-details {
+    margin-top: 10px;
+}
+
+.route-map-detail-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.route-map-detail-chips span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 9px;
+    color: var(--cockpit-text);
+    background: var(--cockpit-panel);
+    border: 1px solid var(--cockpit-line);
+    border-radius: 8px;
+    font-size: 9px;
+}
+
+.route-map-detail-chips i {
+    color: var(--cockpit-primary);
+}
+
+.route-map-empty {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    color: var(--cockpit-text);
+    background: var(--cockpit-panel);
+    border: 1px solid var(--cockpit-line);
+    border-radius: 10px;
+}
+
+.route-map-empty > i {
+    color: var(--cockpit-primary);
+    font-size: 24px;
+}
+
+.route-map-empty b,
+.route-map-empty span {
+    display: block;
+}
+
+.route-map-empty span {
+    margin-top: 2px;
+    color: var(--cockpit-muted);
+    font-size: 10px;
+}
+
+.route-map-empty.is-error > i {
+    color: var(--cockpit-danger);
+}
+
+.leaflet-control-zoom a,
+.leaflet-control-attribution {
+    color: #2b2c42 !important;
+}
+
+/* Pagination ----------------------------------------------------------- */
+.entity-pagination .page-link {
+    color: var(--cockpit-muted);
+    background: var(--cockpit-panel);
+    border-color: var(--cockpit-line);
+}
+
+.entity-pagination .active > .page-link,
+.entity-pagination .page-link:hover {
+    color: #fff;
+    background: var(--cockpit-primary);
+    border-color: var(--cockpit-primary);
+}
+
+/* Mobile / tablet ------------------------------------------------------ */
+@media (max-width: 1180px) {
+    :root,
+    [data-bs-theme="light"],
+    [data-bs-theme="dark"] {
+        --cockpit-rail-width: 76px;
+    }
+
+    .cockpit-rail a span {
+        display: none;
+    }
+
+    .cockpit-rail a {
+        min-height: 44px;
+    }
+
+    .cockpit-topbar {
+        grid-template-columns: minmax(210px, .7fr) minmax(260px, 1fr) auto;
+        padding-inline: 16px;
+    }
+
+    .cockpit-page-title,
+    .cockpit-vehicle-copy small {
+        display: none;
+    }
+
+    .cockpit-topbar-start {
+        gap: 8px;
+    }
+
+    .cockpit-vehicle-picker .vehicle-picker-trigger {
+        min-width: 145px;
+    }
+
+    .kpis {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    :root,
+    [data-bs-theme="light"],
+    [data-bs-theme="dark"] {
+        --cockpit-rail-width: 0px;
+        --cockpit-topbar-height: 62px;
+    }
+
+    body {
+        padding-top: 62px;
+        padding-bottom: 76px;
+    }
+
+    .cockpit-topbar,
+    .cockpit-rail {
+        display: none;
+    }
+
+    .mobile-topbar {
+        display: flex !important;
+        background: color-mix(in srgb, var(--cockpit-panel) 93%, transparent) !important;
+        border-color: var(--cockpit-line) !important;
+    }
+
+    .mobile-bottom-nav {
+        display: grid !important;
+        background: color-mix(in srgb, var(--cockpit-panel) 95%, transparent) !important;
+        border-color: var(--cockpit-line) !important;
+    }
+
+    .wrap,
+    .wrap.narrow {
+        margin: 0;
+        padding: 15px 12px 34px;
+    }
+
+    .site-footer {
+        margin-right: 0;
+    }
+
+    .vehicle-hero {
+        min-height: 0;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        padding: 20px !important;
+    }
+
+    .vehicle-hero-visual {
+        min-height: 150px;
+        grid-row: 2;
+    }
+
+    .vehicle-hero-visual img {
+        max-height: 155px;
+    }
+
+    .hero-actions {
+        grid-row: 3;
+        overflow-x: auto;
+    }
+
+    .vehicle-workspace {
+        top: 0;
+    }
+
+    .live-vehicle-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .live-vehicle-metric:nth-child(even) {
+        border-right: 0 !important;
+    }
+
+    .kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .route-map-modal .modal-dialog {
+        max-width: none;
+        margin: 8px;
+    }
+
+    .route-map-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .route-map-canvas {
+        height: 58vh;
+        min-height: 340px;
+    }
+}
+
+@media (max-width: 560px) {
+    .card {
+        padding: 13px;
+        border-radius: 12px !important;
+    }
+
+    .vehicle-hero-copy h1 {
+        font-size: 27px;
+    }
+
+    .kpis,
+    .dashboard-summary-grid,
+    .garage-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .route-map-stats > div {
+        min-height: 62px;
+        padding: 9px 10px;
+    }
+
+    .route-map-stats strong {
+        font-size: 14px;
+    }
+
+    .route-map-legend {
+        gap: 8px;
+    }
+
+    .route-cell {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+.auth-body,
+.landing-body,
+.setup-body {
+    padding-top: 0 !important;
+}
+
+.auth-body .site-footer,
+.landing-body .site-footer,
+.setup-body .site-footer {
+    margin-right: 0;
+}
+
+.card h2 > .bi,
+.section-head h2 > .bi,
+.modal-title > .bi {
+    margin-right: 6px;
+    color: var(--cockpit-primary);
+}
+
+
+/* v23.1 — cockpit UX hotfixes: pagination, scrollable modals and charts -------- */
+
+/* Bootstrap pagination must stay a horizontal flex list. Older EV Stats rules
+   used the same `.pagination` class for a three-column custom component. */
+.entity-pagination .pagination {
+    display: flex !important;
+    grid-template-columns: none !important;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: auto;
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+}
+
+.entity-pagination .page-item {
+    display: block;
+    margin: 0;
+}
+
+.entity-pagination .page-link {
+    min-width: 38px;
+    min-height: 38px;
+    margin: 0 !important;
+    padding: 7px 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px !important;
+    line-height: 1;
+}
+
+.entity-pagination .page-item.disabled .page-link {
+    opacity: .45;
+}
+
+/* Lock the real scrolling root while a Bootstrap modal is open. */
+html.modal-open-root,
+body.modal-open {
+    overflow: hidden !important;
+    overscroll-behavior: none;
+}
+
+.modal {
+    overscroll-behavior: contain;
+}
+
+.modal-dialog-scrollable {
+    min-height: 0;
+    max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem);
+}
+
+.modal-dialog-scrollable .modal-content {
+    min-height: 0;
+    max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem);
+    overflow: hidden;
+}
+
+/* Several editors wrap modal-body/footer in a form. Bootstrap only constrains
+   direct flex children, therefore the form also has to participate in flex. */
+.modal-dialog-scrollable .modal-scroll-form,
+#tripEditorForm,
+#userEditorForm,
+#vehicleEditorForm {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.modal-dialog-scrollable .modal-body {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+.modal-dialog-scrollable .modal-footer,
+.modal-dialog-scrollable .modal-actions {
+    flex: 0 0 auto;
+}
+
+/* Keep primary actions visible even in long editors. */
+#tripEditorForm .modal-actions {
+    position: sticky;
+    z-index: 4;
+    bottom: -1px;
+    margin: 18px -1px -1px;
+    padding: 14px 0 2px;
+    background: linear-gradient(to bottom, transparent, var(--cockpit-panel) 18%);
+}
+
+#userEditorForm > .modal-footer,
+#vehicleEditorForm > .modal-footer {
+    position: relative;
+    z-index: 4;
+    background: var(--cockpit-panel);
+}
+
+/* Dashboard chart stage. A fixed responsive stage keeps Chart.js from
+   producing overly flat charts on wide desktop layouts. */
+.chart-card {
+    position: relative;
+}
+
+.chart-visual {
+    position: relative;
+    width: 100%;
+    height: clamp(250px, 27vw, 330px);
+    margin-top: 12px;
+    padding: 10px 8px 2px;
+    border: 1px solid rgba(var(--cockpit-primary-rgb), .08);
+    border-radius: 12px;
+    background:
+        radial-gradient(circle at 22% 8%, rgba(45, 212, 191, .07), transparent 48%),
+        rgba(255, 255, 255, .012);
+}
+
+.chart-visual.chart-visual-radar {
+    height: clamp(270px, 30vw, 350px);
+}
+
+.chart-visual canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+}
+
+@media (max-width: 760px) {
+    .entity-pagination {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .entity-pagination .pagination {
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    .modal-dialog-scrollable {
+        height: calc(100vh - 1rem);
+        height: calc(100dvh - 1rem);
+        max-height: calc(100vh - 1rem);
+        max-height: calc(100dvh - 1rem);
+        margin: .5rem;
+    }
+
+    .modal-dialog-scrollable .modal-content {
+        max-height: 100%;
+    }
+
+    .chart-visual,
+    .chart-visual.chart-visual-radar {
+        height: 280px;
     }
 }

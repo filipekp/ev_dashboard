@@ -89,7 +89,7 @@ final class AdminImportMonitoringRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function integrationRuns(?string $from, ?string $status, ?string $sourceType, int $limit = 150): array
+    public function integrationRuns(?string $from, ?string $status, ?string $sourceType, int $limit = 20, int $offset = 0): array
     {
         $conditions = [];
         $params = [];
@@ -114,7 +114,7 @@ final class AdminImportMonitoringRepository
              LEFT JOIN users u ON u.id = r.user_id
              LEFT JOIN vehicles v ON v.id = r.vehicle_id' .
              $where .
-             ' ORDER BY r.started_at DESC, r.id DESC LIMIT ' . max(1, min(500, $limit))
+             ' ORDER BY r.started_at DESC, r.id DESC LIMIT ' . max(1, min(500, $limit)) . ' OFFSET ' . max(0, $offset)
         );
         $query->execute($params);
 
@@ -122,13 +122,13 @@ final class AdminImportMonitoringRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function failedIntegrationRuns(?string $from, int $limit = 100): array
+    public function failedIntegrationRuns(?string $from, int $limit = 20, int $offset = 0): array
     {
-        return $this->integrationRuns($from, 'failed', null, $limit);
+        return $this->integrationRuns($from, 'failed', null, $limit, $offset);
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function documentRuns(?string $from, ?string $status, int $limit = 150): array
+    public function documentRuns(?string $from, ?string $status, int $limit = 20, int $offset = 0): array
     {
         $conditions = [];
         $params = [];
@@ -151,7 +151,7 @@ final class AdminImportMonitoringRepository
              LEFT JOIN users u ON u.id = r.user_id
              LEFT JOIN vehicles v ON v.id = r.vehicle_id' .
              $where .
-             ' ORDER BY r.created_at DESC, r.id DESC LIMIT ' . max(1, min(500, $limit))
+             ' ORDER BY r.created_at DESC, r.id DESC LIMIT ' . max(1, min(500, $limit)) . ' OFFSET ' . max(0, $offset)
         );
         $query->execute($params);
 
@@ -159,7 +159,7 @@ final class AdminImportMonitoringRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function unknownImports(?string $from, int $limit = 100): array
+    public function unknownImports(?string $from, int $limit = 20, int $offset = 0): array
     {
         $where = $from !== null ? ' WHERE s.created_at >= ?' : '';
         $query = $this->pdo->prepare(
@@ -169,11 +169,57 @@ final class AdminImportMonitoringRepository
              LEFT JOIN users u ON u.id = s.user_id
              LEFT JOIN vehicles v ON v.id = s.vehicle_id' .
              $where .
-             ' ORDER BY s.created_at DESC, s.id DESC LIMIT ' . max(1, min(500, $limit))
+             ' ORDER BY s.created_at DESC, s.id DESC LIMIT ' . max(1, min(500, $limit)) . ' OFFSET ' . max(0, $offset)
         );
         $query->execute($from !== null ? [$from] : []);
 
         return $query->fetchAll();
+    }
+
+
+    public function integrationRunCount(?string $from, ?string $status, ?string $sourceType): int
+    {
+        $conditions = [];
+        $params = [];
+        if ($from !== null) {
+            $conditions[] = 'started_at >= ?';
+            $params[] = $from;
+        }
+        if ($status !== null) {
+            $conditions[] = 'status = ?';
+            $params[] = $status;
+        }
+        if ($sourceType !== null) {
+            $conditions[] = 'source_type = ?';
+            $params[] = $sourceType;
+        }
+        return $this->countRows('integration_import_runs', $conditions, $params);
+    }
+
+    public function documentRunCount(?string $from, ?string $status): int
+    {
+        $conditions = [];
+        $params = [];
+        if ($from !== null) {
+            $conditions[] = 'created_at >= ?';
+            $params[] = $from;
+        }
+        if ($status !== null) {
+            $conditions[] = 'status = ?';
+            $params[] = $status;
+        }
+        return $this->countRows('document_import_runs', $conditions, $params);
+    }
+
+    public function unknownImportCount(?string $from): int
+    {
+        $conditions = [];
+        $params = [];
+        if ($from !== null) {
+            $conditions[] = 'created_at >= ?';
+            $params[] = $from;
+        }
+        return $this->countRows('unknown_import_samples', $conditions, $params);
     }
 
     /** @return array<int,string> */
@@ -186,6 +232,20 @@ final class AdminImportMonitoringRepository
         );
 
         return array_map('strval', $query->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+
+    /** @param array<int,string> $conditions @param array<int,mixed> $params */
+    private function countRows(string $table, array $conditions, array $params): int
+    {
+        $allowedTables = ['integration_import_runs', 'document_import_runs', 'unknown_import_samples'];
+        if (!in_array($table, $allowedTables, true)) {
+            return 0;
+        }
+        $where = $conditions ? ' WHERE ' . implode(' AND ', $conditions) : '';
+        $query = $this->pdo->prepare('SELECT COUNT(*) FROM ' . $table . $where);
+        $query->execute($params);
+        return (int)$query->fetchColumn();
     }
 
     /** @param array<int,mixed> $params @return array<string,mixed> */

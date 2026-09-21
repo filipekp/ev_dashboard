@@ -1,5 +1,5 @@
 <?php if (!empty($showAddVehicleModal)): ?>
-  <div class="modal-backdrop" id="addVehicleModal">
+  <div class="legacy-modal-backdrop" id="addVehicleModal">
     <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="addVehicleTitle">
       <div class="modal-head">
         <div>

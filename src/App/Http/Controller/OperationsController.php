@@ -6,6 +6,7 @@ namespace App\Http\Controller;
 
 use App\Application;
 use App\Http;
+use App\Pagination;
 use RuntimeException;
 use Throwable;
 
@@ -48,7 +49,44 @@ final class OperationsController
         $scope = $this->app->userAccess()->vehicleDetailScope($user, $vehicleId);
         $from = $scope['from'];
         $repository = $this->app->vehicleOperations();
-        $services = $repository->serviceRecords($vehicleId, 100, $from);
+        $perPage = Pagination::DEFAULT_PER_PAGE;
+        $energyPagination = Pagination::meta(
+            $repository->energyEntryCount($vehicleId, $from),
+            Pagination::currentPage('energy_page'),
+            $perPage,
+            'energy_page'
+        );
+        $servicePagination = Pagination::meta(
+            $repository->serviceRecordCount($vehicleId, $from),
+            Pagination::currentPage('service_page'),
+            $perPage,
+            'service_page'
+        );
+        $expensePagination = Pagination::meta(
+            $repository->expenseCount($vehicleId, $from),
+            Pagination::currentPage('expense_page'),
+            $perPage,
+            'expense_page'
+        );
+        $reminderPagination = Pagination::meta(
+            $repository->reminderCount($vehicleId, $from),
+            Pagination::currentPage('reminder_page'),
+            $perPage,
+            'reminder_page'
+        );
+        $tripBookPagination = Pagination::meta(
+            $repository->tripBookCount($vehicleId, $from),
+            Pagination::currentPage('trip_page'),
+            $perPage,
+            'trip_page'
+        );
+
+        $services = $repository->serviceRecords(
+            $vehicleId,
+            $perPage,
+            $from,
+            ((int)$servicePagination['page'] - 1) * $perPage
+        );
         $attachments = [];
         foreach ($services as $service) {
             $attachments[(int)$service['id']] = $repository->attachmentsForService((int)$service['id']);
@@ -61,13 +99,18 @@ final class OperationsController
             'vehicle' => $vehicle,
             'flash' => $this->app->session()->pullFlash(),
             'summary' => $repository->costSummary($vehicleId),
-            'energyEntries' => $repository->energyEntries($vehicleId, 100, $from),
+            'energyEntries' => $repository->energyEntries($vehicleId, $perPage, $from, ((int)$energyPagination['page'] - 1) * $perPage),
+            'energyPagination' => $energyPagination,
             'services' => $services,
+            'servicePagination' => $servicePagination,
             'serviceAttachments' => $attachments,
-            'expenses' => $repository->expenses($vehicleId, 100, $from),
-            'reminders' => $repository->reminders($vehicleId, $from),
-            'tripBook' => $repository->tripBookEntries($vehicleId, 100, $from),
-            'importedTrips' => $repository->tripLog($vehicleId, 30, $from),
+            'expenses' => $repository->expenses($vehicleId, $perPage, $from, ((int)$expensePagination['page'] - 1) * $perPage),
+            'expensePagination' => $expensePagination,
+            'reminders' => $repository->reminders($vehicleId, $from, $perPage, ((int)$reminderPagination['page'] - 1) * $perPage),
+            'reminderPagination' => $reminderPagination,
+            'tripBook' => $repository->tripBookEntries($vehicleId, $perPage, $from, ((int)$tripBookPagination['page'] - 1) * $perPage),
+            'tripBookPagination' => $tripBookPagination,
+            'importedTrips' => $repository->tripLog($vehicleId, 100, $from),
             'prefillTrip' => (int)($_GET['source_trip_id'] ?? 0) > 0
                 ? $repository->importedTrip($vehicleId, (int)$_GET['source_trip_id'], $from)
                 : null,
@@ -149,6 +192,7 @@ final class OperationsController
             $this->app->session()->flash($e->getMessage(), 'error');
         }
 
-        Http::redirect('operations.php?vehicle_id=' . $vehicleId);
+        $returnView = (string)($_POST['action'] ?? '') === 'add_expense' ? 'costs' : 'operations';
+        Http::redirect('operations.php?vehicle_id=' . $vehicleId . '&view=' . $returnView);
     }
 }

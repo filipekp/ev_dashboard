@@ -24,6 +24,8 @@ require __DIR__ . '/partials/header.php';
     </div>
   </section>
 
+  <?php $vehicleWorkspaceTab = 'documents'; require __DIR__ . '/partials/vehicle-workspace.php'; ?>
+
   <section class="grid2 document-upload-grid">
     <div class="card">
       <h2>✨ Vytěžit nový doklad</h2>
@@ -84,7 +86,6 @@ require __DIR__ . '/partials/header.php';
   <?php if ($run): ?>
     <?php
       $x = is_array($run['extracted'] ?? null) ? $run['extracted'] : null;
-      $isLatestRun = !$runHistory || (int)$runHistory[0]['id'] === (int)$run['id'];
     ?>
     <section class="card extraction-review">
       <div class="table-card-head document-review-head">
@@ -202,7 +203,7 @@ require __DIR__ . '/partials/header.php';
 
       <?php if ($runHistory): ?>
         <details class="extraction-history" <?= count($runHistory) > 1 ? 'open' : '' ?>>
-          <summary>Historie vytěžení · <?= count($runHistory) ?> běhů</summary>
+          <summary>Historie vytěžení · <?= (int)($runPagination['total'] ?? count($runHistory)) ?> běhů</summary>
           <div class="table-scroll">
             <table class="data-table">
               <thead><tr><th>Běh</th><th>Spuštěno</th><th>Extraktor</th><th>Jistota</th><th>Stav</th><th></th></tr></thead>
@@ -220,6 +221,9 @@ require __DIR__ . '/partials/header.php';
               </tbody>
             </table>
           </div>
+          <?php if (!empty($runPagination)): ?>
+            <?php $pagination = $runPagination; require __DIR__ . '/partials/pagination.php'; ?>
+          <?php endif; ?>
         </details>
       <?php endif; ?>
     </section>
@@ -285,6 +289,9 @@ require __DIR__ . '/partials/header.php';
         </tbody>
       </table>
     </div>
+    <?php if (!empty($documentPagination)): ?>
+      <?php $pagination = $documentPagination; require __DIR__ . '/partials/pagination.php'; ?>
+    <?php endif; ?>
   </section>
 </main>
 

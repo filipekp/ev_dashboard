@@ -59,6 +59,12 @@ function canAccessVehicle(PDO $pdo, array $user, int $vehicleId): bool { global 
 function selectVehicle(PDO $pdo, array $user): ?array { global $app; return $app->auth()->selectVehicle($user); }
 function createPasswordResetToken(PDO $pdo, int $userId, int $minutes = 60): string { global $app; return $app->auth()->createPasswordResetToken($userId, $minutes); }
 function resetUrl(string $token): string { global $app; return $app->auth()->resetUrl($token); }
+function paginationUrl(string $parameter, int $page): string {
+    $query = $_GET;
+    if ($page <= 1) { unset($query[$parameter]); } else { $query[$parameter] = $page; }
+    $path = basename((string)($_SERVER['PHP_SELF'] ?? 'index.php'));
+    return $path . ($query ? '?' . http_build_query($query) : '');
+}
 
 function powertrainLabel(string $code): string {
     $labels = ['BEV'=>'Elektromobil','PHEV'=>'Plug-in hybrid','HEV'=>'Hybrid','PETROL'=>'Benzín','DIESEL'=>'Nafta','LPG'=>'LPG','CNG'=>'CNG'];

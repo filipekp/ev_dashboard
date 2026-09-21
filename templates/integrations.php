@@ -83,9 +83,12 @@ require __DIR__ . '/partials/header.php';
             <?php endforeach; ?>
             <?php if (!$items): ?><p class="empty-table">Nemáte dostupné žádné vozidlo.</p><?php endif; ?>
         </div>
+        <?php if (!empty($pagination)): ?>
+            <?php require __DIR__ . '/partials/pagination.php'; ?>
+        <?php endif; ?>
     </section>
 
-    <?php if ($recentRuns): ?>
+    <?php if ($recentRuns || (!empty($runPagination) && (int)$runPagination['total'] > 0)): ?>
         <section class="card connected-runs-card">
             <div class="section-heading"><div><span class="section-kicker">AUTOSYNC</span><h2>Poslední synchronizace</h2></div></div>
             <div class="table-wrap">
@@ -106,6 +109,9 @@ require __DIR__ . '/partials/header.php';
                     </tbody>
                 </table>
             </div>
+            <?php if (!empty($runPagination)): ?>
+                <?php $pagination = $runPagination; require __DIR__ . '/partials/pagination.php'; ?>
+            <?php endif; ?>
         </section>
     <?php endif; ?>
 </main>

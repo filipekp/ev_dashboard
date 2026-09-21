@@ -31,9 +31,11 @@
     rateLimit: byId('vehicleConnectorRateLimit'), error: byId('vehicleConnectorError'), disconnect: byId('vehicleConnectorDisconnect')
   };
   const userChecks = Array.from(document.querySelectorAll('[data-vehicle-user]'));
+  const editorShortcuts = byId('vehicleEditorShortcuts');
+  const shortcutLinks = Array.from(document.querySelectorAll('[data-vehicle-shortcut]'));
   const electricFields = Array.from(document.querySelectorAll('[data-electric-field]'));
   const fuelFields = Array.from(document.querySelectorAll('[data-fuel-field]'));
-  let lastFocus = null;
+  const modalInstance = window.bootstrap ? window.bootstrap.Modal.getOrCreateInstance(modal) : null;
   let currentVehicle = null;
 
   const value = input => input == null ? '' : String(input);
@@ -172,10 +174,28 @@
     connector.error.hidden = error.length === 0;
   };
 
+  const syncShortcuts = vehicle => {
+    if (!editorShortcuts) return;
+    const vehicleId = Number(vehicle?.id || 0);
+    editorShortcuts.hidden = vehicleId <= 0;
+    if (vehicleId <= 0) return;
+    const urls = {
+      overview: `index.php?vehicle_id=${vehicleId}`,
+      operations: `operations.php?vehicle_id=${vehicleId}&view=operations`,
+      costs: `operations.php?vehicle_id=${vehicleId}&view=costs`,
+      documents: `documents.php?vehicle_id=${vehicleId}`,
+      timeline: `timeline.php?vehicle_id=${vehicleId}`
+    };
+    shortcutLinks.forEach(link => {
+      const target = link.dataset.vehicleShortcut;
+      if (urls[target]) link.href = urls[target];
+    });
+  };
+
   const open = vehicle => {
-    lastFocus = document.activeElement;
     currentVehicle = vehicle || null;
     const editing = !!vehicle;
+    syncShortcuts(vehicle);
     form.reset();
     fields.action.value = editing ? 'update' : 'create';
     fields.id.value = editing ? vehicle.id : '';
@@ -206,19 +226,13 @@
     fields.submit.textContent = editing ? 'Uložit změny' : 'Přidat vozidlo';
     fields.deleteZone.hidden = !editing;
 
-    modal.hidden = false;
-    modal.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('modal-open');
-    setTimeout(() => fields.name.focus(), 30);
+    if (modalInstance) {
+      modalInstance.show();
+      modal.addEventListener('shown.bs.modal', () => fields.name.focus(), { once: true });
+    }
   };
 
-  const close = () => {
-    modal.hidden = true;
-    modal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('modal-open');
-    currentVehicle = null;
-    if (lastFocus) lastFocus.focus();
-  };
+  modal.addEventListener('hidden.bs.modal', () => { currentVehicle = null; });
 
   fields.powertrain.addEventListener('change', syncPowertrain);
   fields.manufacturer.addEventListener('change', () => syncConnector(currentVehicle));
@@ -226,8 +240,6 @@
   document.querySelectorAll('[data-vehicle-edit]').forEach(button => button.addEventListener('click', () => {
     open(JSON.parse(button.dataset.vehicle));
   }));
-  document.querySelectorAll('[data-vehicle-close]').forEach(el => el.addEventListener('click', close));
-  document.addEventListener('keydown', event => { if (event.key === 'Escape' && !modal.hidden) close(); });
   fields.deleteButton?.addEventListener('click', event => {
     if (!confirm('Smazat vozidlo včetně všech importovaných jízd?')) event.preventDefault();
   });

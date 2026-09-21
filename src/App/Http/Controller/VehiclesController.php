@@ -6,6 +6,7 @@ namespace App\Http\Controller;
 
 use App\Application;
 use App\Http;
+use App\Pagination;
 use App\Security\CredentialCipher;
 use RuntimeException;
 use Throwable;
@@ -44,7 +45,18 @@ final class VehiclesController
             Http::redirect('vehicles.php');
         }
 
-        $vehicles = $this->app->auth()->allowedVehicles($me);
+        $navigationVehicles = $this->app->auth()->allowedVehicles($me);
+        $editVehicleId = max(0, (int)($_GET['edit'] ?? 0));
+        if ($editVehicleId > 0 && !isset($_GET['page'])) {
+            foreach ($navigationVehicles as $vehicleIndex => $navigationVehicle) {
+                if ((int)$navigationVehicle['id'] === $editVehicleId) {
+                    $_GET['page'] = (int)floor($vehicleIndex / Pagination::DEFAULT_PER_PAGE) + 1;
+                    break;
+                }
+            }
+        }
+        $vehiclePage = Pagination::slice($navigationVehicles, 'page');
+        $vehicles = $vehiclePage['items'];
         foreach ($vehicles as &$vehicle) {
             $q = $pdo->prepare('SELECT COUNT(*) FROM trips WHERE vehicle_id=?');
             $q->execute([(int)$vehicle['id']]);
@@ -80,6 +92,8 @@ final class VehiclesController
             'app' => $this->app,
             'me' => $me,
             'vehicles' => $vehicles,
+            'navigationVehicles' => $navigationVehicles,
+            'pagination' => $vehiclePage['pagination'],
             'users' => $users,
             'assigned' => $assigned,
             'connectorSecurityReady' => CredentialCipher::isConfigured(

@@ -26,7 +26,7 @@
   };
   const vehicleChecks = Array.from(document.querySelectorAll('[data-user-vehicle]'));
   const currentUserId = Number(modal.dataset.currentUserId || 0);
-  let lastFocus = null;
+  const modalInstance = window.bootstrap ? window.bootstrap.Modal.getOrCreateInstance(modal) : null;
 
   const setAssignments = ids => {
     const selected = new Set((ids || []).map(Number));
@@ -42,7 +42,6 @@
   fields.role?.addEventListener('change', syncHierarchyFields);
 
   const open = user => {
-    lastFocus = document.activeElement;
     const editing = !!user;
     form.reset();
     fields.action.value = editing ? 'update' : 'create';
@@ -65,25 +64,16 @@
     fields.submit.textContent = editing ? 'Uložit změny' : 'Přidat uživatele';
     fields.deleteZone.hidden = !editing || Number(user.id) === currentUserId;
 
-    modal.hidden = false;
-    modal.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('modal-open');
-    setTimeout(() => fields.name.focus(), 30);
-  };
-
-  const close = () => {
-    modal.hidden = true;
-    modal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('modal-open');
-    if (lastFocus) lastFocus.focus();
+    if (modalInstance) {
+      modalInstance.show();
+      modal.addEventListener('shown.bs.modal', () => fields.name.focus(), { once: true });
+    }
   };
 
   document.querySelector('[data-user-create]')?.addEventListener('click', () => open(null));
   document.querySelectorAll('[data-user-edit]').forEach(button => button.addEventListener('click', () => {
     open(JSON.parse(button.dataset.user));
   }));
-  document.querySelectorAll('[data-user-close]').forEach(el => el.addEventListener('click', close));
-  document.addEventListener('keydown', event => { if (event.key === 'Escape' && !modal.hidden) close(); });
   fields.deleteButton?.addEventListener('click', event => {
     if (!confirm('Opravdu smazat uživatele?')) event.preventDefault();
   });

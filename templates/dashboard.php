@@ -1,7 +1,9 @@
 <?php
 $pageTitle = 'Dashboard';
 $showNavigation = true;
-$pageHead = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>';
+$pageHead = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>'
+    . '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">'
+    . '<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>';
 require __DIR__ . '/partials/header.php';
 ?>
 <?php
@@ -47,6 +49,7 @@ require __DIR__ . '/partials/header.php';
             <a class="hero-action" href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>"><b>＋ Přidat záznam</b><small>Nabíjení, tankování, servis</small></a>
         </div>
     </section>
+    <?php $vehicleWorkspaceTab = 'overview'; require __DIR__ . '/partials/vehicle-workspace.php'; ?>
     <?php if ($flash): ?>
         <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div>
     <?php endif; ?>
@@ -113,7 +116,7 @@ require __DIR__ . '/partials/header.php';
         </section>
     <?php endif; ?>
     <?php if ($newVehicleModal): ?>
-        <div class="modal-backdrop" id="newVehicleModal">
+        <div class="legacy-modal-backdrop" id="newVehicleModal">
             <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="newVehicleTitle">
                 <div class="modal-head">
                     <div><small>NOVÉ VOZIDLO ROZPOZNÁNO</small>
@@ -226,16 +229,16 @@ require __DIR__ . '/partials/header.php';
     </section>
 
     <section class="grid2">
-        <div class="card chart-card"><h2>📈 <?= $hasTractionBattery ? 'Měsíční nájezd a průměrná spotřeba' : 'Měsíční nájezd' ?></h2>
-            <p><?= $hasTractionBattery ? 'Kilometry (sloupce) vs. spotřeba v kWh/100 km (křivka)' : 'Ujeté kilometry v jednotlivých měsících' ?></p>
-            <canvas id="monthly"></canvas>
+        <div class="card chart-card"><h2><i class="bi bi-graph-up-arrow"></i> <?= $hasTractionBattery ? 'Měsíční nájezd a průměrná spotřeba' : 'Měsíční nájezd' ?></h2>
+            <p><?= $hasTractionBattery ? 'Vývoj nájezdu jako plošný trend a spotřeba jako samostatná křivka' : 'Ujeté kilometry v jednotlivých měsících' ?></p>
+            <div class="chart-visual"><canvas id="monthly"></canvas></div>
         </div>
-        <div class="card chart-card"><h2>⏰ Denní rytmus (v kolik hodin vyjíždíte)</h2>
+        <div class="card chart-card"><h2><i class="bi bi-clock-history"></i> Denní rytmus (v kolik hodin vyjíždíte)</h2>
             <p>Četnost výjezdů podle hodin dne</p>
-            <canvas id="hours"></canvas>
+            <div class="chart-visual"><canvas id="hours"></canvas></div>
         </div>
         <?php if ($hasTractionBattery): ?>
-            <div class="card energy"><h2>⚡ Energetická bilance a nabíjecí lokality</h2><?php if ($chargeDataAvailable): ?><p>Odhad energie podle veřejného nabíjení zaznamenaného v importu</p>
+            <div class="card energy"><h2><i class="bi bi-lightning-charge-fill"></i> Energetická bilance a nabíjecí lokality</h2><?php if ($chargeDataAvailable): ?><p>Odhad energie podle veřejného nabíjení zaznamenaného v importu</p>
                     <div class="energy-layout">
                         <div class="energy-chart-wrap"><canvas id="energy" width="120" height="120"></canvas></div>
                         <div class="energy-list">
@@ -253,7 +256,7 @@ require __DIR__ . '/partials/header.php';
                 <?php endif; ?>
             </div>
         <?php else: ?>
-            <div class="card energy"><h2>⛽ Provozní náklady</h2>
+            <div class="card energy"><h2><i class="bi bi-wallet2"></i> Provozní náklady</h2>
                 <p>Souhrn ručně evidovaného provozu vozidla</p>
                 <div class="energy-list">
                     <div><b class="green">⛽ Palivo</b><strong><?= cz((float)$operationSummary['energy_cost'], 0) ?> Kč</strong><small>tankování</small></div>
@@ -263,11 +266,11 @@ require __DIR__ . '/partials/header.php';
                 <footer>Celkem: <b><?= cz((float)$operationSummary['total_cost'], 0) ?> Kč</b><span><a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">doplnit provozní evidenci</a></span></footer>
             </div>
         <?php endif; ?>
-        <div class="card chart-card"><h2>🏎 <?= $hasTractionBattery ? 'Spotřeba podle rychlostních pásem' : 'Nájezd podle rychlostních pásem' ?></h2>
+        <div class="card chart-card"><h2><i class="bi bi-speedometer"></i> <?= $hasTractionBattery ? 'Spotřeba podle rychlostních pásem' : 'Nájezd podle rychlostních pásem' ?></h2>
             <p><?= $hasTractionBattery ? 'Jízdy jsou seskupené podle průměrné rychlosti' : 'Ujeté kilometry podle průměrné rychlosti jízd' ?></p>
-            <canvas id="speed"></canvas>
+            <div class="chart-visual chart-visual-radar"><canvas id="speed"></canvas></div>
         </div>
-        <div class="card"><h2>🔄 Pravidelné dojíždění</h2>
+        <div class="card"><h2><i class="bi bi-arrow-repeat"></i> Pravidelné dojíždění</h2>
             <p>Nejčastější směry v importovaných datech</p><?php if ($routes): ?>
                 <div class="route-cards"><?php $i = 0; foreach ($routes as $name => $r) { if ($i++ >= 2) { break; } $c = $r['km'] ? $r['kwh'] / $r['km'] * 100 : 0; ?>
                         <div><b><?= h($name) ?></b><span><?= $r['count'] ?>×</span><?php if ($hasTractionBattery): ?><strong><?= cz($c, 1) ?> <em>kWh/100 km</em></strong><?php endif; ?><small>Průměrná délka: <?= cz($r['km'] / $r['count'], 1) ?> km</small></div>
@@ -279,14 +282,14 @@ require __DIR__ . '/partials/header.php';
                 <div class="battery">🧾 <b>Provozní evidence</b><span>Tankování, servis, náklady a připomínky jsou vedené odděleně od importovaných jízd.</span><mark><a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">Otevřít</a></mark></div>
             <?php endif; ?>
         </div>
-        <div class="card"><h2>📍 Nejčastější pravidelné trasy</h2>
+        <div class="card"><h2><i class="bi bi-signpost-split"></i> Nejčastější pravidelné trasy</h2>
             <p>Statistika tras s nejvyšším počtem opakování</p><?php if ($routes): ?>
                 <div class="route-list"><?php $i = 0; foreach ($routes as $name => $r) { if ($i++ >= 3) { break; } $c = $r['km'] ? $r['kwh'] / $r['km'] * 100 : 0; ?>
                         <div><span><b><?= h($name) ?></b><small><?= cz($r['km'] / $r['count'], 1) ?> km průměr</small></span><?php if ($hasTractionBattery): ?><mark><?= cz($c, 1) ?> kWh/100 km</mark><?php endif; ?><small><?= $r['count'] ?>× jízda</small></div>
                     <?php } ?></div>
             <?php else: ?><p><b>Trasy nejsou dostupné.</b> Import neobsahuje GPS ani adresy.</p><?php endif; ?></div>
     </section>
-    <section class="card table-card"><h2>🗺 Cesty &gt; 80 km <span class="pill"><?= $longTripCount ?> tras</span></h2>
+    <section class="card table-card"><h2><i class="bi bi-map"></i> Cesty &gt; 80 km <span class="pill"><?= $longTripCount ?> tras</span></h2>
         <p><?= $hasTractionBattery ? 'Přehled delších tras včetně nabíjení na cestách' : 'Přehled delších tras vozidla' ?></p>
         <div class="table-wrap">
             <table>
@@ -308,7 +311,14 @@ require __DIR__ . '/partials/header.php';
                 <tbody><?php foreach ($longTrips as $t): ?>
                     <tr>
                         <td><?= date('d.m.Y H:i', strtotime($t['started_at'])) ?></td>
-                        <td><b><?= h(displayRoute($t['start_address'], $t['end_address'])) ?></b></td>
+                        <td>
+                            <div class="route-cell">
+                                <b><?= h(displayRoute($t['start_address'], $t['end_address'])) ?></b>
+                                <?php if (($t['start_lat'] ?? null) !== null || ($t['end_lat'] ?? null) !== null || strpos((string)($t['source_format'] ?? ''), 'telemetry_') === 0): ?>
+                                    <button type="button" class="route-map-trigger" data-trip-map="<?= (int)$t['id'] ?>" title="Zobrazit trasu na mapě"><i class="bi bi-map"></i> Mapa</button>
+                                <?php endif; ?>
+                            </div>
+                        </td>
                         <td><b><?= cz($t['distance_km'], 1) ?> km</b></td>
                         <td><?= intdiv((int)$t['driving_minutes'], 60) ?> h <?= ((int)$t['driving_minutes']) % 60 ?> m</td>
                         <td><?= cz($t['avg_speed_kmh'], 0) ?> km/h</td>
@@ -321,10 +331,13 @@ require __DIR__ . '/partials/header.php';
                 <?php endforeach; ?></tbody>
             </table>
         </div>
+        <?php if ($longTripPages > 1): ?>
+            <?php $pagination = \App\Pagination::meta((int)$longTripCount, (int)$longTripPage, 20, 'long_page'); require __DIR__ . '/partials/pagination.php'; ?>
+        <?php endif; ?>
     </section>
     <section class="card table-card history-card">
         <div class="table-card-head">
-            <div><h2>📋 Seznam a historie jízd</h2>
+            <div><h2><i class="bi bi-list-ul"></i> Seznam a historie jízd</h2>
                 <p>Jízdy v aktuálním filtru · stránka <?= $historyPage ?> z <?= $historyPages ?></p></div>
             <div class="history-actions">
                 <button class="btn btn-primary" type="button" data-trip-create>＋ Přidat jízdu</button>
@@ -351,7 +364,11 @@ require __DIR__ . '/partials/header.php';
                 <tbody><?php foreach ($historyTrips as $t): ?>
                     <tr>
                         <td><?= date('d.m.Y H:i', strtotime($t['started_at'])) ?></td>
-                        <td><b><?= h(displayRoute($t['start_address'], $t['end_address'])) ?></b></td>
+                        <td>
+                            <div class="route-cell">
+                                <b><?= h(displayRoute($t['start_address'], $t['end_address'])) ?></b>
+                            </div>
+                        </td>
                         <td><b><?= cz($t['distance_km'], 1) ?></b></td>
                         <td><?= cz($t['driving_minutes'], 0) ?>m</td>
                         <td><?= cz($t['avg_speed_kmh'], 0) ?> km/h</td>
@@ -364,22 +381,20 @@ require __DIR__ . '/partials/header.php';
                             <td><b><?= $t['avg_fuel_consumption_l_100'] !== null ? cz($t['avg_fuel_consumption_l_100'], 1) : '—' ?></b> <?= h(fuelUnit($powertrain)) ?>/100 km</td>
                             <td><b><?= $t['fuel_consumed_l'] !== null ? cz($t['fuel_consumed_l'], 1) : '—' ?></b> <?= h(fuelUnit($powertrain)) ?></td>
                         <?php endif; ?>
-                        <td class="trip-actions-col"><button type="button" class="icon-action" data-trip-edit="<?= (int)$t['id'] ?>" title="Upravit jízdu" aria-label="Upravit jízdu">✎</button></td>
+                        <td class="trip-actions-col">
+                            <div class="trip-row-actions">
+                                <?php if (($t['start_lat'] ?? null) !== null || ($t['end_lat'] ?? null) !== null || strpos((string)($t['source_format'] ?? ''), 'telemetry_') === 0): ?>
+                                    <button type="button" class="icon-action map-action" data-trip-map="<?= (int)$t['id'] ?>" title="Zobrazit trasu" aria-label="Zobrazit trasu na mapě"><i class="bi bi-map"></i></button>
+                                <?php endif; ?>
+                                <button type="button" class="icon-action" data-trip-edit="<?= (int)$t['id'] ?>" title="Upravit jízdu" aria-label="Upravit jízdu"><i class="bi bi-pencil"></i></button>
+                            </div>
+                        </td>
                     </tr>
                 <?php endforeach; ?></tbody>
             </table>
         </div>
         <?php if ($historyPages > 1): ?>
-            <nav class="pagination" aria-label="Stránkování historie jízd">
-                <?php if ($historyPage > 1): ?><a
-                    href="?vehicle_id=<?= $vehicle['id'] ?>&amp;period=<?= h($period) ?>&amp;year=<?= h($selectedYear) ?>&amp;page=<?= $historyPage - 1 ?>">
-                        ←
-                        Předchozí</a><?php endif; ?>
-                <span>Stránka <b><?= $historyPage ?></b> / <?= $historyPages ?> · <?= $tripCount ?> jízd</span>
-                <?php if ($historyPage < $historyPages): ?><a
-                    href="?vehicle_id=<?= $vehicle['id'] ?>&amp;period=<?= h($period) ?>&amp;year=<?= h($selectedYear) ?>&amp;page=<?= $historyPage + 1 ?>">
-                        Další →</a><?php endif; ?>
-            </nav>
+            <?php $pagination = \App\Pagination::meta((int)$tripCount, (int)$historyPage, 20, 'page'); require __DIR__ . '/partials/pagination.php'; ?>
         <?php endif; ?>
     </section>
 
@@ -413,14 +428,48 @@ foreach ($historyTrips as $tripRow) {
     ];
 }
 ?>
-<div class="app-modal" id="tripEditorModal" hidden aria-hidden="true">
-    <div class="app-modal-backdrop" data-trip-close></div>
-    <section class="app-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tripEditorTitle">
-        <header class="app-modal-head">
+<div class="modal fade route-map-modal" id="tripMapModal" tabindex="-1" aria-labelledby="tripMapTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header route-map-modal-head">
+                <div>
+                    <span class="eyebrow">TRIP EXPLORER</span>
+                    <h2 class="modal-title" id="tripMapTitle"><i class="bi bi-map"></i> Trasa jízdy</h2>
+                    <p id="tripMapSubtitle">Načítám mapová data…</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zavřít"></button>
+            </div>
+            <div class="modal-body route-map-modal-body">
+                <div class="route-map-stats" id="tripMapStats">
+                    <div><small>VZDÁLENOST</small><strong>—</strong></div>
+                    <div><small>ČAS JÍZDY</small><strong>—</strong></div>
+                    <div><small>PRŮMĚRNÁ RYCHLOST</small><strong>—</strong></div>
+                    <div><small>TRASA</small><strong>—</strong></div>
+                </div>
+                <div class="route-map-shell">
+                    <div id="tripRouteMap" class="route-map-canvas" aria-label="Mapa trasy"></div>
+                    <div class="route-map-loading" id="tripMapLoading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Načítám trasu…</div>
+                </div>
+                <div class="route-map-legend">
+                    <span><i class="route-dot start"></i> Start</span>
+                    <span><i class="route-dot stop"></i> Zastávka</span>
+                    <span><i class="route-dot charge"></i> Nabíjení</span>
+                    <span><i class="route-dot finish"></i> Cíl</span>
+                </div>
+                <div class="route-map-details" id="tripMapDetails"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="tripEditorModal" tabindex="-1" aria-labelledby="tripEditorTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <header class="modal-header">
             <div><span class="eyebrow">HISTORIE JÍZD</span><h2 id="tripEditorTitle">Přidat jízdu</h2><p id="tripEditorSubtitle">Zapište jízdu ručně bez CSV importu.</p></div>
-            <button class="modal-close" type="button" data-trip-close aria-label="Zavřít">×</button>
+            <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Zavřít"></button>
         </header>
-        <form method="post" class="app-modal-body" id="tripEditorForm">
+        <form method="post" id="tripEditorForm" class="modal-scroll-form">
+            <div class="modal-body">
             <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
             <input type="hidden" name="action" value="save_trip">
             <input type="hidden" name="vehicle_id" value="<?= (int)$vehicle['id'] ?>">
@@ -450,9 +499,11 @@ foreach ($historyTrips as $tripRow) {
                 <label class="span-2"><span>Poznámka</span><textarea name="trip_note" id="trip_trip_note" rows="3" maxlength="500" placeholder="Volitelná poznámka k jízdě"></textarea></label>
             </div>
             <div class="trip-editor-info" id="tripEditorInfo" hidden>Importovaná jízda. Uložením upravíte data této jízdy; původní CSV soubor se nemění.</div>
-            <div class="modal-actions"><button type="button" class="btn" data-trip-close>Zrušit</button><button type="submit" class="btn btn-primary">Uložit jízdu</button></div>
+            <div class="modal-actions"><button type="button" class="btn" data-bs-dismiss="modal">Zrušit</button><button type="submit" class="btn btn-primary">Uložit jízdu</button></div>
+            </div>
         </form>
-    </section>
+      </div>
+    </div>
 </div>
 <script nonce="<?= h(cspNonce()) ?>" type="application/json" id="tripEditorData"><?= json_encode($tripEditorData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
 <section class="dashboard-revolution-grid">
@@ -461,106 +512,235 @@ foreach ($historyTrips as $tripRow) {
 </section>
 </main>
 <script nonce="<?= h(cspNonce()) ?>">
-    const monthlyLabels = <?=json_encode($monthLabels, JSON_UNESCAPED_UNICODE)?>, monthlyKm = <?=json_encode($monthKm)?>,
-        monthlyCons = <?=json_encode($monthCons)?>;
-    const hours = <?=json_encode(array_values($hourData))?>, speedLabels = <?=json_encode($bandLabels, JSON_UNESCAPED_UNICODE)?>,
-        speedValues = <?=json_encode($hasTractionBattery ? $bandValues : $bandKm)?>;
-    const grid = 'rgba(148,163,184,.12)', tick = '#9fb4d0';
-    Chart.defaults.color = tick;
+    const monthlyLabels = <?=json_encode($monthLabels, JSON_UNESCAPED_UNICODE)?>;
+    const monthlyKm = <?=json_encode($monthKm)?>;
+    const monthlyCons = <?=json_encode($monthCons)?>;
+    const hours = <?=json_encode(array_values($hourData))?>;
+    const speedLabels = <?=json_encode($bandLabels, JSON_UNESCAPED_UNICODE)?>;
+    const speedValues = <?=json_encode($hasTractionBattery ? $bandValues : $bandKm)?>;
+
+    const themeStyles = getComputedStyle(document.documentElement);
+    const chartGrid = themeStyles.getPropertyValue('--chart-grid').trim() || 'rgba(148,163,184,.12)';
+    const chartText = themeStyles.getPropertyValue('--chart-text').trim() || '#94a3b8';
+    const chartPanel = themeStyles.getPropertyValue('--cockpit-panel').trim() || '#101225';
+    const chartStrong = themeStyles.getPropertyValue('--cockpit-text').trim() || '#f8fafc';
+    const chartMuted = themeStyles.getPropertyValue('--cockpit-muted').trim() || '#94a3b8';
+    const palette = {
+        teal: '#2dd4bf',
+        emerald: '#22c55e',
+        amber: '#f59e0b',
+        coral: '#fb7185',
+        sky: '#38bdf8',
+        lime: '#a3e635'
+    };
+
+    Chart.defaults.color = chartText;
     Chart.defaults.font.family = 'Inter,system-ui,sans-serif';
-    new Chart(document.getElementById('monthly'), {
-        data   : {
-            labels  : monthlyLabels,
-            datasets: [{
-                type           : 'bar',
-                label          : 'Ujeto km',
-                data           : monthlyKm,
-                borderWidth    : 1,
-                borderRadius   : 7,
-                backgroundColor: 'rgba(16,185,129,.35)',
-                borderColor    : '#10b981',
-                yAxisID        : 'y'
-            }<?php if ($hasTractionBattery): ?>, {
-                type           : 'line',
-                label          : 'Spotřeba (kWh/100km)',
-                data           : monthlyCons,
-                borderColor    : '#22d3ee',
-                backgroundColor: '#22d3ee',
-                tension        : .3,
-                yAxisID        : 'y1'
-            }<?php endif; ?>]
+    Chart.defaults.animation.duration = 520;
+
+    const gradient = (canvas, color, alphaTop = .34) => {
+        const ctx = canvas.getContext('2d');
+        const fill = ctx.createLinearGradient(0, 0, 0, Math.max(canvas.parentElement?.clientHeight || 280, 220));
+        const rgb = color.replace('#', '').match(/.{2}/g).map(hex => parseInt(hex, 16));
+        fill.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alphaTop})`);
+        fill.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+        return fill;
+    };
+
+    const commonPlugins = {
+        legend: {
+            position: 'top',
+            align: 'end',
+            labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 7, boxHeight: 7, padding: 18 }
         },
-        options: {
-            responsive: true,
-            scales    : {
-                x : { grid: { color: grid } },
-                y : { grid: { color: grid }, beginAtZero: true },
-                <?php if ($hasTractionBattery): ?>y1: { position: 'right', grid: { drawOnChartArea: false } }<?php endif; ?>
-            }
+        tooltip: {
+            backgroundColor: chartPanel,
+            titleColor: chartStrong,
+            bodyColor: chartMuted,
+            borderColor: chartGrid,
+            borderWidth: 1,
+            padding: 11,
+            cornerRadius: 10,
+            displayColors: true
         }
-    });
-    new Chart(document.getElementById('hours'), {
-        type   : 'bar',
-        data   : {
-            labels  : Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0') + ':00'),
-            datasets: [{
-                data           : hours,
-                backgroundColor: hours.map((v, i) => [7, 8, 16, 17].includes(i) ? '#10b981' : 'rgba(56,189,248,.45)'),
-                borderRadius   : 6
-            }]
-        },
-        options: {
-            plugins: { legend: { display: false } },
-            scales : { x: { grid: { color: grid } }, y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: grid } } }
-        }
-    });
-    <?php if ($hasTractionBattery && $chargeDataAvailable): ?>
-    const energyCanvas = document.getElementById('energy');
-    new Chart(energyCanvas, {
-        type   : 'doughnut',
-        data   : {
-            labels  : ['AC / ostatní', 'Veřejné DC'],
-            datasets: [{
-                data           : [
-                    <?=round($homeKwh, 2)?>,
-                    <?=round($publicKwh, 2)?>
-                ],
-                backgroundColor: ['#10b981', '#f59e0b'],
-                borderWidth    : 0
-            }]
-        },
-        options: {
-            events : [],
-            cutout : '72%',
-            plugins: {
-                legend : {
-                    display: false
-                },
-                tooltip: {
-                    enabled: false
+    };
+
+    const monthlyCanvas = document.getElementById('monthly');
+    if (monthlyCanvas) {
+        new Chart(monthlyCanvas, {
+            type: 'line',
+            data: {
+                labels: monthlyLabels,
+                datasets: [{
+                    label: 'Ujeto km',
+                    data: monthlyKm,
+                    borderColor: palette.teal,
+                    backgroundColor: gradient(monthlyCanvas, palette.teal, .32),
+                    fill: true,
+                    tension: .38,
+                    borderWidth: 2.4,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: palette.teal,
+                    pointBorderColor: chartPanel,
+                    pointBorderWidth: 2,
+                    yAxisID: 'y'
+                }<?php if ($hasTractionBattery): ?>, {
+                    label: 'Spotřeba kWh/100 km',
+                    data: monthlyCons,
+                    borderColor: palette.amber,
+                    backgroundColor: palette.amber,
+                    fill: false,
+                    tension: .36,
+                    borderWidth: 2.2,
+                    pointRadius: 2.5,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: palette.amber,
+                    pointBorderColor: chartPanel,
+                    pointBorderWidth: 2,
+                    yAxisID: 'y1'
+                }<?php endif; ?>]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: commonPlugins,
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: chartText } },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: chartGrid, drawBorder: false },
+                        ticks: { color: chartText },
+                        title: { display: true, text: 'km', color: chartText }
+                    }<?php if ($hasTractionBattery): ?>,
+                    y1: {
+                        position: 'right',
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: palette.amber },
+                        title: { display: true, text: 'kWh/100 km', color: palette.amber }
+                    }<?php endif; ?>
                 }
             }
-        }
-    });
+        });
+    }
+
+    const hoursCanvas = document.getElementById('hours');
+    if (hoursCanvas) {
+        new Chart(hoursCanvas, {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0') + ':00'),
+                datasets: [{
+                    label: 'Počet výjezdů',
+                    data: hours,
+                    borderColor: palette.coral,
+                    backgroundColor: gradient(hoursCanvas, palette.coral, .30),
+                    fill: true,
+                    tension: .42,
+                    borderWidth: 2.4,
+                    pointRadius: hours.map(value => value > 0 ? 2.5 : 0),
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: palette.coral,
+                    pointBorderColor: chartPanel,
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'nearest', intersect: false },
+                plugins: {
+                    ...commonPlugins,
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: chartText, maxRotation: 0, callback: function(value, index) { return index % 3 === 0 ? this.getLabelForValue(value) : ''; } }
+                    },
+                    y: { beginAtZero: true, ticks: { precision: 0, color: chartText }, grid: { color: chartGrid } }
+                }
+            }
+        });
+    }
+
+    <?php if ($hasTractionBattery && $chargeDataAvailable): ?>
+    const energyCanvas = document.getElementById('energy');
+    if (energyCanvas) {
+        new Chart(energyCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: ['AC / ostatní', 'Veřejné DC'],
+                datasets: [{
+                    data: [<?=round($homeKwh, 2)?>, <?=round($publicKwh, 2)?>],
+                    backgroundColor: [palette.emerald, palette.amber],
+                    hoverBackgroundColor: [palette.teal, '#fbbf24'],
+                    borderColor: chartPanel,
+                    borderWidth: 5,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '70%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: commonPlugins.tooltip
+                }
+            }
+        });
+    }
     <?php endif; ?>
-    new Chart(document.getElementById('speed'), {
-        type   : 'bar',
-        data   : {
-            labels  : speedLabels,
-            datasets: [{ label: <?= json_encode($hasTractionBattery ? 'kWh/100 km' : 'km', JSON_UNESCAPED_UNICODE) ?>, data: speedValues, backgroundColor: ['#22d3ee', '#10b981', '#f59e0b', '#f43f5e'], borderRadius: 7 }]
-        },
-        options: {
-            plugins: { legend: { display: false } },
-            scales : { x: { grid: { color: grid } }, y: { grid: { color: grid }, beginAtZero: true } }
-        }
-    });
+
+    const speedCanvas = document.getElementById('speed');
+    if (speedCanvas) {
+        new Chart(speedCanvas, {
+            type: 'radar',
+            data: {
+                labels: speedLabels,
+                datasets: [{
+                    label: <?= json_encode($hasTractionBattery ? 'kWh/100 km' : 'km', JSON_UNESCAPED_UNICODE) ?>,
+                    data: speedValues,
+                    borderColor: palette.sky,
+                    backgroundColor: 'rgba(56,189,248,.16)',
+                    pointBackgroundColor: palette.lime,
+                    pointBorderColor: chartPanel,
+                    pointHoverBackgroundColor: palette.coral,
+                    pointRadius: 4,
+                    pointHoverRadius: 7,
+                    borderWidth: 2.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    ...commonPlugins,
+                    legend: { display: false }
+                },
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        angleLines: { color: chartGrid },
+                        grid: { color: chartGrid },
+                        pointLabels: { color: chartText, font: { size: 11, weight: '600' } },
+                        ticks: { display: false, backdropColor: 'transparent' }
+                    }
+                }
+            }
+        });
+    }
 </script>
 
 <script nonce="<?= h(cspNonce()) ?>">
 (() => {
+    const initTripEditor = () => {
     const modal = document.getElementById('tripEditorModal');
     const form = document.getElementById('tripEditorForm');
-    if (!modal || !form) return;
+    if (!modal || !form || !window.bootstrap) return;
+    const modalInstance = bootstrap.Modal.getOrCreateInstance(modal);
     const data = JSON.parse(document.getElementById('tripEditorData')?.textContent || '{}');
     const fields = ['started_at','ended_at','start_address','end_address','distance_km','start_odometer_km','end_odometer_km','driving_minutes','avg_speed_kmh','classification','consumed_kwh','avg_consumption_kwh_100','fuel_consumed_l','avg_fuel_consumption_l_100','start_soc','end_soc','public_charging_stops','public_charge_soc_gained','trip_note'];
     const set = (name, value) => { const el = document.getElementById('trip_' + name); if (el) el.value = value ?? ''; };
@@ -574,14 +754,181 @@ foreach ($historyTrips as $tripRow) {
         document.getElementById('tripEditorSubtitle').textContent = trip ? 'Upravujete záznam přímo v historii jízd.' : 'Zapište jízdu ručně bez CSV importu.';
         const info = document.getElementById('tripEditorInfo');
         if (info) info.hidden = !trip || trip.source_format === 'manual';
-        modal.hidden = false; modal.setAttribute('aria-hidden','false'); document.body.classList.add('modal-open');
-        setTimeout(() => document.getElementById('trip_started_at')?.focus(), 30);
+        modalInstance.show();
     };
-    const close = () => { modal.hidden = true; modal.setAttribute('aria-hidden','true'); document.body.classList.remove('modal-open'); };
     document.querySelector('[data-trip-create]')?.addEventListener('click', () => open());
     document.querySelectorAll('[data-trip-edit]').forEach(btn => btn.addEventListener('click', () => open(data[btn.dataset.tripEdit] || null)));
-    modal.querySelectorAll('[data-trip-close]').forEach(el => el.addEventListener('click', close));
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) close(); });
+    modal.addEventListener('shown.bs.modal', () => document.getElementById('trip_started_at')?.focus());
+
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTripEditor, { once: true });
+    } else {
+        initTripEditor();
+    }
+})();
+</script>
+
+<script nonce="<?= h(cspNonce()) ?>">
+(() => {
+    const initTripMap = () => {
+        const modal = document.getElementById('tripMapModal');
+        const mapElement = document.getElementById('tripRouteMap');
+        if (!modal || !mapElement) return;
+
+        const details = document.getElementById('tripMapDetails');
+        if (!window.L) {
+            if (details) details.innerHTML = '<div class="route-map-empty is-error"><i class="bi bi-exclamation-triangle"></i><div><b>Mapová knihovna se nenačetla.</b><span>Zkontrolujte připojení k CDN a obnovte stránku.</span></div></div>';
+            return;
+        }
+        if (!window.bootstrap) {
+            if (details) details.innerHTML = '<div class="route-map-empty is-error"><i class="bi bi-exclamation-triangle"></i><div><b>Dialog mapy se nepodařilo inicializovat.</b><span>Obnovte stránku a zkuste to znovu.</span></div></div>';
+            return;
+        }
+
+        const modalInstance = bootstrap.Modal.getOrCreateInstance(modal);
+        const loading = document.getElementById('tripMapLoading');
+        const subtitle = document.getElementById('tripMapSubtitle');
+        const stats = Array.from(document.querySelectorAll('#tripMapStats > div strong'));
+        let map = null;
+        let routeLayer = null;
+        let markerLayer = null;
+        let activeTrip = 0;
+
+        const fmt = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 1 });
+        const time = value => {
+            if (!value) return '—';
+            const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+            const date = new Date(normalized);
+            return Number.isNaN(date.getTime()) ? value : date.toLocaleString('cs-CZ', { dateStyle: 'short', timeStyle: 'short' });
+        };
+        const safe = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+
+        const ensureMap = () => {
+            if (map) return map;
+            map = L.map(mapElement, { zoomControl: true, preferCanvas: true });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+            routeLayer = L.layerGroup().addTo(map);
+            markerLayer = L.layerGroup().addTo(map);
+            return map;
+        };
+
+        const marker = (point, kind, title, body) => {
+            const icon = L.divIcon({
+                className: 'route-map-div-icon',
+                html: `<span class="route-map-pin ${kind}"><i class="bi ${kind === 'charge' ? 'bi-lightning-charge-fill' : kind === 'start' ? 'bi-play-fill' : kind === 'finish' ? 'bi-flag-fill' : 'bi-pause-fill'}"></i></span>`,
+                iconSize: [34, 34],
+                iconAnchor: [17, 17]
+            });
+            return L.marker([point.lat, point.lng], { icon }).bindPopup(`<div class="route-popup"><b>${safe(title)}</b>${body ? `<span>${body}</span>` : ''}</div>`);
+        };
+
+        const paint = data => {
+            const m = ensureMap();
+            routeLayer.clearLayers();
+            markerLayer.clearLayers();
+            const points = data.route?.points || [];
+            const trip = data.trip || {};
+
+            subtitle.textContent = `${trip.start_address || 'Start'} → ${trip.end_address || 'Cíl'}`;
+            stats[0].textContent = `${fmt.format(trip.distance_km || 0)} km`;
+            stats[1].textContent = `${trip.driving_minutes || 0} min`;
+            stats[2].textContent = trip.avg_speed_kmh == null ? '—' : `${fmt.format(trip.avg_speed_kmh)} km/h`;
+            stats[3].textContent = data.route?.source === 'telemetry' ? 'GPS / telemetrie' : data.route?.source === 'endpoints' ? 'Start + cíl' : 'Bez GPS';
+
+            if (!data.map_available || !points.length) {
+                m.setView([49.8, 15.5], 7);
+                details.innerHTML = '<div class="route-map-empty"><i class="bi bi-geo-alt"></i><div><b>Pro tuto jízdu nejsou dostupné souřadnice.</b><span>Mapa se zpřístupní u jízd s GPS startem/cílem nebo s telemetrickými body.</span></div></div>';
+                return;
+            }
+
+            const latLngs = points.map(point => [Number(point.lat), Number(point.lng)]).filter(point => Number.isFinite(point[0]) && Number.isFinite(point[1]));
+            if (!latLngs.length) {
+                throw new Error('Mapová data neobsahují platné GPS souřadnice.');
+            }
+            if (latLngs.length >= 2) {
+                L.polyline(latLngs, { color: '#2dd4bf', weight: 5, opacity: .92, lineCap: 'round', lineJoin: 'round' }).addTo(routeLayer);
+                L.polyline(latLngs, { color: '#f59e0b', weight: 1.4, opacity: .86, dashArray: '4 9' }).addTo(routeLayer);
+            }
+
+            const start = points[0];
+            const finish = points[points.length - 1];
+            marker(start, 'start', 'Start', `${safe(trip.start_address || '')}<br>${safe(time(trip.started_at))}`).addTo(markerLayer);
+            if (points.length > 1) marker(finish, 'finish', 'Cíl', `${safe(trip.end_address || '')}<br>${safe(time(trip.ended_at))}`).addTo(markerLayer);
+
+            (data.stops || []).forEach((stop, index) => {
+                marker(stop, 'stop', `Zastávka ${index + 1}`, `${stop.minutes || 0} min<br>${safe(time(stop.started_at))}`).addTo(markerLayer);
+            });
+            (data.charging || []).forEach((charge) => {
+                const soc = charge.start_soc != null || charge.end_soc != null
+                    ? `<br>SoC ${charge.start_soc ?? '—'} → ${charge.end_soc ?? '—'} %`
+                    : '';
+                marker(charge, 'charge', charge.station || 'Nabíjení', `${fmt.format(charge.quantity || 0)} ${safe(charge.unit || 'kWh')}${soc}<br>${safe(time(charge.occurred_at))}`).addTo(markerLayer);
+            });
+
+            const bounds = L.latLngBounds(latLngs);
+            if (latLngs.length === 1) {
+                m.setView(latLngs[0], 14);
+            } else {
+                m.fitBounds(bounds.pad(.14), { maxZoom: 15 });
+            }
+
+            const chips = [];
+            if (data.route?.has_telemetry_track) chips.push(`<span><i class="bi bi-broadcast-pin"></i> ${points.length} GPS bodů</span>`);
+            if ((data.stops || []).length) chips.push(`<span><i class="bi bi-pause-circle"></i> ${(data.stops || []).length} zastávek</span>`);
+            if ((data.charging || []).length) chips.push(`<span><i class="bi bi-lightning-charge"></i> ${(data.charging || []).length} nabíjení</span>`);
+            if (trip.start_soc != null || trip.end_soc != null) chips.push(`<span><i class="bi bi-battery-half"></i> SoC ${trip.start_soc ?? '—'} → ${trip.end_soc ?? '—'} %</span>`);
+            details.innerHTML = chips.length ? `<div class="route-map-detail-chips">${chips.join('')}</div>` : '<span class="text-secondary">K jízdě nejsou další mapové události.</span>';
+        };
+
+        const loadTrip = async tripId => {
+            if (!tripId) return;
+            activeTrip = tripId;
+            loading.hidden = false;
+            details.innerHTML = '';
+            subtitle.textContent = 'Načítám mapová data…';
+            stats.forEach(item => { item.textContent = '—'; });
+            modalInstance.show();
+
+            try {
+                const response = await fetch(`trip-map.php?vehicle_id=<?= (int)$vehicle['id'] ?>&trip_id=${encodeURIComponent(tripId)}`, {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin',
+                    cache: 'no-store'
+                });
+                const raw = await response.text();
+                let data = null;
+                try {
+                    data = JSON.parse(raw);
+                } catch (error) {
+                    throw new Error(response.redirected ? 'Relace vypršela. Přihlaste se prosím znovu.' : 'Server nevrátil platná mapová data.');
+                }
+                if (!response.ok) throw new Error(data.error || 'Mapová data se nepodařilo načíst.');
+                if (activeTrip !== tripId) return;
+                paint(data);
+            } catch (error) {
+                ensureMap().setView([49.8, 15.5], 7);
+                details.innerHTML = `<div class="route-map-empty is-error"><i class="bi bi-exclamation-triangle"></i><div><b>Mapu nelze zobrazit.</b><span>${safe(error.message || 'Neznámá chyba')}</span></div></div>`;
+            } finally {
+                loading.hidden = true;
+                window.setTimeout(() => map?.invalidateSize(), 120);
+            }
+        };
+
+        document.querySelectorAll('[data-trip-map]').forEach(button => {
+            button.addEventListener('click', () => loadTrip(Number(button.dataset.tripMap || 0)));
+        });
+        modal.addEventListener('shown.bs.modal', () => window.setTimeout(() => map?.invalidateSize(), 80));
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTripMap, { once: true });
+    } else {
+        initTripMap();
+    }
 })();
 </script>
 

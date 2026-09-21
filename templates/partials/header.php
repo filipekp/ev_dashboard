@@ -40,6 +40,23 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <?php require __DIR__ . '/pwa-head.php'; ?>
     <title><?= h($pageTitle) ?></title>
+    <script nonce="<?= h(cspNonce()) ?>">
+        (() => {
+            let stored = 'auto';
+            try {
+                stored = localStorage.getItem('evstats-theme') || 'auto';
+            } catch (error) {
+                stored = 'auto';
+            }
+            const resolved = stored === 'auto'
+                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                : stored;
+            document.documentElement.dataset.themePreference = stored;
+            document.documentElement.setAttribute('data-bs-theme', resolved);
+        })();
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="assets/app.css?v=<?= h($pwaVersionQuery) ?>">
     <meta name="author" content="Pavel Filípek <pavel@filipek-czech.cz>">
 
@@ -63,6 +80,7 @@
     <?php endif; ?>
 
     <?= $pageHead ?>
+    <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script defer src="assets/app.js?v=<?= h($pwaVersionQuery) ?>"></script>
 </head>
 <body<?= $bodyClass !== '' ? ' class="' . h($bodyClass) . '"' : '' ?>>

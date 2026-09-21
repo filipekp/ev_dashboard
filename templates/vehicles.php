@@ -52,22 +52,22 @@
 ?>
 <main class="wrap narrow admin-list-page">
     <?php if ($flash): ?>
-        <div class="<?= $flash['type'] === 'error' ? 'error' : 'notice' ?>"><?= h($flash['message']) ?></div>
+        <div class="alert <?= $flash['type'] === 'error' ? 'alert-danger' : 'alert-success' ?> shadow-sm" role="alert"><?= h($flash['message']) ?></div>
     <?php endif; ?>
 
     <section class="card table-card admin-list-card">
         <div class="list-toolbar">
             <div>
                 <span class="section-kicker">Digitální garáž</span>
-                <h2>🚙 Vozidla</h2>
+                <h1>Vozidla</h1>
                 <p>Přehled všech vozidel. Detaily a přiřazení uživatelů upravíte v jednom okně.</p>
             </div>
             <?php if ($app->auth()->canManageVehicles($me)): ?>
-                <button class="btn primary" type="button" data-vehicle-create>＋ Přidat vozidlo</button><?php endif; ?>
+                <button class="btn btn-primary" type="button" data-vehicle-create>＋ Přidat vozidlo</button><?php endif; ?>
         </div>
 
-        <div class="table-wrap">
-            <table class="data-table admin-list-table">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle admin-list-table mb-0">
                 <thead>
                 <tr>
                     <th>Vozidlo</th>
@@ -75,7 +75,7 @@
                     <th>VIN / SPZ</th>
                     <th>Uživatelé</th>
                     <th>Jízdy</th>
-                    <th class="actions-col">Akce</th>
+                    <th class="text-end">Akce</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -121,11 +121,10 @@
                         </td>
                         <td><span class="count-badge"><?= count($assigned[$vehicleId] ?? []) ?></span></td>
                         <td><span class="count-badge"><?= (int)$v['trip_count'] ?></span></td>
-                        <td class="actions-col">
-                            <div class="row-actions">
-                                <a class="btn btn-compact" href="index.php?vehicle_id=<?= $vehicleId ?>" title="Otevřít dashboard">Dashboard</a>
-                                <button class="btn btn-compact" type="button" data-vehicle-edit data-vehicle='<?= h((string)$json) ?>'>Upravit
-                                </button>
+                        <td class="text-end">
+                            <div class="row-actions justify-content-end">
+                                <a class="btn btn-sm btn-outline-secondary" href="index.php?vehicle_id=<?= $vehicleId ?>" title="Otevřít dashboard">Dashboard</a>
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-vehicle-edit data-vehicle='<?= h((string)$json) ?>'>Upravit</button>
                             </div>
                         </td>
                     </tr>
@@ -138,23 +137,33 @@
                 </tbody>
             </table>
         </div>
+        <?php require __DIR__ . '/partials/pagination.php'; ?>
     </section>
 </main>
 
-<div class="app-modal" id="vehicleEditorModal" hidden aria-hidden="true">
-    <div class="app-modal-backdrop" data-vehicle-close></div>
-    <section class="app-modal-dialog admin-modal-dialog admin-modal-dialog-wide" role="dialog" aria-modal="true" aria-labelledby="vehicleEditorTitle">
-        <header class="app-modal-head">
+<div class="modal fade" id="vehicleEditorModal" tabindex="-1" aria-labelledby="vehicleEditorTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable vehicle-editor-dialog">
+      <div class="modal-content">
+        <header class="modal-header">
             <div>
                 <span class="section-kicker" id="vehicleEditorKicker">Nové vozidlo</span>
                 <h2 id="vehicleEditorTitle">Přidat vozidlo</h2>
                 <p id="vehicleEditorSubtitle">Základní údaje, provozní parametry a přístup uživatelů na jednom místě.</p>
             </div>
-            <button class="modal-close" type="button" data-vehicle-close aria-label="Zavřít">×</button>
+            <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Zavřít"></button>
         </header>
+        <nav class="vehicle-editor-shortcuts" id="vehicleEditorShortcuts" aria-label="Sekce vozidla" hidden>
+            <a href="#" data-vehicle-shortcut="overview">⌂ Dashboard</a>
+            <a href="#" data-vehicle-shortcut="operations">↗ Provoz</a>
+            <a href="#" data-vehicle-shortcut="costs">₭ Náklady</a>
+            <a href="#" data-vehicle-shortcut="documents">▤ Doklady</a>
+            <a href="#" data-vehicle-shortcut="timeline">◷ Timeline</a>
+            <span>⚙ Nastavení</span>
+        </nav>
 
         <form method="post" id="vehicleConnectorForm"></form>
-        <form method="post" class="app-modal-body" id="vehicleEditorForm">
+        <form method="post" id="vehicleEditorForm" class="modal-scroll-form">
+          <div class="modal-body">
             <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
             <input type="hidden" name="action" id="vehicleAction" value="create">
             <input type="hidden" name="id" id="vehicleId" value="">
@@ -300,20 +309,22 @@
                     </div>
                 </div>
             </div>
+          </div>
 
-            <div class="modal-actions admin-modal-actions">
+            <div class="modal-footer admin-modal-actions">
                 <div class="danger-zone" id="vehicleDeleteZone" hidden>
                     <?php if ($app->auth()->isAdmin($me)): ?>
                         <button class="btn danger" type="submit" name="action" value="delete" id="vehicleDeleteButton">Smazat vozidlo</button>
                     <?php endif; ?>
                 </div>
                 <div class="modal-actions-right">
-                    <button type="button" class="btn" data-vehicle-close>Zrušit</button>
-                    <button type="submit" class="btn primary" id="vehicleSubmit">Přidat vozidlo</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Zrušit</button>
+                    <button type="submit" class="btn btn-primary" id="vehicleSubmit">Přidat vozidlo</button>
                 </div>
             </div>
         </form>
-    </section>
+      </div>
+    </div>
 </div>
 
 <script defer src="assets/pages/vehicles.js?v=<?= (int)@filemtime(__DIR__ . '/../public/assets/pages/vehicles.js') ?>"></script>

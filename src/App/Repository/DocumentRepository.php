@@ -180,7 +180,7 @@ final class DocumentRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function runsForDocument(int $documentId, ?string $from = null, int $limit = 25): array
+    public function runsForDocument(int $documentId, ?string $from = null, int $limit = 20, int $offset = 0): array
     {
         $sql = 'SELECT id,document_id,vehicle_id,user_id,extractor,status,confidence,
                        error_message,confirmed_at,created_at,updated_at
@@ -193,15 +193,28 @@ final class DocumentRepository
             $params[] = $from;
         }
 
-        $sql .= ' ORDER BY id DESC LIMIT ' . max(1, (int)$limit);
+        $sql .= ' ORDER BY id DESC LIMIT ' . max(1, (int)$limit) . ' OFFSET ' . max(0, (int)$offset);
         $query = $this->pdo->prepare($sql);
         $query->execute($params);
 
         return $query->fetchAll();
     }
 
+    public function runCountForDocument(int $documentId, ?string $from = null): int
+    {
+        $sql = 'SELECT COUNT(*) FROM document_import_runs WHERE document_id=?';
+        $params = [$documentId];
+        if ($from !== null) {
+            $sql .= ' AND created_at>=?';
+            $params[] = $from;
+        }
+        $query = $this->pdo->prepare($sql);
+        $query->execute($params);
+        return (int)$query->fetchColumn();
+    }
+
     /** @return array<int,array<string,mixed>> */
-    public function listForVehicle(int $vehicleId, int $limit = 100, ?string $from = null): array
+    public function listForVehicle(int $vehicleId, int $limit = 20, ?string $from = null, int $offset = 0): array
     {
         $query = $this->pdo->prepare(
             'SELECT d.*, r.id import_run_id,r.status import_status,r.extractor,
@@ -215,7 +228,7 @@ final class DocumentRepository
                )
              WHERE d.vehicle_id=?' . ($from !== null ? ' AND d.created_at>=?' : '') . '
              ORDER BY d.created_at DESC,d.id DESC
-             LIMIT ' . (int)$limit
+             LIMIT ' . max(1, (int)$limit) . ' OFFSET ' . max(0, (int)$offset)
         );
         $params = [$vehicleId];
         if ($from !== null) {
@@ -224,6 +237,19 @@ final class DocumentRepository
         $query->execute($params);
 
         return $query->fetchAll();
+    }
+
+    public function countForVehicle(int $vehicleId, ?string $from = null): int
+    {
+        $sql = 'SELECT COUNT(*) FROM vehicle_documents WHERE vehicle_id=?';
+        $params = [$vehicleId];
+        if ($from !== null) {
+            $sql .= ' AND created_at>=?';
+            $params[] = $from;
+        }
+        $query = $this->pdo->prepare($sql);
+        $query->execute($params);
+        return (int)$query->fetchColumn();
     }
 
     /**

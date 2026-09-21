@@ -6,6 +6,7 @@ namespace App\Http\Controller;
 
 use App\Application;
 use App\Http;
+use App\Pagination;
 
 final class TimelineController
 {
@@ -20,6 +21,8 @@ final class TimelineController
             Http::redirect('index.php');
         }
         $scope = $this->app->userAccess()->vehicleDetailScope($user, (int)$vehicle['id']);
+        $eventCount = $this->app->timeline()->count((int)$vehicle['id'], $scope);
+        $pagination = Pagination::meta($eventCount, Pagination::currentPage('page'), Pagination::DEFAULT_PER_PAGE, 'page');
         $vehiclePhoto = $this->app->vehicleMedia()->primaryForVehicle((int)$vehicle['id']);
         if ($vehiclePhoto && !$this->app->userAccess()->canReadDetailAt($user, (int)$vehicle['id'], (string)($vehiclePhoto['created_at'] ?? ''))) {
             $vehiclePhoto = null;
@@ -29,7 +32,13 @@ final class TimelineController
             'user' => $user,
             'vehicle' => $vehicle,
             'vehicles' => $this->app->auth()->allowedVehicles($user),
-            'events' => $this->app->timeline()->build((int)$vehicle['id'], 80, $scope),
+            'events' => $this->app->timeline()->build(
+                (int)$vehicle['id'],
+                Pagination::DEFAULT_PER_PAGE,
+                $scope,
+                ($pagination['page'] - 1) * Pagination::DEFAULT_PER_PAGE
+            ),
+            'pagination' => $pagination,
             'insights' => $this->app->insights()->build($vehicle, $scope),
             'vehiclePhoto' => $vehiclePhoto,
             'flash' => $this->app->session()->pullFlash(),

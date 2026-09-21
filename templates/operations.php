@@ -1,7 +1,8 @@
 <?php
-$pageTitle = 'Provoz vozidla';
+$operationsView = (string)($_GET['view'] ?? 'operations') === 'costs' ? 'costs' : 'operations';
+$pageTitle = $operationsView === 'costs' ? 'Náklady vozidla' : 'Provoz vozidla';
 $showNavigation = true;
-$navTitle = 'Provoz vozidla';
+$navTitle = $pageTitle;
 require __DIR__ . '/partials/header.php';
 ?>
 <?php
@@ -25,12 +26,13 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
 
   <section class="card operations-head">
     <div>
-      <small>PROVOZNÍ EVIDENCE</small>
+      <small><?= $operationsView === 'costs' ? 'NÁKLADY VOZIDLA' : 'PROVOZNÍ EVIDENCE' ?></small>
       <h1><?= h($vehicle['name']) ?></h1>
       <p><?= h(powertrainLabel($powertrain)) ?> · VIN <?= h($vehicle['vin']) ?></p>
     </div>
-    <div class="active-vehicle-note"><span>✓</span><div><small>AKTIVNÍ VOZIDLO</small><b>Řídí se výběrem v levém panelu</b></div></div>
   </section>
+
+  <?php $vehicleWorkspaceTab = (string)($_GET['view'] ?? '') === 'costs' ? 'costs' : 'operations'; require __DIR__ . '/partials/vehicle-workspace.php'; ?>
 
   <section class="kpis operations-kpis">
     <div class="card kpi"><small><?= $hasTractionBattery && !$hasFuelSystem ? 'ELEKTŘINA' : ($hasFuelSystem && !$hasTractionBattery ? 'PALIVO' : 'ENERGIE / PALIVO') ?></small><strong><?= cz($summary['energy_cost'], 0) ?> <em>Kč</em></strong></div>
@@ -41,6 +43,7 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
   </section>
 
   <section class="grid2 operations-forms">
+    <?php if ($operationsView === 'operations'): ?>
     <div class="card">
       <h2><?= $hasTractionBattery && !$hasFuelSystem ? '⚡ Nabíjení' : ($hasFuelSystem && !$hasTractionBattery ? '⛽ Tankování' : '⛽ Tankování / nabíjení') ?></h2>
       <form method="post" class="stack">
@@ -94,7 +97,9 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
         <button class="btn primary">Uložit servis</button>
       </form>
     </div>
+    <?php endif; ?>
 
+    <?php if ($operationsView === 'costs'): ?>
     <div class="card">
       <h2>💸 Ostatní náklad</h2>
       <form method="post" class="stack">
@@ -113,7 +118,9 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
         <button class="btn primary">Uložit náklad</button>
       </form>
     </div>
+    <?php endif; ?>
 
+    <?php if ($operationsView === 'operations'): ?>
     <div class="card">
       <h2>⏰ Připomínka</h2>
       <form method="post" class="stack">
@@ -129,8 +136,10 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
         <button class="btn primary">Přidat připomínku</button>
       </form>
     </div>
+    <?php endif; ?>
   </section>
 
+  <?php if ($operationsView === 'operations'): ?>
   <section class="card operations-section">
     <h2>⏰ Připomínky</h2>
     <div class="table-scroll">
@@ -144,6 +153,7 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
       <?php endforeach; ?>
       </tbody></table>
     </div>
+    <?php $pagination = $reminderPagination; require __DIR__ . '/partials/pagination.php'; ?>
   </section>
 
   <section class="card operations-section trip-book-section" id="trip-book">
@@ -177,16 +187,17 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
       </tbody></table></div>
       <?php else: ?><div class="empty-state-inline"><b>Kniha jízd je zatím prázdná.</b><br>První jízdu můžete zapsat ručně nebo ji předvyplnit z již importovaných dat.<br><button type="button" class="btn primary empty-action" data-trip-create>＋ Zapsat první jízdu</button></div><?php endif; ?>
     </div>
+    <?php $pagination = $tripBookPagination; require __DIR__ . '/partials/pagination.php'; ?>
   </section>
 
-  <div class="app-modal" id="tripModal" hidden aria-hidden="true">
-    <div class="app-modal-backdrop" data-modal-close></div>
-    <div class="app-modal-dialog trip-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tripModalTitle">
-      <div class="app-modal-head">
+  <div class="modal fade" id="tripModal" tabindex="-1" aria-labelledby="tripModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable trip-modal-dialog">
+      <div class="modal-content">
+      <div class="modal-header">
         <div><small>KNIHA JÍZD</small><h2 id="tripModalTitle">Přidat jízdu</h2><p id="tripModalSubtitle">Zapište jízdu ručně nebo použijte data z importu.</p></div>
-        <button type="button" class="modal-close" data-modal-close aria-label="Zavřít">×</button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zavřít"></button>
       </div>
-      <div class="app-modal-body">
+      <div class="modal-body">
         <div class="trip-source-panel">
           <div><b>✦ Předvyplnit z importované jízdy</b><small>Volitelné – vybraná data můžete před uložením libovolně upravit.</small></div>
           <select id="tripImportSource">
@@ -226,8 +237,9 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
             <label>Účel cesty<input name="purpose" id="tripPurpose" placeholder="Schůzka, cesta do práce…"></label>
           </div>
           <label>Poznámka<textarea name="trip_note" id="tripNote" rows="3"></textarea></label>
-          <div class="modal-actions"><button type="button" class="btn" data-modal-close>Zrušit</button><button class="btn primary" id="tripSubmitButton">Uložit jízdu</button></div>
+          <div class="modal-actions"><button type="button" class="btn" data-bs-dismiss="modal">Zrušit</button><button class="btn primary" id="tripSubmitButton">Uložit jízdu</button></div>
         </form>
+      </div>
       </div>
     </div>
   </div>
@@ -265,11 +277,15 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
         </tr>
       <?php endforeach; ?>
       </tbody></table></div>
+      <?php $pagination = $energyPagination; require __DIR__ . '/partials/pagination.php'; ?>
     </div>
-    <div class="card operations-section"><h2>🔧 Servisní historie</h2><div class="table-scroll"><table class="data-table"><thead><tr><th>Datum</th><th>Úkon</th><th>Km</th><th>Cena</th><th>Přílohy</th></tr></thead><tbody><?php foreach ($services as $row): ?><tr><td><?= h(date('d.m.Y', strtotime($row['serviced_at']))) ?></td><td><b><?= h($row['title']) ?></b><br><small><?= h($row['category']) ?></small></td><td><?= $row['odometer_km'] !== null ? cz((float)$row['odometer_km'], 0) : '—' ?></td><td><?= $row['cost'] !== null ? cz((float)$row['cost'], 0).' Kč' : '—' ?></td><td><?php foreach ($serviceAttachments[(int)$row['id']] ?? [] as $attachment): ?><a href="attachment.php?id=<?= (int)$attachment['id'] ?>"><?= h($attachment['original_name']) ?></a><br><?php endforeach; ?></td></tr><?php endforeach; ?></tbody></table></div></div>
+    <div class="card operations-section"><h2>🔧 Servisní historie</h2><div class="table-scroll"><table class="data-table"><thead><tr><th>Datum</th><th>Úkon</th><th>Km</th><th>Cena</th><th>Přílohy</th></tr></thead><tbody><?php foreach ($services as $row): ?><tr><td><?= h(date('d.m.Y', strtotime($row['serviced_at']))) ?></td><td><b><?= h($row['title']) ?></b><br><small><?= h($row['category']) ?></small></td><td><?= $row['odometer_km'] !== null ? cz((float)$row['odometer_km'], 0) : '—' ?></td><td><?= $row['cost'] !== null ? cz((float)$row['cost'], 0).' Kč' : '—' ?></td><td><?php foreach ($serviceAttachments[(int)$row['id']] ?? [] as $attachment): ?><a href="attachment.php?id=<?= (int)$attachment['id'] ?>"><?= h($attachment['original_name']) ?></a><br><?php endforeach; ?></td></tr><?php endforeach; ?></tbody></table></div><?php $pagination = $servicePagination; require __DIR__ . '/partials/pagination.php'; ?></div>
   </section>
+  <?php endif; ?>
 
-  <section class="card operations-section"><h2>💸 Historie ostatních nákladů</h2><div class="table-scroll"><table class="data-table"><thead><tr><th>Datum</th><th>Kategorie</th><th>Název</th><th>Částka</th><th>Km</th></tr></thead><tbody><?php foreach ($expenses as $row): ?><tr><td><?= h(date('d.m.Y', strtotime($row['occurred_at']))) ?></td><td><?= h($row['category']) ?></td><td><?= h($row['title']) ?></td><td><?= cz((float)$row['amount'], 0) ?> Kč</td><td><?= $row['odometer_km'] !== null ? cz((float)$row['odometer_km'], 0) : '—' ?></td></tr><?php endforeach; ?></tbody></table></div></section>
+  <?php if ($operationsView === 'costs'): ?>
+  <section class="card operations-section"><h2>💸 Historie ostatních nákladů</h2><div class="table-scroll"><table class="data-table"><thead><tr><th>Datum</th><th>Kategorie</th><th>Název</th><th>Částka</th><th>Km</th></tr></thead><tbody><?php foreach ($expenses as $row): ?><tr><td><?= h(date('d.m.Y', strtotime($row['occurred_at']))) ?></td><td><?= h($row['category']) ?></td><td><?= h($row['title']) ?></td><td><?= cz((float)$row['amount'], 0) ?> Kč</td><td><?= $row['odometer_km'] !== null ? cz((float)$row['odometer_km'], 0) : '—' ?></td></tr><?php endforeach; ?></tbody></table></div><?php $pagination = $expensePagination; require __DIR__ . '/partials/pagination.php'; ?></section>
+  <?php endif; ?>
 </main>
 <?php if ($hasTractionBattery && $hasFuelSystem): ?>
 <script nonce="<?= h(cspNonce()) ?>">
@@ -290,9 +306,11 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
 
 <script nonce="<?= h(cspNonce()) ?>">
 (() => {
+  const initTripModal = () => {
   const modal = document.getElementById('tripModal');
   const form = document.getElementById('tripModalForm');
-  if (!modal || !form) return;
+  if (!modal || !form || !window.bootstrap) return;
+  const modalInstance = bootstrap.Modal.getOrCreateInstance(modal);
   const fields = {
     action: document.getElementById('tripFormAction'), entryId: document.getElementById('tripEntryId'), sourceId: document.getElementById('tripSourceId'),
     startedAt: document.getElementById('tripStartedAt'), endedAt: document.getElementById('tripEndedAt'), startAddress: document.getElementById('tripStartAddress'),
@@ -303,7 +321,6 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
   const title = document.getElementById('tripModalTitle');
   const subtitle = document.getElementById('tripModalSubtitle');
   const submit = document.getElementById('tripSubmitButton');
-  let lastFocus = null;
   const localNow = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,16); };
   const fill = (data = {}) => {
     fields.startedAt.value = data.started_at || localNow(); fields.endedAt.value = data.ended_at || '';
@@ -312,7 +329,7 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
     fields.classification.value = data.classification || ''; fields.purpose.value = data.purpose || ''; fields.note.value = data.trip_note || '';
   };
   const open = (mode, data = {}) => {
-    lastFocus = document.activeElement; form.reset(); source.value = ''; fields.sourceId.value = 0;
+    form.reset(); source.value = ''; fields.sourceId.value = 0;
     if (mode === 'edit') {
       title.textContent = 'Upravit jízdu'; subtitle.textContent = 'Upravte údaje evidované jízdy.'; submit.textContent = 'Uložit změny';
       fields.action.value = 'update_trip_book'; fields.entryId.value = data.id || 0; fields.sourceId.value = data.source_trip_id || 0; fill(data);
@@ -321,18 +338,23 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
       title.textContent = 'Přidat jízdu'; subtitle.textContent = 'Zapište jízdu ručně nebo použijte data z importu.'; submit.textContent = 'Uložit jízdu';
       fields.action.value = 'add_trip_book'; fields.entryId.value = 0; fill();
     }
-    modal.hidden = false; modal.setAttribute('aria-hidden','false'); document.body.classList.add('modal-open'); setTimeout(() => fields.startedAt.focus(), 30);
+    modalInstance.show();
   };
-  const close = () => { modal.hidden = true; modal.setAttribute('aria-hidden','true'); document.body.classList.remove('modal-open'); if (lastFocus) lastFocus.focus(); };
   document.querySelectorAll('[data-trip-create]').forEach(el => el.addEventListener('click', () => open('create')));
   document.querySelectorAll('[data-trip-edit]').forEach(el => el.addEventListener('click', () => { try { open('edit', JSON.parse(el.dataset.tripEdit)); } catch(e) {} }));
-  document.querySelectorAll('[data-modal-close]').forEach(el => el.addEventListener('click', close));
+  modal.addEventListener('shown.bs.modal', () => fields.startedAt.focus());
   source.addEventListener('change', () => {
     const option = source.options[source.selectedIndex]; fields.sourceId.value = source.value || 0;
     if (!source.value || !option.dataset.trip) return;
     try { const data = JSON.parse(option.dataset.trip); fill(data); fields.sourceId.value = data.id || 0; } catch(e) {}
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) close(); });
+
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTripModal, { once: true });
+  } else {
+    initTripModal();
+  }
 })();
 </script>
 

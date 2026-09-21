@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controller;
 
 use App\Application;
+use App\Pagination;
 use DateTimeImmutable;
 
 /**
@@ -38,6 +39,11 @@ final class ImportMonitoringController
         }
 
         $repository = $this->app->adminImportMonitoring();
+        $integrationPagination = Pagination::meta($repository->integrationRunCount($from, $integrationStatus, $sourceType), Pagination::currentPage('integration_page'), Pagination::DEFAULT_PER_PAGE, 'integration_page');
+        $failedPagination = Pagination::meta($repository->integrationRunCount($from, 'failed', null), Pagination::currentPage('failed_page'), Pagination::DEFAULT_PER_PAGE, 'failed_page');
+        $documentPagination = Pagination::meta($repository->documentRunCount($from, $documentStatus), Pagination::currentPage('document_page'), Pagination::DEFAULT_PER_PAGE, 'document_page');
+        $unknownPagination = Pagination::meta($repository->unknownImportCount($from), Pagination::currentPage('unknown_page'), Pagination::DEFAULT_PER_PAGE, 'unknown_page');
+
         $this->app->template()->render('import-monitoring', [
             'app' => $this->app,
             'me' => $me,
@@ -48,10 +54,14 @@ final class ImportMonitoringController
             'sourceType' => $sourceType,
             'sourceTypes' => $sourceTypes,
             'summary' => $repository->summary($from),
-            'integrationRuns' => $repository->integrationRuns($from, $integrationStatus, $sourceType),
-            'failedRuns' => $repository->failedIntegrationRuns($from),
-            'documentRuns' => $repository->documentRuns($from, $documentStatus),
-            'unknownImports' => $repository->unknownImports($from),
+            'integrationRuns' => $repository->integrationRuns($from, $integrationStatus, $sourceType, Pagination::DEFAULT_PER_PAGE, ($integrationPagination['page'] - 1) * Pagination::DEFAULT_PER_PAGE),
+            'integrationPagination' => $integrationPagination,
+            'failedRuns' => $repository->failedIntegrationRuns($from, Pagination::DEFAULT_PER_PAGE, ($failedPagination['page'] - 1) * Pagination::DEFAULT_PER_PAGE),
+            'failedPagination' => $failedPagination,
+            'documentRuns' => $repository->documentRuns($from, $documentStatus, Pagination::DEFAULT_PER_PAGE, ($documentPagination['page'] - 1) * Pagination::DEFAULT_PER_PAGE),
+            'documentPagination' => $documentPagination,
+            'unknownImports' => $repository->unknownImports($from, Pagination::DEFAULT_PER_PAGE, ($unknownPagination['page'] - 1) * Pagination::DEFAULT_PER_PAGE),
+            'unknownPagination' => $unknownPagination,
         ]);
     }
 

@@ -76,7 +76,7 @@ require __DIR__ . '/partials/header.php';
         </p>
       </div>
       <?php if ($changelog): ?>
-        <span class="changelog-count"><?= count($changelog) ?> změn</span>
+        <span class="changelog-count"><?= (int)($changelogPagination['total'] ?? count($changelog)) ?> změn</span>
       <?php endif; ?>
     </div>
 
@@ -124,6 +124,7 @@ require __DIR__ . '/partials/header.php';
           </article>
         <?php endforeach; ?>
       </div>
+      <?php $pagination = $changelogPagination ?? null; require __DIR__ . '/partials/pagination.php'; ?>
     <?php endif; ?>
   </section>
 
@@ -160,6 +161,7 @@ require __DIR__ . '/partials/header.php';
           </tbody>
         </table>
       </div>
+      <?php $pagination = $migrationPagination ?? null; require __DIR__ . '/partials/pagination.php'; ?>
     <?php endif; ?>
     <form method="post">
       <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">

@@ -266,13 +266,32 @@ final class VehicleOperationRepository
         $query->execute([$classification ?: null, $note, $tripId, $vehicleId]);
     }
 
+    /**
+     * Nabíjecí relace zasahující do časového intervalu jízdy.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function chargingEntriesBetween(int $vehicleId, string $from, string $to): array
+    {
+        $query = $this->pdo->prepare(
+            "SELECT id,occurred_at,ended_at,quantity,unit,unit_price,total_price,currency,odometer_km,start_soc,end_soc,station,note,source,is_estimated "
+            . "FROM vehicle_energy_entries "
+            . "WHERE vehicle_id=? AND entry_type='charging' AND energy_type='electricity' "
+            . "AND occurred_at<=? AND COALESCE(ended_at,occurred_at)>=? "
+            . 'ORDER BY occurred_at ASC,id ASC LIMIT 50'
+        );
+        $query->execute([$vehicleId, $to, $from]);
+
+        return $query->fetchAll();
+    }
+
     /** @return array<int,array<string,mixed>> */
-    public function energyEntries(int $vehicleId, int $limit = 100, ?string $from = null): array
+    public function energyEntries(int $vehicleId, int $limit = 20, ?string $from = null, int $offset = 0): array
     {
         $query = $this->pdo->prepare(
             "SELECT e.*, EXISTS(SELECT 1 FROM document_operation_links l WHERE l.vehicle_id=e.vehicle_id AND l.operation_type='energy' AND l.operation_id=e.id) document_linked
              FROM vehicle_energy_entries e WHERE e.vehicle_id=?" . ($from !== null ? ' AND e.occurred_at>=?' : '')
-            . ' ORDER BY e.occurred_at DESC, e.id DESC LIMIT ' . (int)$limit
+            . ' ORDER BY e.occurred_at DESC, e.id DESC LIMIT ' . max(1, (int)$limit) . ' OFFSET ' . max(0, (int)$offset)
         );
         $params = [$vehicleId]; if ($from !== null) { $params[] = $from; }
         $query->execute($params);
@@ -281,7 +300,7 @@ final class VehicleOperationRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function serviceRecords(int $vehicleId, int $limit = 100, ?string $from = null): array
+    public function serviceRecords(int $vehicleId, int $limit = 20, ?string $from = null, int $offset = 0): array
     {
         $query = $this->pdo->prepare(
             'SELECT s.*,
@@ -289,7 +308,7 @@ final class VehicleOperationRepository
              FROM vehicle_service_records s
              WHERE s.vehicle_id=?' . ($from !== null ? ' AND s.serviced_at>=?' : '') . '
              ORDER BY s.serviced_at DESC, s.id DESC
-             LIMIT ' . (int)$limit
+             LIMIT ' . max(1, (int)$limit) . ' OFFSET ' . max(0, (int)$offset)
         );
         $params = [$vehicleId]; if ($from !== null) { $params[] = substr($from, 0, 10); }
         $query->execute($params);
@@ -298,10 +317,10 @@ final class VehicleOperationRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function expenses(int $vehicleId, int $limit = 100, ?string $from = null): array
+    public function expenses(int $vehicleId, int $limit = 20, ?string $from = null, int $offset = 0): array
     {
         $query = $this->pdo->prepare(
-            'SELECT * FROM vehicle_expenses WHERE vehicle_id=?' . ($from !== null ? ' AND occurred_at>=?' : '') . ' ORDER BY occurred_at DESC, id DESC LIMIT ' . (int)$limit
+            'SELECT * FROM vehicle_expenses WHERE vehicle_id=?' . ($from !== null ? ' AND occurred_at>=?' : '') . ' ORDER BY occurred_at DESC, id DESC LIMIT ' . max(1, (int)$limit) . ' OFFSET ' . max(0, (int)$offset)
         );
         $params = [$vehicleId]; if ($from !== null) { $params[] = substr($from, 0, 10); }
         $query->execute($params);
@@ -310,12 +329,13 @@ final class VehicleOperationRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function reminders(int $vehicleId, ?string $from = null): array
+    public function reminders(int $vehicleId, ?string $from = null, int $limit = 20, int $offset = 0): array
     {
         $query = $this->pdo->prepare(
             'SELECT * FROM vehicle_reminders
              WHERE vehicle_id=?' . ($from !== null ? ' AND created_at>=?' : '') . '
-             ORDER BY completed_at IS NOT NULL, due_date IS NULL, due_date, due_odometer_km, id DESC'
+             ORDER BY completed_at IS NOT NULL, due_date IS NULL, due_date, due_odometer_km, id DESC
+             LIMIT ' . max(1, (int)$limit) . ' OFFSET ' . max(0, (int)$offset)
         );
         $params = [$vehicleId]; if ($from !== null) { $params[] = $from; }
         $query->execute($params);
@@ -358,7 +378,7 @@ final class VehicleOperationRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function tripBookEntries(int $vehicleId, int $limit = 100, ?string $from = null): array
+    public function tripBookEntries(int $vehicleId, int $limit = 20, ?string $from = null, int $offset = 0): array
     {
         $query = $this->pdo->prepare(
             'SELECT b.*, t.source_format
@@ -366,7 +386,7 @@ final class VehicleOperationRepository
              LEFT JOIN trips t ON t.id=b.source_trip_id
              WHERE b.vehicle_id=?' . ($from !== null ? ' AND b.started_at>=?' : '') . '
              ORDER BY b.started_at DESC, b.id DESC
-             LIMIT ' . (int)$limit
+             LIMIT ' . max(1, (int)$limit) . ' OFFSET ' . max(0, (int)$offset)
         );
         $params = [$vehicleId]; if ($from !== null) { $params[] = $from; }
         $query->execute($params);
@@ -388,7 +408,7 @@ final class VehicleOperationRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function tripLog(int $vehicleId, int $limit = 100, ?string $from = null): array
+    public function tripLog(int $vehicleId, int $limit = 100, ?string $from = null, int $offset = 0): array
     {
         $query = $this->pdo->prepare(
             'SELECT id, started_at, ended_at, start_address, end_address, distance_km, start_odometer_km,
@@ -396,12 +416,62 @@ final class VehicleOperationRepository
              FROM trips
              WHERE vehicle_id=?' . ($from !== null ? ' AND started_at>=?' : '') . '
              ORDER BY started_at DESC
-             LIMIT ' . (int)$limit
+             LIMIT ' . max(1, (int)$limit) . ' OFFSET ' . max(0, (int)$offset)
         );
         $params = [$vehicleId]; if ($from !== null) { $params[] = $from; }
         $query->execute($params);
 
         return $query->fetchAll();
+    }
+
+    public function energyEntryCount(int $vehicleId, ?string $from = null): int
+    {
+        return $this->countRows('vehicle_energy_entries', 'occurred_at', $vehicleId, $from);
+    }
+
+    public function serviceRecordCount(int $vehicleId, ?string $from = null): int
+    {
+        return $this->countRows('vehicle_service_records', 'serviced_at', $vehicleId, $from);
+    }
+
+    public function expenseCount(int $vehicleId, ?string $from = null): int
+    {
+        return $this->countRows('vehicle_expenses', 'occurred_at', $vehicleId, $from);
+    }
+
+    public function reminderCount(int $vehicleId, ?string $from = null): int
+    {
+        return $this->countRows('vehicle_reminders', 'created_at', $vehicleId, $from);
+    }
+
+    public function tripBookCount(int $vehicleId, ?string $from = null): int
+    {
+        return $this->countRows('vehicle_trip_book_entries', 'started_at', $vehicleId, $from);
+    }
+
+    private function countRows(string $table, string $dateColumn, int $vehicleId, ?string $from): int
+    {
+        $allowed = [
+            'vehicle_energy_entries' => 'occurred_at',
+            'vehicle_service_records' => 'serviced_at',
+            'vehicle_expenses' => 'occurred_at',
+            'vehicle_reminders' => 'created_at',
+            'vehicle_trip_book_entries' => 'started_at',
+        ];
+        if (!isset($allowed[$table]) || $allowed[$table] !== $dateColumn) {
+            return 0;
+        }
+        $sql = 'SELECT COUNT(*) FROM ' . $table . ' WHERE vehicle_id=?';
+        $params = [$vehicleId];
+        if ($from !== null) {
+            $sql .= ' AND ' . $dateColumn . '>=?';
+            $params[] = in_array($dateColumn, ['serviced_at', 'occurred_at'], true) && $table !== 'vehicle_energy_entries'
+                ? substr($from, 0, 10)
+                : $from;
+        }
+        $query = $this->pdo->prepare($sql);
+        $query->execute($params);
+        return (int)$query->fetchColumn();
     }
 
     /** @return array<string,mixed>|null */

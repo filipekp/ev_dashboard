@@ -134,7 +134,7 @@ $userLabel = static function (array $row): string {
     <section class="card admin-card monitoring-section">
         <div class="monitoring-section-head">
             <div><span class="eyebrow">DIAGNOSTIKA</span><h2>Selhané importy</h2></div>
-            <span class="monitoring-count"><?= count($failedRuns) ?></span>
+            <span class="monitoring-count"><?= (int)$failedPagination['total'] ?></span>
         </div>
         <?php if (!$failedRuns): ?>
             <div class="empty-state-inline">Ve zvoleném období nejsou evidované žádné selhané datové importy.</div>
@@ -156,13 +156,14 @@ $userLabel = static function (array $row): string {
                     </tbody>
                 </table>
             </div>
+        <?php $pagination = $failedPagination; require __DIR__ . '/partials/pagination.php'; ?>
         <?php endif; ?>
     </section>
 
     <section class="card admin-card monitoring-section">
         <div class="monitoring-section-head">
             <div><span class="eyebrow">AUDIT</span><h2>Běhy importů</h2></div>
-            <span class="monitoring-count"><?= count($integrationRuns) ?></span>
+            <span class="monitoring-count"><?= (int)$integrationPagination['total'] ?></span>
         </div>
         <div class="table-wrap">
             <table class="monitoring-table">
@@ -190,12 +191,13 @@ $userLabel = static function (array $row): string {
                 </tbody>
             </table>
         </div>
+        <?php $pagination = $integrationPagination; require __DIR__ . '/partials/pagination.php'; ?>
     </section>
 
     <section class="card admin-card monitoring-section">
         <div class="monitoring-section-head">
             <div><span class="eyebrow">DOKUMENTY & AI</span><h2>Běhy importu dokumentů</h2></div>
-            <span class="monitoring-count"><?= count($documentRuns) ?></span>
+            <span class="monitoring-count"><?= (int)$documentPagination['total'] ?></span>
         </div>
         <div class="table-wrap">
             <table class="monitoring-table">
@@ -221,12 +223,13 @@ $userLabel = static function (array $row): string {
                 </tbody>
             </table>
         </div>
+        <?php $pagination = $documentPagination; require __DIR__ . '/partials/pagination.php'; ?>
     </section>
 
     <section class="card admin-card monitoring-section">
         <div class="monitoring-section-head">
             <div><span class="eyebrow">UNIVERZÁLNÍ IMPORT</span><h2>Neznámé formáty</h2></div>
-            <span class="monitoring-count"><?= count($unknownImports) ?></span>
+            <span class="monitoring-count"><?= (int)$unknownPagination['total'] ?></span>
         </div>
         <div class="table-wrap">
             <table class="monitoring-table">
@@ -247,6 +250,7 @@ $userLabel = static function (array $row): string {
                 </tbody>
             </table>
         </div>
+        <?php $pagination = $unknownPagination; require __DIR__ . '/partials/pagination.php'; ?>
     </section>
 </main>
 

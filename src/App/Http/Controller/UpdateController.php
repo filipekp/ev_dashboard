@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controller;
 
 use App\Application;
+use App\Pagination;
 use Throwable;
 
 /**
@@ -83,6 +84,9 @@ final class UpdateController
             }
         }
 
+        $changelogPage = Pagination::slice($changelog, 'changes_page');
+        $migrationPage = Pagination::slice($migrationStatus, 'migrations_page');
+
         $this->app->template()->render('update', [
             'app' => $this->app,
             'me' => $me,
@@ -91,8 +95,10 @@ final class UpdateController
             'channel' => $channel,
             'error' => $error,
             'remote' => $remote,
-            'changelog' => $changelog,
-            'migrationStatus' => $migrationStatus,
+            'changelog' => $changelogPage['items'],
+            'changelogPagination' => $changelogPage['pagination'],
+            'migrationStatus' => $migrationPage['items'],
+            'migrationPagination' => $migrationPage['pagination'],
         ]);
     }
 }

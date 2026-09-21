@@ -280,6 +280,8 @@ Audit synchronizačních běhů. Ukládá connection, spouštějícího uživate
 
 Dashboard zobrazuje metriky odpovídající typu pohonu daného vozidla.
 
+Dashboard používá cockpit rozhraní s fixní horní lištou, kompaktní pravou navigací a rychlým vyhledáváním `Ctrl/Cmd + K`. Podporuje světlý, tmavý i automatický režim podle systému.
+
 Typicky obsahuje:
 
 - statistiku jízd,
@@ -291,6 +293,7 @@ Typicky obsahuje:
 - SoH,
 - grafy po měsících,
 - historii jízd,
+- interaktivní Trip Explorer mapu pro jízdy se souřadnicemi nebo OEM GPS telemetrií, včetně startu, cíle, odvozených zastávek a nabíjení s dostupnou polohou,
 - insighty.
 
 ### Garage dashboard

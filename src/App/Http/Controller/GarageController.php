@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controller;
 
 use App\Application;
+use App\Pagination;
 
 /**
  * Controller souhrnného analytického Garage dashboardu.
@@ -29,15 +30,18 @@ final class GarageController
         $vehicles = $this->app->auth()->allowedVehicles($user);
         $data = $this->app->analytics()->build($vehicles, $_GET);
 
-        $vehicleIds = array_map(static function (array $vehicle): int {
+        $garagePage = Pagination::slice($data['comparison'] ?? [], 'page');
+        $data['comparison'] = $garagePage['items'];
+        $visibleVehicleIds = array_map(static function (array $vehicle): int {
             return (int)$vehicle['id'];
-        }, $vehicles);
+        }, $data['comparison']);
 
         $this->app->template()->render('garage', array_merge($data, [
             'app' => $this->app,
             'user' => $user,
             'vehicles' => $vehicles,
-            'vehiclePhotos' => $this->app->vehicleMedia()->primaries($vehicleIds),
+            'pagination' => $garagePage['pagination'],
+            'vehiclePhotos' => $this->app->vehicleMedia()->primaries($visibleVehicleIds),
             'flash' => $this->app->session()->pullFlash(),
             'activeVehicle' => $this->app->auth()->selectVehicle($user),
         ]));

@@ -277,6 +277,29 @@ final class VehicleDataRepository
         return $row ?: null;
     }
 
+    /**
+     * Vrátí geolokační telemetrii vozidla v časovém intervalu jízdy.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function telemetryForVehiclePeriod(
+        int $vehicleId,
+        string $from,
+        string $to,
+        int $limit = 800
+    ): array {
+        $limit = max(2, min(2000, $limit));
+        $q = $this->pdo->prepare(
+            'SELECT id,connection_id,source,observed_at,latitude,longitude,odometer_km,soc_pct,is_charging,is_plugged_in,charging_power_kw '
+            . 'FROM vehicle_telemetry_snapshots '
+            . 'WHERE vehicle_id=? AND observed_at>=? AND observed_at<=? AND latitude IS NOT NULL AND longitude IS NOT NULL '
+            . 'ORDER BY observed_at ASC,id ASC LIMIT ' . $limit
+        );
+        $q->execute([$vehicleId, $from, $to]);
+
+        return $q->fetchAll();
+    }
+
     /** @param array<string,mixed> $normalized */
     public function insertTelemetry(int $vehicleId, int $connectionId, string $source, array $normalized): bool
     {
@@ -378,18 +401,31 @@ final class VehicleDataRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function recentRunsForUser(int $userId, int $limit = 20): array
+    public function recentRunsForUser(int $userId, int $limit = 20, int $offset = 0): array
     {
         $limit = max(1, min(100, $limit));
+        $offset = max(0, $offset);
         $q = $this->pdo->prepare(
             'SELECT r.*,c.external_name,c.provider,v.name vehicle_name
              FROM vehicle_sync_runs r
              JOIN vehicle_connector_connections c ON c.id=r.connection_id
              LEFT JOIN vehicles v ON v.id=c.vehicle_id
-             WHERE c.user_id=? ORDER BY r.id DESC LIMIT ' . $limit
+             WHERE c.user_id=? ORDER BY r.id DESC LIMIT ' . $limit . ' OFFSET ' . $offset
         );
         $q->execute([$userId]);
         return $q->fetchAll();
+    }
+
+    public function syncRunCountForUser(int $userId): int
+    {
+        $q = $this->pdo->prepare(
+            'SELECT COUNT(*)
+             FROM vehicle_sync_runs r
+             JOIN vehicle_connector_connections c ON c.id=r.connection_id
+             WHERE c.user_id=?'
+        );
+        $q->execute([$userId]);
+        return (int)$q->fetchColumn();
     }
 
 

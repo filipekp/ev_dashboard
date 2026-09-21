@@ -6,6 +6,7 @@ namespace App\Http\Controller;
 
 use App\Application;
 use App\Http;
+use App\Pagination;
 use App\Service\DocumentImportService;
 use Throwable;
 
@@ -57,20 +58,37 @@ final class DocumentsController
         }
 
         $runHistory = [];
+        $runPagination = null;
+        $isLatestRun = false;
         $linkedOperationCount = 0;
         if ($run) {
             $documentId = (int)$run['document_id'];
+            $runPagination = Pagination::meta(
+                $this->app->documents()->runCountForDocument($documentId, $scope['from']),
+                Pagination::currentPage('run_page'),
+                Pagination::DEFAULT_PER_PAGE,
+                'run_page'
+            );
             $runHistory = $this->app->documents()->runsForDocument(
                 $documentId,
                 $scope['from'],
-                25
+                Pagination::DEFAULT_PER_PAGE,
+                ((int)$runPagination['page'] - 1) * Pagination::DEFAULT_PER_PAGE
             );
+            $isLatestRun = $this->app->documents()->isLatestRun($documentId, (int)$run['id']);
             $linkedOperationCount = $this->app->documents()->linkedOperationCount(
                 $documentId,
                 $vehicleId
             );
         }
 
+        $documentPagination = Pagination::meta(
+            $this->app->documents()->countForVehicle($vehicleId, $scope['from']),
+            Pagination::currentPage('page'),
+            Pagination::DEFAULT_PER_PAGE,
+            'page'
+        );
+        $documentOffset = ((int)$documentPagination['page'] - 1) * Pagination::DEFAULT_PER_PAGE;
         $aiProvider = strtolower((string)$this->app->config()->get('ai.provider', 'none'));
 
         $this->app->template()->render('documents', [
@@ -78,9 +96,13 @@ final class DocumentsController
             'user' => $user,
             'vehicles' => $this->app->auth()->allowedVehicles($user),
             'vehicle' => $vehicle,
-            'documents' => $this->app->documents()->listForVehicle($vehicleId, 100, $scope['from']),
+            'documents' => $this->app->documents()->listForVehicle($vehicleId, Pagination::DEFAULT_PER_PAGE, $scope['from'], $documentOffset),
+            'pagination' => $documentPagination,
+            'documentPagination' => $documentPagination,
             'run' => $run,
             'runHistory' => $runHistory,
+            'runPagination' => $runPagination,
+            'isLatestRun' => $isLatestRun,
             'linkedOperationCount' => $linkedOperationCount,
             'flash' => $this->app->session()->pullFlash(),
             'aiProvider' => $aiProvider,

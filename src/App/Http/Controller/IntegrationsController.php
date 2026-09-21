@@ -6,6 +6,7 @@ namespace App\Http\Controller;
 
 use App\Application;
 use App\Http;
+use App\Pagination;
 use RuntimeException;
 use Throwable;
 
@@ -55,8 +56,15 @@ final class IntegrationsController
         }
 
         $vehicles = $this->app->auth()->allowedVehicles($user);
+        $vehiclePage = Pagination::slice($vehicles, 'page');
+        $runPagination = Pagination::meta(
+            $this->app->vehicleData()->syncRunCountForUser((int)$user['id']),
+            Pagination::currentPage('runs_page'),
+            Pagination::DEFAULT_PER_PAGE,
+            'runs_page'
+        );
         $items = [];
-        foreach ($vehicles as $vehicle) {
+        foreach ($vehiclePage['items'] as $vehicle) {
             $connection = $this->app->vehicleData()->findConnectionForVehicle((int)$vehicle['id']);
             $items[] = [
                 'vehicle' => $vehicle,
@@ -74,7 +82,13 @@ final class IntegrationsController
             'vehicles' => $vehicles,
             'vehicle' => $this->app->auth()->selectVehicle($user),
             'items' => $items,
-            'recentRuns' => $this->app->vehicleData()->recentRunsForUser((int)$user['id'], 20),
+            'pagination' => $vehiclePage['pagination'],
+            'recentRuns' => $this->app->vehicleData()->recentRunsForUser(
+                (int)$user['id'],
+                Pagination::DEFAULT_PER_PAGE,
+                ($runPagination['page'] - 1) * Pagination::DEFAULT_PER_PAGE
+            ),
+            'runPagination' => $runPagination,
             'flash' => $this->app->session()->pullFlash(),
         ]);
     }

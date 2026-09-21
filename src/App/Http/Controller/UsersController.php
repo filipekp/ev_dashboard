@@ -6,6 +6,7 @@ namespace App\Http\Controller;
 
 use App\Application;
 use App\Http;
+use App\Pagination;
 use RuntimeException;
 use Throwable;
 
@@ -39,7 +40,8 @@ final class UsersController
             Http::redirect('users.php');
         }
 
-        $users = $this->app->userAccess()->manageableUsers($me);
+        $userPage = Pagination::slice($this->app->userAccess()->manageableUsers($me), 'page');
+        $users = $userPage['items'];
         $vehicles = $this->app->userAccess()->assignableVehicles($me);
         $managers = $this->app->auth()->isAdmin($me)
             ? $pdo->query("SELECT id,name,email FROM users WHERE role='manager' AND active=1 ORDER BY name")->fetchAll()
@@ -65,6 +67,7 @@ final class UsersController
             'vehicles' => $vehicles,
             'managers' => $managers,
             'assigned' => $assigned,
+            'pagination' => $userPage['pagination'],
             'flash' => $this->app->session()->pullFlash(),
         ]);
     }

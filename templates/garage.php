@@ -32,11 +32,27 @@ $canManageGarageVehicles = $app->auth()->canManageVehicles($user);
         </div>
     </section>
 
-    <section class="garage-summary dashboard-summary-grid">
-        <div class="metric-card"><small>NÁJEZD <?= (int)$selectedYear ?></small><b><?= cz($totals['distance_km'], 0) ?> km</b><span>celkem v garáži</span></div>
-        <div class="metric-card"><small>PROVOZ</small><b><?= cz($totals['operating_cost'], 0) ?> Kč</b><span>energie, servis a další</span></div>
-        <div class="metric-card"><small>TCO</small><b><?= cz($totals['full_tco'], 0) ?> Kč</b><span>celkové náklady vlastnictví</span></div>
-        <div class="metric-card"><small>VOZIDLA</small><b><?= count($vehicles) ?></b><span>v dostupné garáži</span></div>
+    <section class="garage-summary dashboard-summary-grid" aria-label="Souhrn garáže">
+        <div class="metric-card garage-summary-card">
+            <small>NÁJEZD <?= (int)$selectedYear ?></small>
+            <b><?= cz($totals['distance_km'], 0) ?> <span class="garage-summary-unit">km</span></b>
+            <span class="garage-summary-meta">Celkem v garáži</span>
+        </div>
+        <div class="metric-card garage-summary-card">
+            <small>PROVOZ</small>
+            <b><?= cz($totals['operating_cost'], 0) ?> <span class="garage-summary-unit">Kč</span></b>
+            <span class="garage-summary-meta">Energie, servis a další</span>
+        </div>
+        <div class="metric-card garage-summary-card">
+            <small>TCO</small>
+            <b><?= cz($totals['full_tco'], 0) ?> <span class="garage-summary-unit">Kč</span></b>
+            <span class="garage-summary-meta">Celkové náklady vlastnictví</span>
+        </div>
+        <div class="metric-card garage-summary-card">
+            <small>VOZIDLA</small>
+            <b><?= count($vehicles) ?></b>
+            <span class="garage-summary-meta">V dostupné garáži</span>
+        </div>
     </section>
 
     <?php if ($comparison): ?>

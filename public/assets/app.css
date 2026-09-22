@@ -10143,3 +10143,89 @@ body.modal-open {
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+/* Garage summary KPI hierarchy ----------------------------------------- */
+.garage-summary .garage-summary-card {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    min-height: 126px !important;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 18px 20px !important;
+    overflow: hidden;
+}
+
+.garage-summary .garage-summary-card::after {
+    position: absolute;
+    right: 18px;
+    bottom: 16px;
+    width: 46px;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--cockpit-primary), var(--cockpit-cyan));
+    content: "";
+    opacity: .45;
+}
+
+.garage-summary .garage-summary-card > small {
+    display: block;
+    margin: 0 0 11px;
+    line-height: 1.2;
+}
+
+.garage-summary .garage-summary-card > b {
+    display: block;
+    max-width: 100%;
+    margin: 0;
+    font-size: clamp(24px, 2vw, 31px) !important;
+    font-weight: 700 !important;
+    line-height: 1;
+    letter-spacing: -.045em;
+    white-space: nowrap;
+}
+
+.garage-summary .garage-summary-unit {
+    margin-left: 2px;
+    color: var(--cockpit-muted);
+    font-size: .58em;
+    font-weight: 650;
+    letter-spacing: -.015em;
+}
+
+.garage-summary .garage-summary-meta {
+    display: block;
+    max-width: calc(100% - 54px);
+    margin-top: 10px;
+    color: var(--cockpit-muted);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+    .garage-summary .garage-summary-card {
+        min-height: 108px !important;
+        padding: 14px 15px !important;
+    }
+
+    .garage-summary .garage-summary-card::after {
+        right: 14px;
+        bottom: 13px;
+        width: 32px;
+    }
+
+    .garage-summary .garage-summary-card > small {
+        margin-bottom: 8px;
+    }
+
+    .garage-summary .garage-summary-card > b {
+        font-size: 22px !important;
+    }
+
+    .garage-summary .garage-summary-meta {
+        margin-top: 7px;
+        font-size: 10px;
+    }
+}

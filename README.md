@@ -159,7 +159,7 @@ Elektromobily mohou pracovat s hodnotami SoC, kapacitou baterie, kWh a SoH. Spal
 
 Connected Car je postavený jako **pluginová vrstva přímých konektorů automobilek**. Analytika, Timeline a budoucí Anomaly Engine neznají formát konkrétního OEM API; pracují pouze s normalizovanou telemetrií a eventy.
 
-Aktuálně jsou zapojené přímé OEM konektory pro **Škoda, Kia, Tesla, Audi a Volkswagen**. Škoda používá uživatelský API key, Kia používá Pleos Business User OAuth + explicitní data-sharing consent, Tesla používá Tesla Fleet API OAuth a Audi/Volkswagen používají Volkswagen Group EU Data Act Data Hub. Kód není svázaný s jedním agregátorem a další značku lze doplnit registrací další implementace `VehicleConnectorInterface`.
+Aktuálně jsou zapojené přímé OEM konektory pro **Škoda, Kia, Tesla, Audi a Volkswagen**. Škoda používá uživatelský API key, Kia používá Pleos **Private User My Vehicle API key (Client ID + Client Secret)**, Tesla používá Tesla Fleet API OAuth a Audi/Volkswagen používají Volkswagen Group EU Data Act Data Hub. Kód není svázaný s jedním agregátorem a další značku lze doplnit registrací další implementace `VehicleConnectorInterface`.
 
 ```text
 Škoda Public API      Kia / Pleos       Tesla Fleet API     další OEM
@@ -1025,16 +1025,19 @@ SKODA_API_TIMEOUT_SECONDS=30
 SKODA_SYNC_INTERVAL_SECONDS=600
 SKODA_RATE_LIMIT_RESERVE=3
 
-# Kia Europe Vehicle Data API / Pleos Business User
+# Kia Europe Vehicle Data API / Pleos Private User
+# Client ID a Client Secret se NEzadávají do .env; každý uživatel je uloží šifrovaně u svého Kia vozidla.
 KIA_PLEOS_API_URL=https://api.pleos.ai
+KIA_PLEOS_TIMEOUT_SECONDS=30
+KIA_PLEOS_SYNC_INTERVAL_SECONDS=900
+
+# Volitelné pouze pro kompatibilitu se starým Business User OAuth flow:
 KIA_PLEOS_CLIENT_ID=
 KIA_PLEOS_CLIENT_SECRET=
 KIA_PLEOS_LOGIN_REDIRECT_URI=
 KIA_PLEOS_CONSENT_REDIRECT_URI=
 KIA_PLEOS_SHARING_END_TOKEN=
 KIA_PLEOS_LANGUAGE=cs
-KIA_PLEOS_TIMEOUT_SECONDS=30
-KIA_PLEOS_SYNC_INTERVAL_SECONDS=900
 
 # Tesla Fleet API
 TESLA_CLIENT_ID=
@@ -1083,38 +1086,26 @@ První verze je **read-only**. Ovládání nabíjení/klimatizace z EV Stats nen
 
 # Kia Europe Vehicle Data API / Pleos
 
-Kia používá oficiální evropské Vehicle Data API přes Pleos. Pro více uživatelů EV Stats je implementován **Business User** flow.
+Kia konektor je určený pro **Private Users / vlastní vozidlo**. Každý uživatel EV Stats si v Pleos Playground vytvoří svůj **My Vehicle API key** a do EV Stats zadá pouze jeho `Client ID` a `Client Secret`. Server EV Stats už nepotřebuje společný Kia Client ID/Secret pro běžné připojení vozidla.
 
-## Co nastavit v Pleos Playground
+## Získání přístupových údajů
 
-V projektu otevřete **API → Vehicle Data → Request Access** a požádejte o přístup pro značku Kia. Do autorizačních URL nastavte:
+1. Otevřete `https://pleos.ai/playground/vehicle-data-api` a přihlaste se do Pleos Playground.
+2. V části **My Vehicle Data API** si vyžádejte / vytvořte My Vehicle API key pro značku Kia.
+3. Zkopírujte `Client ID` a `Client Secret`. Pleos upozorňuje, že tyto údaje nemají být sdílené s jinými osobami.
+4. Pokud jste vozidlo do Kia Connect přidali až po vydání API key, je podle Pleos potřeba starý klíč zrušit a vytvořit nový, aby se nové VIN dostalo do seznamu dostupných vozidel.
 
-```text
-Login redirect URL:
-https://VAŠE-DOMÉNA/kia-oauth-callback.php
-
-Data sharing agreement redirect URL:
-https://VAŠE-DOMÉNA/kia-consent-callback.php
-
-Data sharing end callback URL:
-https://VAŠE-DOMÉNA/kia-data-sharing-ended.php?token=VÁŠ_NÁHODNÝ_TOKEN
-```
-
-Hodnota Login redirect URL musí přesně odpovídat `KIA_PLEOS_LOGIN_REDIRECT_URI`. Pokud explicitní hodnotu v `.env` nepoužijete, EV Stats sestaví URL z `APP_BASE_URL`.
-
-## Připojení uživatele
+## Připojení v EV Stats
 
 1. U vozidla s výrobcem `KIA` otevřete **Vozidla → Upravit**.
-2. V Connected Car klikněte **Připojit Kia účet**.
-3. EV Stats vytvoří OAuth `state` a přesměruje uživatele na `https://api.pleos.ai/v1/auth/login`.
-4. Po návratu vymění authorization code za access/refresh token přes `/v1/auth/token`.
-5. Následně vyvolá `/v1/vehicles/selections` a uživatel v Pleos WebView vybere vozidlo a schválí sdílení.
-6. EV Stats ověří skutečně odsouhlasené VIN přes `/v1/vehicles/consent` a až potom spustí první synchronizaci.
-7. Access token se automaticky obnovuje přes `/v1/auth/token-refresh`; nový jednorázový refresh token se vždy znovu zašifruje do DB.
+2. V části Connected Car klikněte na **Získat přístupové údaje**, pokud je ještě nemáte.
+3. Vyplňte **Client ID** a **Client Secret**.
+4. Zvolte **Otestovat a připojit**.
+5. EV Stats odešle Client ID/Secret výhradně na oficiální endpoint `POST /v1/auth/personal-token` s hlavičkou `Brand: kia`, získá access token a následně přes `GET /v1/vehicles/consent` ověří, že API key obsahuje VIN vozidla.
+6. Při každé další synchronizaci EV Stats vydá nový access token z uloženého My Vehicle API key; samotný access token se dlouhodobě neukládá. Client ID a Client Secret jsou v databázi šifrované pomocí `VEHICLE_CREDENTIALS_KEY`.
+7. Konektor následně čte podle dostupnosti modelu `/batteries`, `/locations`, `/driving`, `/powertrains` a `/status`. Nedostupné modelové endpointy jsou zpracované jako částečně chybějící capability a nemusí shodit celý sync.
 
-Konektor čte podle dostupnosti modelu zejména `/batteries`, `/locations`, `/driving`, `/powertrains` a `/status`. Nedostupné modelové endpointy jsou zpracované jako částečně chybějící capability a nemusí shodit celý sync.
-
-Pokud Kia/Pleos oznámí ukončení souhlasu přes `kia-data-sharing-ended.php`, EV Stats odstraní propojení a data získaná přes tento Kia konektor pro příslušné VIN.
+Legacy Business User OAuth endpointy zůstávají v kódu kvůli kompatibilitě se staršími instalacemi, ale nové připojení Kia je v UI vždy přes uživatelský Client ID + Client Secret.
 
 ### Přidání další automobilky
 

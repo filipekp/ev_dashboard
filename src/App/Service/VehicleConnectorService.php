@@ -241,7 +241,7 @@ final class VehicleConnectorService
     /** @param array<string,mixed> $credentials */
     private function primarySecret(array $credentials): string
     {
-        foreach (['api_key', 'access_token', 'refresh_token', 'password'] as $key) {
+        foreach (['client_id', 'api_key', 'access_token', 'refresh_token', 'password', 'client_secret'] as $key) {
             if (isset($credentials[$key]) && is_string($credentials[$key]) && trim($credentials[$key]) !== '') {
                 return trim($credentials[$key]);
             }

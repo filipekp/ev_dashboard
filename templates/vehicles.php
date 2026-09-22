@@ -259,11 +259,7 @@
 
                         <div class="connector-connect" id="vehicleConnectorConnect">
                             <div id="vehicleConnectorCredentialFlow">
-                                <label>
-                                    <span id="vehicleConnectorCredentialLabel">API klíč</span>
-                                    <input form="vehicleConnectorForm" id="vehicleConnectorApiKey" name="credentials[api_key]" type="password"
-                                           autocomplete="off" placeholder="Vložte nový API klíč">
-                                </label>
+                                <div class="connector-credential-fields" id="vehicleConnectorCredentialFields"></div>
                             </div>
                             <div id="vehicleConnectorOauthFlow" hidden>
                                 <p class="form-panel-help" id="vehicleConnectorOauthHelp"></p>
@@ -272,6 +268,7 @@
                             <p class="form-panel-help" id="vehicleConnectorCredentialHelp"></p>
                             <div class="connector-actions">
                                 <a class="btn" id="vehicleConnectorDocs" href="#" target="_blank" rel="noopener noreferrer">Dokumentace</a>
+                                <a class="btn" id="vehicleConnectorCredentialsUrl" href="#" target="_blank" rel="noopener noreferrer" hidden>Získat přístupové údaje</a>
                                 <button form="vehicleConnectorForm" class="btn primary" id="vehicleConnectorCredentialConnectButton" type="submit" name="action"
                                         value="connector_connect" <?= $connectorSecurityReady ? '' : 'disabled' ?>>Otestovat a připojit
                                 </button>
@@ -288,11 +285,7 @@
                             </div>
                             <div class="connector-error" id="vehicleConnectorError" hidden></div>
                             <div class="connector-replace" id="vehicleConnectorReplace">
-                                <label>
-                                    <span>Nahradit credential</span>
-                                    <input form="vehicleConnectorForm" name="credentials[api_key]" id="vehicleConnectorReplacementApiKey"
-                                           type="password" autocomplete="off" placeholder="Nový API klíč">
-                                </label>
+                                <div class="connector-credential-fields" id="vehicleConnectorReplacementFields"></div>
                             </div>
                             <div class="connector-actions">
                                 <button form="vehicleConnectorForm" class="btn" type="submit" name="action" value="connector_test">Otestovat</button>

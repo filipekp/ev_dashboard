@@ -9,8 +9,9 @@ use App\Integration\Vehicle\VehicleConnectorException;
 /**
  * HTTP klient pro evropské Kia Vehicle Data API provozované přes Pleos.
  *
- * Implementuje Business User OAuth flow, jednorázově rotující refresh token,
- * vehicle selection/consent a čtení aktuální telemetrie vozidla.
+ * Primárně podporuje Private User flow s uživatelským Client ID/Secret z
+ * Pleos Playground. Legacy Business User OAuth metody zůstávají kvůli
+ * kompatibilitě se staršími instalacemi EV Stats.
  *
  * @author    Pavel Filípek <pavel@filipek-czech.cz>
  * @copyright © 2026, Proclient s.r.o.
@@ -43,6 +44,31 @@ final class KiaPleosApiClient
         return $this->baseUrl !== '' && $this->clientId !== '' && $this->clientSecret !== '';
     }
 
+    /**
+     * Vydá access token z My Vehicle API key Private Usera.
+     * Client Secret se nikam neposílá kromě oficiálního Pleos endpointu.
+     */
+    public function createPersonalAccessToken(string $clientId, string $clientSecret): string
+    {
+        $clientId = trim($clientId);
+        $clientSecret = trim($clientSecret);
+        if ($clientId === '' || $clientSecret === '') {
+            throw new VehicleConnectorException('Vyplňte Kia Pleos Client ID a Client Secret.', 0, true);
+        }
+
+        $response = $this->requestJson('POST', '/v1/auth/personal-token', null, [
+            'clientId' => $clientId,
+            'clientSecret' => $clientSecret,
+        ], false);
+        $data = isset($response['data']) && is_array($response['data']) ? $response['data'] : [];
+        $accessToken = trim((string)($data['accessToken'] ?? ''));
+        if ($accessToken === '') {
+            throw new VehicleConnectorException('Kia Pleos nevrátil access token pro My Vehicle API key.', 401, true);
+        }
+
+        return $accessToken;
+    }
+
     public function loginUrl(string $redirectUri, string $state): string
     {
         $this->assertConfigured();
@@ -63,6 +89,7 @@ final class KiaPleosApiClient
     /** @return array<string,mixed> */
     public function exchangeAuthorizationCode(string $code, string $redirectUri): array
     {
+        $this->assertConfigured();
         $code = trim($code);
         $redirectUri = trim($redirectUri);
         if ($code === '' || $redirectUri === '') {
@@ -87,6 +114,7 @@ final class KiaPleosApiClient
      */
     public function refreshAccessToken(string $refreshToken): array
     {
+        $this->assertConfigured();
         $refreshToken = trim($refreshToken);
         if ($refreshToken === '') {
             throw new VehicleConnectorException('Kia připojení nemá refresh token. Připojte Kia účet znovu.', 401, true);
@@ -198,7 +226,9 @@ final class KiaPleosApiClient
      */
     private function requestJson(string $method, string $path, ?string $accessToken = null, ?array $body = null, bool $retryable = true): array
     {
-        $this->assertConfigured();
+        if ($this->baseUrl === '') {
+            throw new VehicleConnectorException('Kia Pleos API URL není nakonfigurována.', 0, true);
+        }
         if (!function_exists('curl_init')) {
             throw new VehicleConnectorException('PHP rozšíření cURL není dostupné.', 0, true);
         }

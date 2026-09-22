@@ -20,13 +20,14 @@
     form: byId('vehicleConnectorForm'), panel: byId('vehicleConnectorPanel'), unsupported: byId('vehicleConnectorUnsupported'),
     body: byId('vehicleConnectorBody'), title: byId('vehicleConnectorTitle'), description: byId('vehicleConnectorDescription'),
     status: byId('vehicleConnectorStatus'), csrf: byId('vehicleConnectorCsrf'), vehicleId: byId('vehicleConnectorVehicleId'), provider: byId('vehicleConnectorProvider'),
-    docs: byId('vehicleConnectorDocs'), connect: byId('vehicleConnectorConnect'), connected: byId('vehicleConnectorConnected'),
-    credentialFlow: byId('vehicleConnectorCredentialFlow'), oauthFlow: byId('vehicleConnectorOauthFlow'),
+    docs: byId('vehicleConnectorDocs'), credentialsUrl: byId('vehicleConnectorCredentialsUrl'),
+    connect: byId('vehicleConnectorConnect'), connected: byId('vehicleConnectorConnected'),
+    credentialFlow: byId('vehicleConnectorCredentialFlow'), credentialFields: byId('vehicleConnectorCredentialFields'),
+    replacementFields: byId('vehicleConnectorReplacementFields'), oauthFlow: byId('vehicleConnectorOauthFlow'),
     oauthHelp: byId('vehicleConnectorOauthHelp'), oauthButton: byId('vehicleConnectorOauthButton'),
-    credentialConnectButton: byId('vehicleConnectorCredentialConnectButton'), apiKey: byId('vehicleConnectorApiKey'),
-    replacementApiKey: byId('vehicleConnectorReplacementApiKey'), replace: byId('vehicleConnectorReplace'),
-    saveCredential: byId('vehicleConnectorSaveCredential'), credentialLabel: byId('vehicleConnectorCredentialLabel'),
-    credentialHelp: byId('vehicleConnectorCredentialHelp'), credentialHint: byId('vehicleConnectorCredentialHint'),
+    credentialConnectButton: byId('vehicleConnectorCredentialConnectButton'), replace: byId('vehicleConnectorReplace'),
+    saveCredential: byId('vehicleConnectorSaveCredential'), credentialHelp: byId('vehicleConnectorCredentialHelp'),
+    credentialHint: byId('vehicleConnectorCredentialHint'),
     lastSync: byId('vehicleConnectorLastSync'), nextSync: byId('vehicleConnectorNextSync'), expires: byId('vehicleConnectorExpires'),
     rateLimit: byId('vehicleConnectorRateLimit'), error: byId('vehicleConnectorError'), disconnect: byId('vehicleConnectorDisconnect')
   };
@@ -58,6 +59,44 @@
     fields.battery.required = electric;
   };
 
+  const renderCredentialFields = (container, schemaFields, required) => {
+    if (!container) return;
+    container.replaceChildren();
+    (Array.isArray(schemaFields) ? schemaFields : []).forEach(field => {
+      if (!field || typeof field !== 'object' || !field.name) return;
+
+      const label = document.createElement('label');
+      const title = document.createElement('span');
+      title.textContent = field.label || field.name;
+      label.appendChild(title);
+
+      const input = document.createElement('input');
+      input.setAttribute('form', 'vehicleConnectorForm');
+      input.name = `credentials[${field.name}]`;
+      input.type = field.type || 'password';
+      input.autocomplete = field.autocomplete || 'off';
+      input.placeholder = field.placeholder || '';
+      input.required = required && field.required === true;
+      label.appendChild(input);
+
+      if (field.help) {
+        const help = document.createElement('small');
+        help.className = 'form-panel-help';
+        help.textContent = field.help;
+        label.appendChild(help);
+      }
+
+      container.appendChild(label);
+    });
+  };
+
+  const setCredentialFieldsDisabled = (container, disabled) => {
+    if (!container) return;
+    container.querySelectorAll('input, select, textarea').forEach(input => {
+      input.disabled = disabled;
+    });
+  };
+
   const syncConnector = vehicle => {
     if (!connector.panel) return;
     const editing = !!vehicle;
@@ -70,8 +109,8 @@
     const option = options.find(item => connection && item.id === connection.provider) || options[0] || null;
 
     connector.vehicleId.value = value(vehicle.id);
-    connector.apiKey.value = '';
-    connector.replacementApiKey.value = '';
+    renderCredentialFields(connector.credentialFields, [], false);
+    renderCredentialFields(connector.replacementFields, [], false);
 
     if (manufacturerChanged) {
       connector.unsupported.hidden = false;
@@ -102,17 +141,23 @@
       || (option.id === 'skoda_public_api'
         ? 'Oficiální MyŠkoda Public API. API klíč se ukládá pouze šifrovaně a nikdy se neposílá zpět do prohlížeče.'
         : option.id === 'kia_pleos'
-          ? 'Oficiální Kia Europe Vehicle Data API přes Pleos. Přihlášení i souhlas se sdílením probíhá přímo u Kia/Pleos.'
+          ? 'Oficiální Kia Vehicle Data API přes Pleos. Zadejte vlastní Client ID a Client Secret z My Vehicle Data API.'
           : 'Přímé propojení vozidla s oficiálním API výrobce.');
 
     const isOauth = schema.type === 'oauth';
-    const credentialField = Array.isArray(schema.fields) ? schema.fields[0] : null;
+    const schemaFields = Array.isArray(schema.fields) ? schema.fields : [];
     connector.credentialFlow.hidden = isOauth;
     connector.oauthFlow.hidden = !isOauth;
     connector.credentialConnectButton.hidden = isOauth;
-    connector.credentialLabel.textContent = credentialField?.label || 'Credential';
-    connector.credentialHelp.textContent = isOauth ? '' : (credentialField?.help || '');
+    connector.credentialHelp.textContent = isOauth ? '' : (schema.help || '');
     connector.docs.href = schema.documentation_url || '#';
+    if (connector.credentialsUrl) {
+      const credentialsUrl = value(schema.credentials_url).trim();
+      connector.credentialsUrl.hidden = credentialsUrl === '';
+      connector.credentialsUrl.href = credentialsUrl || '#';
+    }
+    renderCredentialFields(connector.credentialFields, schemaFields, true);
+    renderCredentialFields(connector.replacementFields, schemaFields, false);
 
     if (isOauth) {
       const available = schema.available !== false && connector.panel?.dataset.securityReady === '1';
@@ -148,8 +193,8 @@
     const isConnected = !!connection;
     connector.connect.hidden = isConnected;
     connector.connected.hidden = !isConnected;
-    connector.apiKey.disabled = isConnected || isOauth;
-    connector.replacementApiKey.disabled = !isConnected || isOauth;
+    setCredentialFieldsDisabled(connector.credentialFields, isConnected || isOauth);
+    setCredentialFieldsDisabled(connector.replacementFields, !isConnected || isOauth);
     connector.replace.hidden = isOauth;
     connector.saveCredential.hidden = isOauth;
 

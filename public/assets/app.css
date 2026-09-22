@@ -9678,3 +9678,26 @@ body.modal-open {
         height: 280px;
     }
 }
+
+/* Dynamic OEM credential forms ----------------------------------------- */
+.connector-credential-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.connector-credential-fields > label {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.connector-credential-fields .form-panel-help {
+    margin: 0;
+}
+
+@media (max-width: 760px) {
+    .connector-credential-fields {
+        grid-template-columns: 1fr;
+    }
+}

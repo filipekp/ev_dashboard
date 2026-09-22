@@ -10229,3 +10229,65 @@ body.modal-open {
         font-size: 10px;
     }
 }
+
+/* Cockpit header control alignment -------------------------------------- */
+.cockpit-topbar-actions {
+    --cockpit-header-control-size: 46px;
+    align-items: center;
+}
+
+.cockpit-topbar-actions > * {
+    align-self: center;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.cockpit-topbar-actions .theme-switcher {
+    display: flex;
+    align-items: center;
+    margin: 0;
+}
+
+.cockpit-topbar-actions .cockpit-icon-button {
+    flex: 0 0 var(--cockpit-header-control-size);
+    width: var(--cockpit-header-control-size);
+    height: var(--cockpit-header-control-size);
+    min-width: var(--cockpit-header-control-size);
+    min-height: var(--cockpit-header-control-size);
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    border-radius: 13px;
+}
+
+.cockpit-topbar-actions .cockpit-icon-button > i {
+    display: block;
+    margin: 0;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.cockpit-topbar-actions .cockpit-avatar {
+    width: 32px;
+    height: 32px;
+    line-height: 1;
+    border-radius: 10px;
+}
+
+.cockpit-topbar-actions .cockpit-vehicle-picker,
+.cockpit-topbar-actions .cockpit-vehicle-picker .vehicle-picker-trigger {
+    height: var(--cockpit-header-control-size);
+}
+
+.cockpit-topbar-actions .cockpit-vehicle-picker .vehicle-picker-trigger {
+    min-height: var(--cockpit-header-control-size);
+    padding-top: 5px;
+    padding-bottom: 5px;
+    border-radius: 13px;
+}
+
+.cockpit-topbar-actions .cockpit-vehicle-dot {
+    flex: 0 0 32px;
+}

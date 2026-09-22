@@ -853,6 +853,8 @@ foreach ($historyTrips as $tripRow) {
         let routeLayer = null;
         let markerLayer = null;
         let activeTrip = 0;
+        let activeRouteBounds = null;
+        let activeRoutePoint = null;
 
         const fmt = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 1 });
         const time = value => {
@@ -875,6 +877,25 @@ foreach ($historyTrips as $tripRow) {
             return map;
         };
 
+        const fitActiveRoute = () => {
+            if (!map) return;
+
+            map.invalidateSize({ pan: false });
+            if (activeRouteBounds && activeRouteBounds.isValid()) {
+                map.fitBounds(activeRouteBounds, {
+                    paddingTopLeft: [42, 42],
+                    paddingBottomRight: [42, 42],
+                    maxZoom: 15,
+                    animate: false
+                });
+                return;
+            }
+
+            if (activeRoutePoint) {
+                map.setView(activeRoutePoint, 14, { animate: false });
+            }
+        };
+
         const marker = (point, kind, title, body) => {
             const icon = L.divIcon({
                 className: 'route-map-div-icon',
@@ -891,6 +912,8 @@ foreach ($historyTrips as $tripRow) {
             markerLayer.clearLayers();
             const points = data.route?.points || [];
             const trip = data.trip || {};
+            activeRouteBounds = null;
+            activeRoutePoint = null;
 
             subtitle.textContent = `${trip.start_address || 'Start'} → ${trip.end_address || 'Cíl'}`;
             stats[0].textContent = `${fmt.format(trip.distance_km || 0)} km`;
@@ -930,10 +953,12 @@ foreach ($historyTrips as $tripRow) {
 
             const bounds = L.latLngBounds(latLngs);
             if (latLngs.length === 1) {
-                m.setView(latLngs[0], 14);
+                activeRoutePoint = latLngs[0];
             } else {
-                m.fitBounds(bounds.pad(.14), { maxZoom: 15 });
+                activeRouteBounds = bounds.pad(.10);
             }
+            fitActiveRoute();
+            window.setTimeout(fitActiveRoute, 80);
 
             const chips = [];
             if (data.route?.has_telemetry_track) chips.push(`<span><i class="bi bi-broadcast-pin"></i> ${points.length} GPS bodů</span>`);
@@ -973,14 +998,17 @@ foreach ($historyTrips as $tripRow) {
                 details.innerHTML = `<div class="route-map-empty is-error"><i class="bi bi-exclamation-triangle"></i><div><b>Mapu nelze zobrazit.</b><span>${safe(error.message || 'Neznámá chyba')}</span></div></div>`;
             } finally {
                 loading.hidden = true;
-                window.setTimeout(() => map?.invalidateSize(), 120);
+                window.setTimeout(fitActiveRoute, 120);
             }
         };
 
         document.querySelectorAll('[data-trip-map]').forEach(button => {
             button.addEventListener('click', () => loadTrip(Number(button.dataset.tripMap || 0)));
         });
-        modal.addEventListener('shown.bs.modal', () => window.setTimeout(() => map?.invalidateSize(), 80));
+        modal.addEventListener('shown.bs.modal', () => {
+            window.setTimeout(fitActiveRoute, 40);
+            window.setTimeout(fitActiveRoute, 180);
+        });
     };
 
     if (document.readyState === 'loading') {

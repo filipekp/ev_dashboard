@@ -57,8 +57,12 @@ final class IntegrationsController
 
         $vehicles = $this->app->auth()->allowedVehicles($user);
         $vehiclePage = Pagination::slice($vehicles, 'page');
+        $isAdmin = $this->app->auth()->isAdmin($user);
+        $runCount = $isAdmin
+            ? $this->app->vehicleData()->syncRunCountAll()
+            : $this->app->vehicleData()->syncRunCountForUser((int)$user['id']);
         $runPagination = Pagination::meta(
-            $this->app->vehicleData()->syncRunCountForUser((int)$user['id']),
+            $runCount,
             Pagination::currentPage('runs_page'),
             Pagination::DEFAULT_PER_PAGE,
             'runs_page'
@@ -83,12 +87,18 @@ final class IntegrationsController
             'vehicle' => $this->app->auth()->selectVehicle($user),
             'items' => $items,
             'pagination' => $vehiclePage['pagination'],
-            'recentRuns' => $this->app->vehicleData()->recentRunsForUser(
-                (int)$user['id'],
-                Pagination::DEFAULT_PER_PAGE,
-                ($runPagination['page'] - 1) * Pagination::DEFAULT_PER_PAGE
-            ),
+            'recentRuns' => $isAdmin
+                ? $this->app->vehicleData()->recentRunsAll(
+                    Pagination::DEFAULT_PER_PAGE,
+                    ($runPagination['page'] - 1) * Pagination::DEFAULT_PER_PAGE
+                )
+                : $this->app->vehicleData()->recentRunsForUser(
+                    (int)$user['id'],
+                    Pagination::DEFAULT_PER_PAGE,
+                    ($runPagination['page'] - 1) * Pagination::DEFAULT_PER_PAGE
+                ),
             'runPagination' => $runPagination,
+            'showAllSyncRuns' => $isAdmin,
             'flash' => $this->app->session()->pullFlash(),
         ]);
     }

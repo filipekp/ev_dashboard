@@ -90,17 +90,37 @@ require __DIR__ . '/partials/header.php';
 
     <?php if ($recentRuns || (!empty($runPagination) && (int)$runPagination['total'] > 0)): ?>
         <section class="card connected-runs-card">
-            <div class="section-heading"><div><span class="section-kicker">AUTOSYNC</span><h2>Poslední synchronizace</h2></div></div>
+            <div class="section-heading">
+                <div>
+                    <span class="section-kicker">AUTOSYNC</span>
+                    <h2><?= !empty($showAllSyncRuns) ? 'Poslední synchronizace všech vozidel' : 'Poslední synchronizace' ?></h2>
+                    <?php if (!empty($showAllSyncRuns)): ?>
+                        <p>Administrátorský přehled zahrnuje ruční, počáteční, webhook i CRON běhy napříč všemi Connected Car vazbami.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
             <div class="table-wrap">
                 <table class="data-table">
-                    <thead><tr><th>Čas</th><th>Vozidlo</th><th>Konektor</th><th>Spuštění</th><th>Stav</th><th>Snapshoty</th><th>Události</th></tr></thead>
+                    <thead><tr><th>Čas</th><th>Vozidlo</th><th>Konektor</th><th>Spuštění</th><?php if (!empty($showAllSyncRuns)): ?><th>Účet / spuštění</th><?php endif; ?><th>Stav</th><th>Snapshoty</th><th>Události</th></tr></thead>
                     <tbody>
                     <?php foreach ($recentRuns as $run): ?>
                         <tr>
                             <td><?= h((string)$run['started_at']) ?></td>
-                            <td><?= h((string)($run['vehicle_name'] ?? '—')) ?></td>
+                            <td><?= h((string)($run['vehicle_name'] ?? $run['external_name'] ?? '—')) ?></td>
                             <td><?= h((string)($run['provider'] ?? '—')) ?></td>
                             <td><?= h((string)$run['trigger_type']) ?></td>
+                            <?php if (!empty($showAllSyncRuns)): ?>
+                                <td>
+                                    <span><?= h((string)($run['connection_user_name'] ?? 'Bez vlastníka')) ?></span>
+                                    <?php if (!empty($run['run_user_name'])): ?>
+                                        <small class="muted">spustil <?= h((string)$run['run_user_name']) ?></small>
+                                    <?php elseif ((string)$run['trigger_type'] === 'cron'): ?>
+                                        <small class="muted">CRON / systém</small>
+                                    <?php else: ?>
+                                        <small class="muted">systém</small>
+                                    <?php endif; ?>
+                                </td>
+                            <?php endif; ?>
                             <td><span class="sync-status sync-<?= h((string)$run['status']) ?>"><?= h((string)$run['status']) ?></span><?php if (!empty($run['error_message'])): ?><small class="table-error"><?= h((string)$run['error_message']) ?></small><?php endif; ?></td>
                             <td><?= (int)$run['snapshots_created'] ?></td>
                             <td><?= (int)$run['events_created'] ?></td>

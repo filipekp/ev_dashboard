@@ -453,6 +453,29 @@ final class VehicleDataRepository
         return (int)$q->fetchColumn();
     }
 
+    /** @return array<int,array<string,mixed>> */
+    public function recentRunsAll(int $limit = 20, int $offset = 0): array
+    {
+        $limit = max(1, min(100, $limit));
+        $offset = max(0, $offset);
+        $q = $this->pdo->query(
+            'SELECT r.*,c.external_name,c.provider,c.user_id connection_user_id,v.name vehicle_name,
+                    run_user.name run_user_name,connection_user.name connection_user_name
+             FROM vehicle_sync_runs r
+             JOIN vehicle_connector_connections c ON c.id=r.connection_id
+             LEFT JOIN vehicles v ON v.id=c.vehicle_id
+             LEFT JOIN users run_user ON run_user.id=r.user_id
+             LEFT JOIN users connection_user ON connection_user.id=c.user_id
+             ORDER BY r.id DESC LIMIT ' . $limit . ' OFFSET ' . $offset
+        );
+        return $q->fetchAll();
+    }
+
+    public function syncRunCountAll(): int
+    {
+        return (int)$this->pdo->query('SELECT COUNT(*) FROM vehicle_sync_runs')->fetchColumn();
+    }
+
 
     /**
      * Aktualizuje šifrované credentials po OAuth refreshi. U Pleos je refresh

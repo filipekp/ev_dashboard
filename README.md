@@ -1668,3 +1668,14 @@ Migrace `migrate_v22.sql` rozšiřuje OEM telemetrii o odvozenou provozní histo
 - pokud relace není propojena s fakturou, lze cenu za jednotku upravit přímo v provozní historii.
 
 Energie odvozená pouze z OEM snapshotů je označena jako odhad. Primárně se počítá ze změny SoC a využitelné kapacity baterie, při nedostupném SoC se použije integrace dostupného nabíjecího výkonu. Přesnost časů jízd odpovídá intervalu synchronizace OEM konektoru.
+
+## Škoda parkingPosition, klima a průběžné nabíjení (v5.3)
+
+Migrace `migrate_v23.sql` rozšiřuje normalizovanou telemetrii o parkovací adresu a stavy klimatizace/topení/ventilace.
+
+- `parkingPosition.gpsCoordinates` a `parkingPosition.formattedAddress` se ukládají do telemetry snapshotu a používají se jako výchozí/cílové místo automaticky odvozené jízdy;
+- jízda je detekována prvním přírůstkem tachometru a uzavře se až po více než 2 hodinách bez další změny odometru; krátké zastávky proto zůstávají součástí jedné jízdy;
+- budoucí predikční timestampy jako `estimatedReachOfTargetTemperatureAt` se nepoužívají jako čas snapshotu;
+- dashboard zobrazuje stav `airConditioning`, `auxiliaryHeating`, `activeVentilation` a vyhřívání předního/zadního okna, pokud je výrobce poskytne;
+- OEM nabíjecí relace se založí v `vehicle_energy_entries` už při zahájení nabíjení a během dalších synchronizací se aktualizuje SoC, odhad kWh a cena;
+- výchozí cena elektřiny vozidla se použije automaticky; ručně zadaná cena se telemetrií nepřepisuje a spárovaná faktura má nejvyšší prioritu a nahradí odhad přesnými údaji.

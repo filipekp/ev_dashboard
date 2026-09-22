@@ -4322,7 +4322,7 @@ body.modal-open {
 
     .mobile-more-menu {
         position: fixed;
-        z-index: 110;
+        z-index: 9999;
         left: 10px;
         right: 10px;
         bottom: calc(76px + env(safe-area-inset-bottom));
@@ -7791,7 +7791,6 @@ code {
     }
 
     body {
-        padding-top: 62px;
         padding-bottom: 74px;
     }
 
@@ -8118,7 +8117,6 @@ body {
 }
 
 body {
-    padding-top: var(--cockpit-topbar-height);
     background-image:
         radial-gradient(circle at 12% 4%, rgba(var(--cockpit-primary-rgb), .10), transparent 25rem),
         linear-gradient(135deg, var(--cockpit-bg), var(--cockpit-bg-2));
@@ -8698,7 +8696,6 @@ body {
 }
 
 .hero-actions {
-    position: relative;
     z-index: 3;
     grid-column: 1 / -1;
     display: flex;
@@ -8707,7 +8704,6 @@ body {
 }
 
 .hero-action {
-    min-width: 190px;
     padding: 9px 12px;
     color: var(--cockpit-text) !important;
     background: color-mix(in srgb, var(--cockpit-panel-2) 88%, transparent);
@@ -9383,7 +9379,6 @@ textarea:focus {
     }
 
     body {
-        padding-top: 62px;
         padding-bottom: 76px;
     }
 

@@ -182,7 +182,7 @@ final class TripMapController
                 $snapshot['longitude'] ?? null,
                 (string)($snapshot['observed_at'] ?? ''),
                 !empty($snapshot['is_charging']) ? 'charging' : 'track',
-                null,
+                $snapshot['parking_address'] ?? null,
                 $snapshot['odometer_km'] ?? null,
                 $snapshot['soc_pct'] ?? null
             );

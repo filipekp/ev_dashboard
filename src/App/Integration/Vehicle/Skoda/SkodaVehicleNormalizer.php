@@ -21,8 +21,13 @@ final class SkodaVehicleNormalizer
         $chargingStatus = self::arrayValue($charging, 'status');
         $battery = self::arrayValue($chargingStatus, 'battery');
         $odometer = self::arrayValue($vehicle, 'odometer');
+        $parkingPosition = self::arrayValue($vehicle, 'parkingPosition');
         $position = self::position($vehicle);
         $fuel = self::fuel($vehicle);
+        $airConditioning = self::arrayValue($vehicle, 'airConditioning');
+        $auxiliaryHeating = self::arrayValue($vehicle, 'auxiliaryHeating');
+        $activeVentilation = self::arrayValue($vehicle, 'activeVentilation');
+        $windowHeating = self::arrayValue($airConditioning, 'windowHeating');
 
         $state = strtoupper((string)($chargingStatus['state'] ?? ''));
         $chargePowerKw = self::firstNumber([
@@ -50,6 +55,9 @@ final class SkodaVehicleNormalizer
             $isPluggedIn = true;
         }
 
+        // Do observed_at patří pouze skutečné capture/update timestampy. Např.
+        // estimatedReachOfTargetTemperatureAt je budoucí predikce a nesmí
+        // posouvat čas telemetrie ani následně historii jízd.
         $observedAt = self::latestDateTime(self::collectTimestamps($vehicle));
         $rangeMeters = self::firstNumber([
             $battery['remainingCruisingRangeInMeters'] ?? null,
@@ -58,6 +66,12 @@ final class SkodaVehicleNormalizer
         $rangeKm = $rangeMeters !== null ? $rangeMeters / 1000 : self::firstNumber([
             self::path($vehicle, ['fuelStatus', 'remainingRangeInKm']),
             self::path($vehicle, ['range', 'totalRangeInKm']),
+        ]);
+
+        $parkingAddress = self::firstString([
+            $parkingPosition['formattedAddress'] ?? null,
+            self::path($parkingPosition, ['address', 'formattedAddress']),
+            self::path($parkingPosition, ['address', 'displayName']),
         ]);
 
         return [
@@ -86,6 +100,7 @@ final class SkodaVehicleNormalizer
                     $position['lon'] ?? null,
                     $position['lng'] ?? null,
                 ]),
+                'parking_address' => $parkingAddress,
                 'is_charging' => $isCharging,
                 'is_plugged_in' => $isPluggedIn,
                 'charging_power_kw' => $chargePowerKw,
@@ -98,6 +113,26 @@ final class SkodaVehicleNormalizer
                     $fuel['levelInPercent'] ?? null,
                     $fuel['stateOfChargeInPercent'] ?? null,
                 ]),
+                'air_conditioning_state' => self::firstString([$airConditioning['state'] ?? null]),
+                'air_conditioning_target_c' => self::firstNumber([
+                    self::path($airConditioning, ['targetTemperature', 'value']),
+                ]),
+                'air_conditioning_without_external_power' => array_key_exists('airConditioningWithoutExternalPower', $airConditioning)
+                    ? (bool)$airConditioning['airConditioningWithoutExternalPower']
+                    : null,
+                'air_conditioning_at_unlock' => array_key_exists('airConditioningAtUnlock', $airConditioning)
+                    ? (bool)$airConditioning['airConditioningAtUnlock']
+                    : null,
+                'window_heating_front' => self::firstString([$windowHeating['front'] ?? null]),
+                'window_heating_rear' => self::firstString([$windowHeating['rear'] ?? null]),
+                'auxiliary_heating_state' => self::firstString([$auxiliaryHeating['state'] ?? null]),
+                'auxiliary_heating_start_mode' => self::firstString([$auxiliaryHeating['startMode'] ?? null]),
+                'auxiliary_heating_duration_seconds' => self::firstNumber([$auxiliaryHeating['durationInSeconds'] ?? null]),
+                'auxiliary_heating_target_c' => self::firstNumber([
+                    self::path($auxiliaryHeating, ['targetTemperature', 'value']),
+                ]),
+                'active_ventilation_state' => self::firstString([$activeVentilation['state'] ?? null]),
+                'active_ventilation_duration_seconds' => self::firstNumber([$activeVentilation['durationInSeconds'] ?? null]),
             ],
             'raw' => $response,
         ];
@@ -110,6 +145,8 @@ final class SkodaVehicleNormalizer
             'odometer' => isset($vehicle['odometer']),
             'charging' => isset($vehicle['charging']),
             'air_conditioning' => isset($vehicle['airConditioning']),
+            'auxiliary_heating' => isset($vehicle['auxiliaryHeating']),
+            'active_ventilation' => isset($vehicle['activeVentilation']),
             'status' => isset($vehicle['status']),
             'parking_position' => isset($vehicle['parkingPosition']) || isset($vehicle['position']) || isset($vehicle['positions']),
             'fuel' => isset($vehicle['fuelStatus']) || isset($vehicle['fuel']),
@@ -167,8 +204,15 @@ final class SkodaVehicleNormalizer
                 return;
             }
             foreach ($value as $key => $item) {
-                if (is_string($key) && preg_match('/(?:captured|updated|timestamp|at)$/i', $key) === 1 && is_string($item)) {
-                    $result[] = $item;
+                if (is_string($key) && is_string($item)) {
+                    $normalizedKey = strtolower($key);
+                    $isPrediction = strpos($normalizedKey, 'estimated') !== false
+                        || strpos($normalizedKey, 'scheduled') !== false
+                        || strpos($normalizedKey, 'target') !== false;
+                    $isCaptureTime = preg_match('/(?:captured(?:at|timestamp)?|updated(?:at|timestamp)?|timestamp)$/i', $key) === 1;
+                    if (!$isPrediction && $isCaptureTime) {
+                        $result[] = $item;
+                    }
                 }
                 if (is_array($item)) {
                     $walk($item);

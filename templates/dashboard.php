@@ -22,7 +22,34 @@ require __DIR__ . '/partials/header.php';
         || $liveTelemetry['is_plugged_in'] !== NULL
         || $liveTelemetry['fuel_level_pct'] !== NULL
         || $liveTelemetry['battery_temperature_c'] !== NULL
+        || ($liveTelemetry['air_conditioning_state'] ?? NULL) !== NULL
+        || ($liveTelemetry['auxiliary_heating_state'] ?? NULL) !== NULL
+        || ($liveTelemetry['active_ventilation_state'] ?? NULL) !== NULL
+        || ($liveTelemetry['window_heating_front'] ?? NULL) !== NULL
+        || ($liveTelemetry['window_heating_rear'] ?? NULL) !== NULL
     );
+    $climateStateLabel = static function ($state): string {
+        $value = strtoupper(trim((string)$state));
+        $labels = [
+            'HEATING' => 'Topení',
+            'COOLING' => 'Chlazení',
+            'VENTILATION' => 'Ventilace',
+            'HEATING_AUXILIARY' => 'Nezávislé topení',
+            'HEATING_VENTILATION' => 'Topení / ventilace',
+            'ON' => 'Zapnuto',
+            'OFF' => 'Vypnuto',
+            'INACTIVE' => 'Neaktivní',
+            'ACTIVE' => 'Aktivní',
+        ];
+        return $labels[$value] ?? ($value !== '' ? str_replace('_', ' ', $value) : '—');
+    };
+    $climateDuration = static function ($seconds): string {
+        if (!is_numeric($seconds) || (int)$seconds <= 0) {
+            return '';
+        }
+        $minutes = max(1, (int)round((int)$seconds / 60));
+        return $minutes . ' min';
+    };
 ?>
 <main class="wrap dashboard-wrap">
     <section class="vehicle-hero">
@@ -111,6 +138,38 @@ require __DIR__ . '/partials/header.php';
                 <?php endif; ?>
                 <?php if ($liveTelemetry['battery_temperature_c'] !== NULL): ?>
                     <div class="live-vehicle-metric"><small>TEPLOTA BATERIE</small><strong><?= cz((float)$liveTelemetry['battery_temperature_c'], 1) ?> °C</strong><span>hlášená vozidlem</span></div>
+                <?php endif; ?>
+                <?php if (($liveTelemetry['air_conditioning_state'] ?? NULL) !== NULL): ?>
+                    <?php
+                        $airDetails = [];
+                        if (($liveTelemetry['air_conditioning_target_c'] ?? NULL) !== NULL) {
+                            $airDetails[] = 'cíl ' . cz((float)$liveTelemetry['air_conditioning_target_c'], 1) . ' °C';
+                        }
+                        if (($liveTelemetry['air_conditioning_without_external_power'] ?? NULL) !== NULL) {
+                            $airDetails[] = (bool)$liveTelemetry['air_conditioning_without_external_power'] ? 'z baterie vozu' : 's externím napájením';
+                        }
+                    ?>
+                    <div class="live-vehicle-metric"><small>KLIMATIZACE</small><strong><?= h($climateStateLabel($liveTelemetry['air_conditioning_state'])) ?></strong><span><?= h($airDetails ? implode(' · ', $airDetails) : 'aktuální stav') ?></span></div>
+                <?php endif; ?>
+                <?php if (($liveTelemetry['auxiliary_heating_state'] ?? NULL) !== NULL): ?>
+                    <?php
+                        $auxDetails = [];
+                        if (($liveTelemetry['auxiliary_heating_target_c'] ?? NULL) !== NULL) {
+                            $auxDetails[] = 'cíl ' . cz((float)$liveTelemetry['auxiliary_heating_target_c'], 1) . ' °C';
+                        }
+                        $auxDuration = $climateDuration($liveTelemetry['auxiliary_heating_duration_seconds'] ?? NULL);
+                        if ($auxDuration !== '') {
+                            $auxDetails[] = $auxDuration;
+                        }
+                    ?>
+                    <div class="live-vehicle-metric"><small>NEZÁVISLÉ TOPENÍ</small><strong><?= h($climateStateLabel($liveTelemetry['auxiliary_heating_state'])) ?></strong><span><?= h($auxDetails ? implode(' · ', $auxDetails) : $climateStateLabel($liveTelemetry['auxiliary_heating_start_mode'] ?? '')) ?></span></div>
+                <?php endif; ?>
+                <?php if (($liveTelemetry['active_ventilation_state'] ?? NULL) !== NULL): ?>
+                    <?php $ventDuration = $climateDuration($liveTelemetry['active_ventilation_duration_seconds'] ?? NULL); ?>
+                    <div class="live-vehicle-metric"><small>VENTILACE</small><strong><?= h($climateStateLabel($liveTelemetry['active_ventilation_state'])) ?></strong><span><?= h($ventDuration !== '' ? $ventDuration : 'aktuální stav') ?></span></div>
+                <?php endif; ?>
+                <?php if (($liveTelemetry['window_heating_front'] ?? NULL) !== NULL || ($liveTelemetry['window_heating_rear'] ?? NULL) !== NULL): ?>
+                    <div class="live-vehicle-metric"><small>VYHŘÍVÁNÍ OKEN</small><strong><?= h($climateStateLabel(($liveTelemetry['window_heating_front'] ?? '') === 'ON' || ($liveTelemetry['window_heating_rear'] ?? '') === 'ON' ? 'ON' : 'OFF')) ?></strong><span>přední <?= h($climateStateLabel($liveTelemetry['window_heating_front'] ?? '')) ?> · zadní <?= h($climateStateLabel($liveTelemetry['window_heating_rear'] ?? '')) ?></span></div>
                 <?php endif; ?>
             </div>
         </section>

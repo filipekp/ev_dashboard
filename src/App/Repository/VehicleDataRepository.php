@@ -230,7 +230,7 @@ final class VehicleDataRepository
     public function latestTelemetry(int $connectionId): ?array
     {
         $q = $this->pdo->prepare(
-            'SELECT * FROM vehicle_telemetry_snapshots WHERE connection_id=? ORDER BY observed_at DESC,id DESC LIMIT 1'
+            'SELECT * FROM vehicle_telemetry_snapshots WHERE connection_id=? ORDER BY received_at DESC,id DESC LIMIT 1'
         );
         $q->execute([$connectionId]);
         $row = $q->fetch();
@@ -242,7 +242,7 @@ final class VehicleDataRepository
     {
         $limit = max(3, min(240, $limit));
         $q = $this->pdo->prepare(
-            'SELECT * FROM vehicle_telemetry_snapshots WHERE connection_id=? ORDER BY observed_at DESC,id DESC LIMIT ' . $limit
+            'SELECT * FROM vehicle_telemetry_snapshots WHERE connection_id=? ORDER BY received_at DESC,id DESC LIMIT ' . $limit
         );
         $q->execute([$connectionId]);
 
@@ -268,7 +268,7 @@ final class VehicleDataRepository
              FROM vehicle_telemetry_snapshots t
              JOIN vehicle_connector_connections c ON c.id=t.connection_id
              WHERE t.vehicle_id=? AND c.status='active'
-             ORDER BY t.observed_at DESC,t.id DESC
+             ORDER BY t.received_at DESC,t.id DESC
              LIMIT 1"
         );
         $q->execute([$vehicleId]);
@@ -290,7 +290,7 @@ final class VehicleDataRepository
     ): array {
         $limit = max(2, min(2000, $limit));
         $q = $this->pdo->prepare(
-            'SELECT id,connection_id,source,observed_at,latitude,longitude,odometer_km,soc_pct,is_charging,is_plugged_in,charging_power_kw '
+            'SELECT id,connection_id,source,observed_at,latitude,longitude,parking_address,odometer_km,soc_pct,is_charging,is_plugged_in,charging_power_kw '
             . 'FROM vehicle_telemetry_snapshots '
             . 'WHERE vehicle_id=? AND observed_at>=? AND observed_at<=? AND latitude IS NOT NULL AND longitude IS NOT NULL '
             . 'ORDER BY observed_at ASC,id ASC LIMIT ' . $limit
@@ -310,8 +310,12 @@ final class VehicleDataRepository
         $q = $this->pdo->prepare(
             'INSERT IGNORE INTO vehicle_telemetry_snapshots(
                 vehicle_id,connection_id,source,observed_at,fingerprint,soc_pct,range_km,odometer_km,
-                latitude,longitude,is_charging,is_plugged_in,charging_power_kw,battery_temperature_c,fuel_level_pct,raw_json
-             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+                latitude,longitude,parking_address,is_charging,is_plugged_in,charging_power_kw,battery_temperature_c,fuel_level_pct,
+                air_conditioning_state,air_conditioning_target_c,air_conditioning_without_external_power,air_conditioning_at_unlock,
+                window_heating_front,window_heating_rear,auxiliary_heating_state,auxiliary_heating_start_mode,
+                auxiliary_heating_duration_seconds,auxiliary_heating_target_c,active_ventilation_state,
+                active_ventilation_duration_seconds,raw_json
+             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
         );
         $q->execute([
             $vehicleId,
@@ -324,11 +328,32 @@ final class VehicleDataRepository
             $telemetry['odometer_km'] ?? null,
             $telemetry['latitude'] ?? null,
             $telemetry['longitude'] ?? null,
+            $this->nullableString($telemetry['parking_address'] ?? null, 255),
             array_key_exists('is_charging', $telemetry) && $telemetry['is_charging'] !== null ? (int)(bool)$telemetry['is_charging'] : null,
             array_key_exists('is_plugged_in', $telemetry) && $telemetry['is_plugged_in'] !== null ? (int)(bool)$telemetry['is_plugged_in'] : null,
             $telemetry['charging_power_kw'] ?? null,
             $telemetry['battery_temperature_c'] ?? null,
             $telemetry['fuel_level_pct'] ?? null,
+            $this->nullableString($telemetry['air_conditioning_state'] ?? null, 64),
+            $telemetry['air_conditioning_target_c'] ?? null,
+            array_key_exists('air_conditioning_without_external_power', $telemetry) && $telemetry['air_conditioning_without_external_power'] !== null
+                ? (int)(bool)$telemetry['air_conditioning_without_external_power']
+                : null,
+            array_key_exists('air_conditioning_at_unlock', $telemetry) && $telemetry['air_conditioning_at_unlock'] !== null
+                ? (int)(bool)$telemetry['air_conditioning_at_unlock']
+                : null,
+            $this->nullableString($telemetry['window_heating_front'] ?? null, 24),
+            $this->nullableString($telemetry['window_heating_rear'] ?? null, 24),
+            $this->nullableString($telemetry['auxiliary_heating_state'] ?? null, 64),
+            $this->nullableString($telemetry['auxiliary_heating_start_mode'] ?? null, 64),
+            isset($telemetry['auxiliary_heating_duration_seconds']) && is_numeric($telemetry['auxiliary_heating_duration_seconds'])
+                ? max(0, (int)$telemetry['auxiliary_heating_duration_seconds'])
+                : null,
+            $telemetry['auxiliary_heating_target_c'] ?? null,
+            $this->nullableString($telemetry['active_ventilation_state'] ?? null, 64),
+            isset($telemetry['active_ventilation_duration_seconds']) && is_numeric($telemetry['active_ventilation_duration_seconds'])
+                ? max(0, (int)$telemetry['active_ventilation_duration_seconds'])
+                : null,
             $raw !== false ? $raw : null,
         ]);
 

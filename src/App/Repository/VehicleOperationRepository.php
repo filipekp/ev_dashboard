@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use PDO;
+use PDOException;
 
 /**
  * Datová vrstva pro provozní evidenci vozidel.
@@ -58,6 +59,86 @@ final class VehicleOperationRepository
         ]);
 
         return (int)$this->pdo->lastInsertId();
+    }
+
+    /**
+     * Založí nebo průběžně aktualizuje OEM nabíjecí relaci podle stabilního
+     * source_key. Cena z ručního zásahu nebo dokladu má vždy přednost před
+     * výchozí cenou telemetrie; doklad navíc zachovává přesné množství kWh.
+     *
+     * @param array<string,mixed> $data
+     * @return bool TRUE pouze pokud byl vytvořen nový řádek.
+     */
+    public function upsertTelemetryEnergyEntry(int $vehicleId, array $data): bool
+    {
+        $sourceKey = trim((string)($data['source_key'] ?? ''));
+        if ($sourceKey === '') {
+            return false;
+        }
+
+        $find = $this->pdo->prepare(
+            'SELECT id FROM vehicle_energy_entries WHERE vehicle_id=? AND source_key=? LIMIT 1'
+        );
+        $find->execute([$vehicleId, $sourceKey]);
+        $entryId = (int)($find->fetchColumn() ?: 0);
+
+        if ($entryId === 0) {
+            try {
+                $this->addEnergyEntry($vehicleId, $data);
+                return true;
+            } catch (PDOException $e) {
+                if ((string)$e->getCode() !== '23000') {
+                    throw $e;
+                }
+                // Souběžný sync mohl relaci založit mezi SELECTem a INSERTem.
+                $find->execute([$vehicleId, $sourceKey]);
+                $entryId = (int)($find->fetchColumn() ?: 0);
+                if ($entryId === 0) {
+                    throw $e;
+                }
+            }
+        }
+
+        $quantity = max(0.0, (float)($data['quantity'] ?? 0));
+        $query = $this->pdo->prepare(
+            "UPDATE vehicle_energy_entries SET
+                ended_at=COALESCE(?,ended_at),
+                quantity=CASE WHEN price_source='document' THEN quantity ELSE ? END,
+                unit_price=CASE WHEN price_source IN ('document','manual') THEN unit_price ELSE ? END,
+                total_price=CASE
+                    WHEN price_source='document' THEN total_price
+                    WHEN price_source='manual' AND unit_price IS NOT NULL THEN ROUND(? * unit_price,2)
+                    ELSE ?
+                END,
+                currency=CASE WHEN price_source IN ('document','manual') THEN currency ELSE ? END,
+                odometer_km=COALESCE(?,odometer_km),
+                start_soc=COALESCE(start_soc,?),
+                end_soc=COALESCE(?,end_soc),
+                station=COALESCE(NULLIF(?,''),station),
+                note=CASE WHEN price_source='document' THEN note ELSE ? END,
+                is_estimated=CASE WHEN price_source='document' THEN is_estimated ELSE ? END,
+                price_source=CASE WHEN price_source IN ('document','manual') THEN price_source ELSE ? END
+             WHERE id=? AND vehicle_id=?"
+        );
+        $query->execute([
+            $data['ended_at'] ?? null,
+            $quantity,
+            $data['unit_price'] ?? null,
+            $quantity,
+            $data['total_price'] ?? null,
+            $data['currency'] ?? 'CZK',
+            $data['odometer_km'] ?? null,
+            $data['start_soc'] ?? null,
+            $data['end_soc'] ?? null,
+            $data['station'] ?? null,
+            $data['note'] ?? null,
+            !empty($data['is_estimated']) ? 1 : 0,
+            $data['price_source'] ?? (($data['unit_price'] ?? null) !== null ? 'default' : 'none'),
+            $entryId,
+            $vehicleId,
+        ]);
+
+        return false;
     }
 
     /** @return array<string,mixed>|null */
@@ -127,17 +208,28 @@ final class VehicleOperationRepository
         ]);
 
         $rowOdometer = isset($row['odometer_km']) && is_numeric($row['odometer_km']) ? (float)$row['odometer_km'] : null;
-        foreach ($query->fetchAll() as $candidate) {
+        $candidates = $query->fetchAll();
+        foreach ($candidates as $candidate) {
             $candidateQuantity = (float)$candidate['quantity'];
-            $tolerance = max(1.0, max($quantity, $candidateQuantity) * 0.18);
-            if (abs($candidateQuantity - $quantity) > $tolerance) {
-                continue;
-            }
-
             $candidateOdometer = isset($candidate['odometer_km']) && is_numeric($candidate['odometer_km'])
                 ? (float)$candidate['odometer_km']
                 : null;
             if ($rowOdometer !== null && $candidateOdometer !== null && abs($rowOdometer - $candidateOdometer) > 5.0) {
+                continue;
+            }
+
+            if ($candidateQuantity <= 0.05 && !empty($candidate['is_estimated'])) {
+                // Relace se zakládá už při začátku nabíjení, takže bez SoC/power
+                // dat může dočasně (nebo trvale) zůstat na 0 kWh. Přesný doklad
+                // ji přesto smí doplnit, pokud je časově jednoznačná.
+                if (!$dateOnly || count($candidates) === 1) {
+                    return $candidate;
+                }
+                continue;
+            }
+
+            $tolerance = max(1.0, max($quantity, $candidateQuantity) * 0.18);
+            if (abs($candidateQuantity - $quantity) > $tolerance) {
                 continue;
             }
 

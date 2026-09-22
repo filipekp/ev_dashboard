@@ -254,7 +254,7 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
         $sourceLabel = strpos((string)($row['source'] ?? ''), 'telemetry_') === 0 ? 'OEM telemetrie' : ((string)($row['source'] ?? '') === 'document' ? 'Doklad' : 'Ručně');
       ?>
         <tr>
-          <td><?= h(date('d.m.Y H:i', strtotime($row['occurred_at']))) ?><?php if (!empty($row['ended_at'])): ?><br><small>do <?= h(date('H:i', strtotime($row['ended_at']))) ?></small><?php endif; ?></td>
+          <td><?= h(date('d.m.Y H:i', strtotime($row['occurred_at']))) ?><?php if (!empty($row['ended_at'])): ?><br><small>do <?= h(date('H:i', strtotime($row['ended_at']))) ?></small><?php elseif ((string)$row['entry_type'] === 'charging' && strpos((string)($row['source'] ?? ''), 'telemetry_') === 0): ?><br><small class="text-success">● probíhá</small><?php endif; ?></td>
           <td><?= h($row['energy_type']) ?><?php if ($row['start_soc'] !== NULL || $row['end_soc'] !== NULL): ?><br><small><?= $row['start_soc'] !== NULL ? cz((float)$row['start_soc'], 0).' %' : '—' ?> → <?= $row['end_soc'] !== NULL ? cz((float)$row['end_soc'], 0).' %' : '—' ?></small><?php endif; ?></td>
           <td><?= !empty($row['is_estimated']) ? '≈ ' : '' ?><?= cz((float)$row['quantity'], 2) ?> <?= h($row['unit']) ?></td>
           <td>
@@ -273,7 +273,7 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
           </td>
           <td><?= $row['total_price'] !== NULL ? cz((float)$row['total_price'], 2).' '.h((string)$row['currency']) : '—' ?></td>
           <td><?= h((string)($row['station'] ?? '')) ?></td>
-          <td><?= h($sourceLabel) ?><?php if (!empty($row['is_estimated'])): ?><br><small>energie je odhad</small><?php endif; ?></td>
+          <td><?= h($sourceLabel) ?><?php if (!empty($row['is_estimated'])): ?><br><small><?= empty($row['ended_at']) && (string)$row['entry_type'] === 'charging' ? 'průběžný odhad energie' : 'energie je odhad' ?></small><?php endif; ?></td>
         </tr>
       <?php endforeach; ?>
       </tbody></table></div>

@@ -297,20 +297,90 @@ require __DIR__ . '/partials/header.php';
             <div class="chart-visual"><canvas id="hours"></canvas></div>
         </div>
         <?php if ($hasTractionBattery): ?>
-            <div class="card energy"><h2><i class="bi bi-lightning-charge-fill"></i> Energetická bilance a nabíjecí lokality</h2><?php if ($chargeDataAvailable): ?><p>Odhad energie podle veřejného nabíjení zaznamenaného v importu</p>
-                    <div class="energy-layout">
-                        <div class="energy-chart-wrap"><canvas id="energy" width="120" height="120"></canvas></div>
-                        <div class="energy-list">
-                            <div><b class="green">🏠 Domácí / ostatní AC</b><strong><?= cz($homeKwh, 0) ?> kWh</strong><small><?= cz($homePct, 0) ?> %</small></div>
-                            <div><b class="orange">⚡ Veřejné DC</b><strong><?= cz($publicKwh, 0) ?> kWh</strong><small><?= cz($publicPct, 0) ?>%</small></div>
+            <div class="card energy energy-overview">
+                <div class="energy-overview-head">
+                    <div>
+                        <h2><i class="bi bi-lightning-charge-fill"></i> Energetická bilance a nabíjecí lokality</h2>
+                        <p>Nabitá energie, náklady a nejčastější místa v aktuálním období</p>
+                    </div>
+                    <a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>#energy" class="energy-history-link">Historie energie <i class="bi bi-arrow-up-right"></i></a>
+                </div>
+                <?php if ($chargingHistoryAvailable): ?>
+                    <div class="energy-kpi-grid">
+                        <div class="energy-kpi">
+                            <small>NABITO</small>
+                            <strong><?= cz($chargedEnergyKwh, 1) ?> <em>kWh</em></strong>
+                            <span><?= cz($chargingSessionCount, 0) ?> relací<?= $chargingActiveSessionCount > 0 ? ' · ' . cz($chargingActiveSessionCount, 0) . ' probíhá' : '' ?> · Ø <?= cz($chargingAvgSessionKwh, 1) ?> kWh</span>
+                        </div>
+                        <div class="energy-kpi">
+                            <small>NÁKLADY</small>
+                            <strong><?= $chargingCostTotal > 0 ? cz($chargingCostTotal, 0) : '—' ?> <em><?= $chargingCostTotal > 0 ? h($chargingCurrency === 'CZK' ? 'Kč' : $chargingCurrency) : '' ?></em></strong>
+                            <span><?= $chargingAvgPricePerKwh > 0 ? 'Ø ' . cz($chargingAvgPricePerKwh, 2) . ' ' . h($chargingCurrency === 'CZK' ? 'Kč' : $chargingCurrency) . '/kWh' : 'Cena zatím není evidovaná' ?></span>
+                        </div>
+                        <div class="energy-kpi">
+                            <small>CENOVÉ POKRYTÍ</small>
+                            <strong><?= cz($chargingPriceCoveragePct, 0) ?> <em>%</em></strong>
+                            <span><?= cz($chargingPricedKwh, 1) ?> kWh s evidovanou cenou</span>
+                        </div>
+                        <div class="energy-kpi">
+                            <small>NABITO / JÍZDY</small>
+                            <strong><?= $totalKwh > 0 ? cz($chargingEnergyCoveragePct, 0) : '—' ?> <em><?= $totalKwh > 0 ? '%' : '' ?></em></strong>
+                            <span>Jízdy spotřebovaly <?= cz($totalKwh, 1) ?> kWh</span>
                         </div>
                     </div>
-                    <footer>Celkem v bilanci: <b><?= cz($chargeTotal, 0) ?> kWh</b><span>* veřejná energie je odhad z přírůstku SoC</span></footer>
+
+                    <div class="energy-location-panel">
+                        <div class="energy-location-head">
+                            <div><small>TOP LOKALITY</small><strong>Kam nejčastěji teče energie</strong></div>
+                            <span>podle kWh</span>
+                        </div>
+                        <?php if ($chargingLocationsAvailable): ?>
+                            <div class="energy-location-chart"><canvas id="energyLocations"></canvas></div>
+                        <?php else: ?>
+                            <div class="energy-location-empty"><i class="bi bi-geo-alt"></i><span>U nabíjecích relací zatím nejsou uložené lokality.</span></div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="energy-insights">
+                        <div>
+                            <span><i class="bi bi-receipt"></i> Energie z dokladů</span>
+                            <strong><?= cz($chargingDocumentPct, 0) ?> %</strong>
+                            <small><?= cz($chargingDocumentKwh, 1) ?> kWh s přesnými daty z dokladu</small>
+                        </div>
+                        <div>
+                            <span><i class="bi bi-broadcast-pin"></i> Odhadovaná energie</span>
+                            <strong><?= cz($chargingEstimatedPct, 0) ?> %</strong>
+                            <small><?= cz($chargingEstimatedKwh, 1) ?> kWh je označeno jako odhad</small>
+                        </div>
+                        <div>
+                            <span><i class="bi bi-car-front"></i> Náklad energie / 100 km</span>
+                            <strong><?= $chargingCostTotal > 0 && $totalKm > 0 ? cz($chargingCostPer100Km, 0) . ' ' . h($chargingCurrency === 'CZK' ? 'Kč' : $chargingCurrency) : '—' ?></strong>
+                            <small><?= cz($totalKm, 0) ?> km v aktuálním období</small>
+                        </div>
+                    </div>
+                    <footer>
+                        <span>Poměr „nabito / jízdy“ je orientační: nabíjecí relace může přesahovat hranice zvoleného období a zahrnuje nabíjecí ztráty.</span>
+                    </footer>
+                <?php elseif ($chargeDataAvailable): ?>
+                    <div class="energy-kpi-grid energy-kpi-grid-legacy">
+                        <div class="energy-kpi"><small>ODHAD NABITO</small><strong><?= cz($chargeTotal, 1) ?> <em>kWh</em></strong><span>z jízdních / SoC dat</span></div>
+                        <div class="energy-kpi"><small>VEŘEJNÉ DC</small><strong><?= cz($publicPct, 0) ?> <em>%</em></strong><span><?= cz($publicStops, 0) ?> zastávek · <?= cz($publicKwh, 1) ?> kWh</span></div>
+                        <div class="energy-kpi"><small>AC / OSTATNÍ</small><strong><?= cz($homePct, 0) ?> <em>%</em></strong><span><?= cz($homeKwh, 1) ?> kWh</span></div>
+                        <div class="energy-kpi"><small>SPOTŘEBA JÍZD</small><strong><?= cz($totalKwh, 1) ?> <em>kWh</em></strong><span><?= cz($avgCons, 1) ?> kWh/100 km</span></div>
+                    </div>
+                    <div class="energy-location-panel">
+                        <div class="energy-location-head"><div><small>ODHAD MIXU</small><strong>AC vs. veřejné DC</strong></div><span>z importu jízd</span></div>
+                        <div class="energy-location-chart energy-location-chart-legacy"><canvas id="energyLegacy"></canvas></div>
+                    </div>
+                    <footer><span>* Veřejná energie je odhad z přírůstku SoC. Pro přesnější přehled evidujte nabíjení v Historii energie.</span></footer>
                 <?php else: ?>
-                    <p>Tento zdroj dat neobsahuje SoC ani události nabíjení.</p>
-                    <div class="energy-list">
-                        <div><b class="green">🔋 Energie spotřebovaná jízdami</b><strong><?= cz($totalKwh, 1) ?> kWh</strong><small>podle importovaných jízd</small></div>
-                        <?php if ($costDataAvailable): ?><div><b class="orange">💰 Náklady na elektřinu</b><strong><?= cz($costTotal, 0) ?> CZK</strong><small>součet hodnot z importu</small></div><?php endif; ?>
+                    <div class="energy-empty-state">
+                        <i class="bi bi-lightning-charge"></i>
+                        <div><strong>Zatím chybí nabíjecí relace</strong><span>Nabíjení z OEM telemetrie nebo ručně přidané záznamy se zde automaticky promítnou.</span></div>
+                    </div>
+                    <div class="energy-insights energy-insights-empty">
+                        <div><span><i class="bi bi-car-front"></i> Spotřeba jízd</span><strong><?= cz($totalKwh, 1) ?> kWh</strong><small><?= $totalKm > 0 ? cz($avgCons, 1) . ' kWh/100 km' : 'bez dat' ?></small></div>
+                        <?php if ($costDataAvailable): ?><div><span><i class="bi bi-cash-coin"></i> Náklady z importu</span><strong><?= cz($costTotal, 0) ?> Kč</strong><small>součet dostupných hodnot</small></div><?php endif; ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -596,6 +666,11 @@ foreach ($historyTrips as $tripRow) {
     ];
     const speedValues = <?=json_encode($hasTractionBattery ? $bandValues : $bandKm)?>;
     const speedBandKm = <?=json_encode($bandKm)?>;
+    const energyLocationLabels = <?=json_encode(array_column($chargingTopLocations ?? [], 'label'), JSON_UNESCAPED_UNICODE)?>;
+    const energyLocationKwh = <?=json_encode(array_column($chargingTopLocations ?? [], 'kwh'))?>;
+    const energyLocationSessions = <?=json_encode(array_column($chargingTopLocations ?? [], 'sessions'))?>;
+    const energyLocationCosts = <?=json_encode(array_column($chargingTopLocations ?? [], 'cost'))?>;
+    const energyCurrency = <?=json_encode($chargingCurrency === 'CZK' ? 'Kč' : $chargingCurrency, JSON_UNESCAPED_UNICODE)?>;
 
     const themeStyles = getComputedStyle(document.documentElement);
     const chartGrid = themeStyles.getPropertyValue('--chart-grid').trim() || 'rgba(148,163,184,.12)';
@@ -744,28 +819,113 @@ foreach ($historyTrips as $tripRow) {
         });
     }
 
-    <?php if ($hasTractionBattery && $chargeDataAvailable): ?>
-    const energyCanvas = document.getElementById('energy');
-    if (energyCanvas) {
-        new Chart(energyCanvas, {
-            type: 'doughnut',
+    <?php if ($hasTractionBattery && $chargingHistoryAvailable && $chargingLocationsAvailable): ?>
+    const energyLocationCanvas = document.getElementById('energyLocations');
+    if (energyLocationCanvas) {
+        const locationValueLabels = {
+            id: 'locationValueLabels',
+            afterDatasetsDraw(chart) {
+                const meta = chart.getDatasetMeta(0);
+                const ctx = chart.ctx;
+                const formatter = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 1 });
+                ctx.save();
+                ctx.font = '700 10px Inter, system-ui, sans-serif';
+                ctx.fillStyle = chartStrong;
+                ctx.textBaseline = 'middle';
+                meta.data.forEach((bar, index) => {
+                    const value = Number(energyLocationKwh[index] || 0);
+                    const text = `${formatter.format(value)} kWh`;
+                    const width = ctx.measureText(text).width;
+                    const x = Math.min(bar.x + 8, chart.chartArea.right - width);
+                    ctx.textAlign = 'left';
+                    ctx.fillText(text, Math.max(x, chart.chartArea.left + 6), bar.y);
+                });
+                ctx.restore();
+            }
+        };
+        new Chart(energyLocationCanvas, {
+            type: 'bar',
+            plugins: [locationValueLabels],
             data: {
-                labels: ['AC / ostatní', 'Veřejné DC'],
+                labels: energyLocationLabels,
                 datasets: [{
-                    data: [<?=round($homeKwh, 2)?>, <?=round($publicKwh, 2)?>],
-                    backgroundColor: [palette.emerald, palette.amber],
-                    hoverBackgroundColor: [palette.teal, '#fbbf24'],
-                    borderColor: chartPanel,
-                    borderWidth: 5,
-                    hoverOffset: 8
+                    label: 'Dodaná energie',
+                    data: energyLocationKwh,
+                    backgroundColor: [palette.teal, palette.sky, palette.emerald, palette.amber, palette.coral],
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    borderRadius: 8,
+                    borderSkipped: false,
+                    maxBarThickness: 18
                 }]
             },
             options: {
+                indexAxis: 'y',
                 responsive: true,
-                cutout: '70%',
+                maintainAspectRatio: false,
+                layout: { padding: { right: 42 } },
+                interaction: { mode: 'nearest', axis: 'y', intersect: false },
                 plugins: {
                     legend: { display: false },
-                    tooltip: commonPlugins.tooltip
+                    tooltip: {
+                        ...commonPlugins.tooltip,
+                        callbacks: {
+                            title(items) { return energyLocationLabels[items[0].dataIndex] || ''; },
+                            label(context) {
+                                const i = context.dataIndex;
+                                const parts = [`${Number(energyLocationKwh[i] || 0).toLocaleString('cs-CZ')} kWh`, `${energyLocationSessions[i] || 0} relací`];
+                                const cost = Number(energyLocationCosts[i] || 0);
+                                if (cost > 0) parts.push(`${cost.toLocaleString('cs-CZ', { maximumFractionDigits: 0 })} ${energyCurrency}`);
+                                return parts;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: chartGrid, drawBorder: false },
+                        ticks: { color: chartText, callback: value => `${value} kWh` }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: {
+                            color: chartStrong,
+                            font: { weight: '600', size: 10 },
+                            callback(value) {
+                                const label = this.getLabelForValue(value);
+                                return label.length > 28 ? `${label.slice(0, 27)}…` : label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    <?php elseif ($hasTractionBattery && !$chargingHistoryAvailable && $chargeDataAvailable): ?>
+    const energyLegacyCanvas = document.getElementById('energyLegacy');
+    if (energyLegacyCanvas) {
+        new Chart(energyLegacyCanvas, {
+            type: 'bar',
+            data: {
+                labels: ['AC / ostatní', 'Veřejné DC'],
+                datasets: [{
+                    label: 'Energie',
+                    data: [<?=round($homeKwh, 2)?>, <?=round($publicKwh, 2)?>],
+                    backgroundColor: [palette.emerald, palette.amber],
+                    borderRadius: 9,
+                    borderSkipped: false,
+                    maxBarThickness: 32
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: commonPlugins.tooltip },
+                scales: {
+                    x: { beginAtZero: true, grid: { color: chartGrid }, ticks: { color: chartText, callback: value => `${value} kWh` } },
+                    y: { grid: { display: false }, ticks: { color: chartStrong } }
                 }
             }
         });

@@ -245,7 +245,7 @@ $defaultEnergyCurrency = strtoupper(trim((string)($vehicle['default_energy_curre
   </div>
 
   <section class="grid2">
-    <div class="card operations-section">
+    <div class="card operations-section" id="energy">
       <h2>⛽ Historie energie a paliva</h2>
       <div class="table-scroll"><table class="data-table"><thead><tr><th>Datum</th><th>Typ</th><th>Množství</th><th>Cena / jednotku</th><th>Celkem</th><th>Místo</th><th>Zdroj</th></tr></thead><tbody>
       <?php foreach ($energyEntries as $row):

@@ -107,6 +107,93 @@
             $chargeTotal           = max(.001, $homeKwh + $publicKwh);
             $homePct               = $homeKwh / $chargeTotal * 100;
             $publicPct             = $publicKwh / $chargeTotal * 100;
+
+            // Energetický widget primárně vychází z provozní evidence nabíjení.
+            // Ta obsahuje jak ručně/dokladem zadané relace, tak OEM telemetrii,
+            // takže dokáže ukázat skutečné množství, cenu i nabíjecí lokality.
+            $energyWhere = "vehicle_id=? AND entry_type='charging' AND energy_type='electricity'";
+            $energyParams = [$vehicleId];
+            if (!empty($detailScope['from'])) {
+                $energyWhere .= ' AND occurred_at>=?';
+                $energyParams[] = (string)$detailScope['from'];
+            }
+            if (!empty($detailScope['to'])) {
+                $energyWhere .= ' AND occurred_at<?';
+                $energyParams[] = (string)$detailScope['to'];
+            }
+            if (preg_match('/^\d{4}-\d{2}$/', $period)) {
+                $energyFrom = $period . '-01 00:00:00';
+                $energyToDate = new DateTime($energyFrom);
+                $energyToDate->modify('+1 month');
+                $energyWhere .= ' AND occurred_at>=? AND occurred_at<?';
+                $energyParams[] = $energyFrom;
+                $energyParams[] = $energyToDate->format('Y-m-d H:i:s');
+            } elseif ($period === 'year') {
+                $energyWhere .= ' AND occurred_at>=? AND occurred_at<?';
+                $energyParams[] = $selectedYear . '-01-01 00:00:00';
+                $energyParams[] = ((int)$selectedYear + 1) . '-01-01 00:00:00';
+            }
+
+            $energySummaryQ = $this->pdo->prepare(
+                "SELECT COUNT(*) session_count,
+                        COALESCE(SUM(quantity),0) charged_kwh,
+                        COALESCE(SUM(CASE WHEN quantity>0 THEN 1 ELSE 0 END),0) measured_session_count,
+                        COALESCE(SUM(CASE WHEN ended_at IS NULL AND source LIKE 'telemetry_%' THEN 1 ELSE 0 END),0) active_session_count,
+                        COALESCE(SUM(CASE WHEN total_price IS NOT NULL THEN total_price ELSE 0 END),0) cost_total,
+                        COALESCE(SUM(CASE WHEN total_price IS NOT NULL AND quantity>0 THEN quantity ELSE 0 END),0) priced_kwh,
+                        COALESCE(SUM(CASE WHEN is_estimated=1 THEN quantity ELSE 0 END),0) estimated_kwh,
+                        COALESCE(SUM(CASE WHEN price_source='document' OR source='document' THEN quantity ELSE 0 END),0) document_kwh
+                 FROM vehicle_energy_entries WHERE $energyWhere"
+            );
+            $energySummaryQ->execute($energyParams);
+            $energySummary = $energySummaryQ->fetch() ?: [];
+            $chargingSessionCount = (int)($energySummary['session_count'] ?? 0);
+            $chargedEnergyKwh = (float)($energySummary['charged_kwh'] ?? 0);
+            $chargingMeasuredSessionCount = (int)($energySummary['measured_session_count'] ?? 0);
+            $chargingActiveSessionCount = (int)($energySummary['active_session_count'] ?? 0);
+            $chargingCostTotal = (float)($energySummary['cost_total'] ?? 0);
+            $chargingCurrency = strtoupper(trim((string)($vehicle['default_energy_currency'] ?? 'CZK'))) ?: 'CZK';
+            $chargingPricedKwh = (float)($energySummary['priced_kwh'] ?? 0);
+            $chargingEstimatedKwh = (float)($energySummary['estimated_kwh'] ?? 0);
+            $chargingDocumentKwh = (float)($energySummary['document_kwh'] ?? 0);
+            $chargingHistoryAvailable = $chargingSessionCount > 0;
+            $chargingAvgSessionKwh = $chargingMeasuredSessionCount > 0 ? $chargedEnergyKwh / $chargingMeasuredSessionCount : 0.0;
+            $chargingAvgPricePerKwh = $chargingPricedKwh > 0 ? $chargingCostTotal / $chargingPricedKwh : 0.0;
+            $chargingPriceCoveragePct = $chargedEnergyKwh > 0 ? min(100.0, $chargingPricedKwh / $chargedEnergyKwh * 100) : 0.0;
+            $chargingEstimatedPct = $chargedEnergyKwh > 0 ? min(100.0, $chargingEstimatedKwh / $chargedEnergyKwh * 100) : 0.0;
+            $chargingDocumentPct = $chargedEnergyKwh > 0 ? min(100.0, $chargingDocumentKwh / $chargedEnergyKwh * 100) : 0.0;
+            $chargingEnergyCoveragePct = $totalKwh > 0 ? $chargedEnergyKwh / $totalKwh * 100 : 0.0;
+            $chargingCostPer100Km = $totalKm > 0 ? $chargingCostTotal / $totalKm * 100 : 0.0;
+            $chargingTopLocations = [];
+            if ($chargingHistoryAvailable) {
+                $locationQ = $this->pdo->prepare(
+                    "SELECT CASE
+                                WHEN TRIM(COALESCE(station,''))<>'' THEN TRIM(station)
+                                WHEN source LIKE 'telemetry_%' THEN 'OEM telemetrie · bez lokality'
+                                WHEN source='document' THEN 'Doklad · bez lokality'
+                                ELSE 'Ostatní · bez lokality'
+                            END location_label,
+                            COUNT(*) sessions,
+                            COALESCE(SUM(quantity),0) kwh,
+                            COALESCE(SUM(CASE WHEN total_price IS NOT NULL THEN total_price ELSE 0 END),0) cost
+                     FROM vehicle_energy_entries
+                     WHERE $energyWhere
+                     GROUP BY location_label
+                     ORDER BY kwh DESC, sessions DESC
+                     LIMIT 5"
+                );
+                $locationQ->execute($energyParams);
+                foreach ($locationQ->fetchAll() as $locationRow) {
+                    $chargingTopLocations[] = [
+                        'label' => (string)$locationRow['location_label'],
+                        'sessions' => (int)$locationRow['sessions'],
+                        'kwh' => round((float)$locationRow['kwh'], 1),
+                        'cost' => round((float)$locationRow['cost'], 2),
+                    ];
+                }
+            }
+            $chargingLocationsAvailable = count($chargingTopLocations) > 0;
+
             $odoMin                = $summary['odo_min'] !== NULL ? (float)$summary['odo_min'] : 0;
             $odoMax                = $summary['odo_max'] !== NULL ? (float)$summary['odo_max'] : 0;
             $minSoc                = $summary['min_soc'] !== NULL ? (float)$summary['min_soc'] : NULL;

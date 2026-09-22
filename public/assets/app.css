@@ -9839,3 +9839,305 @@ body.modal-open {
         grid-template-columns: 1fr;
     }
 }
+
+/* Energy intelligence widget ------------------------------------------------ */
+.energy-overview {
+    overflow: hidden;
+}
+
+.energy-overview-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.energy-overview-head h2,
+.energy-overview-head p {
+    margin-right: 0;
+}
+
+.energy-history-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    border: 1px solid var(--cockpit-line);
+    border-radius: 8px;
+    color: var(--cockpit-muted);
+    background: var(--cockpit-panel-2);
+    font-size: 10px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: border-color .18s ease, color .18s ease, transform .18s ease;
+}
+
+.energy-history-link:hover {
+    color: var(--cockpit-text);
+    border-color: rgba(var(--cockpit-primary-rgb), .48);
+    transform: translateY(-1px);
+}
+
+.energy-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.energy-kpi {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--cockpit-line);
+    border-radius: 10px;
+    background:
+        linear-gradient(145deg, rgba(var(--cockpit-primary-rgb), .055), transparent 58%),
+        var(--cockpit-panel-2);
+}
+
+.energy-kpi small {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--cockpit-muted);
+    font-size: 8px;
+    font-weight: 850;
+    letter-spacing: .09em;
+}
+
+.energy-kpi strong {
+    display: block;
+    color: var(--cockpit-text);
+    font-size: clamp(17px, 1.65vw, 24px);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -.035em;
+}
+
+.energy-kpi strong em {
+    color: var(--cockpit-muted);
+    font-size: .52em;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.energy-kpi span {
+    display: block;
+    margin-top: 7px;
+    color: var(--cockpit-muted);
+    font-size: 9px;
+    line-height: 1.35;
+}
+
+.energy-location-panel {
+    padding: 14px;
+    border: 1px solid var(--cockpit-line);
+    border-radius: 11px;
+    background: var(--cockpit-panel-2);
+}
+
+.energy-location-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.energy-location-head div {
+    min-width: 0;
+}
+
+.energy-location-head small,
+.energy-location-head strong {
+    display: block;
+}
+
+.energy-location-head small {
+    margin-bottom: 3px;
+    color: var(--cockpit-primary);
+    font-size: 8px;
+    font-weight: 850;
+    letter-spacing: .09em;
+}
+
+.energy-location-head strong {
+    color: var(--cockpit-text);
+    font-size: 12px;
+}
+
+.energy-location-head > span {
+    flex: 0 0 auto;
+    color: var(--cockpit-muted);
+    font-size: 9px;
+}
+
+.energy-location-chart {
+    position: relative;
+    width: 100%;
+    height: 220px;
+    min-width: 0;
+}
+
+.energy-location-chart canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+}
+
+.energy-location-chart-legacy {
+    height: 130px;
+}
+
+.energy-location-empty,
+.energy-empty-state {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 92px;
+    padding: 14px;
+    border: 1px dashed var(--cockpit-line);
+    border-radius: 10px;
+    color: var(--cockpit-muted);
+    background: color-mix(in srgb, var(--cockpit-panel-3) 44%, transparent);
+}
+
+.energy-location-empty i,
+.energy-empty-state > i {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    border-radius: 9px;
+    color: var(--cockpit-primary);
+    background: rgba(var(--cockpit-primary-rgb), .10);
+    font-size: 17px;
+}
+
+.energy-empty-state strong,
+.energy-empty-state span {
+    display: block;
+}
+
+.energy-empty-state strong {
+    margin-bottom: 4px;
+    color: var(--cockpit-text);
+    font-size: 12px;
+}
+
+.energy-empty-state span {
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.energy-insights {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.energy-insights > div {
+    min-width: 0;
+    padding: 11px 12px;
+    border: 1px solid var(--cockpit-line);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--cockpit-panel-2) 86%, transparent);
+}
+
+.energy-insights span,
+.energy-insights strong,
+.energy-insights small {
+    display: block;
+}
+
+.energy-insights span {
+    margin-bottom: 7px;
+    color: var(--cockpit-muted);
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.energy-insights span i {
+    margin-right: 4px;
+    color: var(--cockpit-teal);
+}
+
+.energy-insights strong {
+    color: var(--cockpit-text);
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.energy-insights small {
+    margin-top: 4px;
+    color: var(--cockpit-muted);
+    font-size: 8px;
+    line-height: 1.35;
+}
+
+.energy-overview footer {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--cockpit-line);
+    color: var(--cockpit-muted);
+    font-size: 8px;
+    line-height: 1.45;
+}
+
+.energy-overview footer span {
+    float: none;
+    color: var(--cockpit-muted);
+    text-align: left;
+}
+
+@media (max-width: 1200px) {
+    .energy-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    .energy-overview-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .energy-history-link {
+        align-self: flex-start;
+    }
+
+    .energy-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .energy-kpi {
+        padding: 10px;
+    }
+
+    .energy-kpi strong {
+        font-size: 18px;
+    }
+
+    .energy-location-panel {
+        padding: 11px;
+    }
+
+    .energy-location-chart {
+        height: 240px;
+    }
+
+    .energy-insights {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 380px) {
+    .energy-kpi-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

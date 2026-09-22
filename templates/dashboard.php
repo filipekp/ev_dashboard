@@ -27,6 +27,9 @@ require __DIR__ . '/partials/header.php';
         || ($liveTelemetry['active_ventilation_state'] ?? NULL) !== NULL
         || ($liveTelemetry['window_heating_front'] ?? NULL) !== NULL
         || ($liveTelemetry['window_heating_rear'] ?? NULL) !== NULL
+        || ($liveTelemetry['windshield_defrost_state'] ?? NULL) !== NULL
+        || ($liveTelemetry['steering_wheel_heat_state'] ?? NULL) !== NULL
+        || ($liveTelemetry['outside_temperature_c'] ?? NULL) !== NULL
     );
     $climateStateLabel = static function ($state): string {
         $value = strtoupper(trim((string)$state));
@@ -42,6 +45,32 @@ require __DIR__ . '/partials/header.php';
             'ACTIVE' => 'Aktivní',
         ];
         return $labels[$value] ?? ($value !== '' ? str_replace('_', ' ', $value) : '—');
+    };
+    $chargingStateLabel = static function ($state): string {
+        $value = strtolower(trim((string)$state));
+        $labels = [
+            'notcharging' => 'Nenabíjí',
+            'charging' => 'AC nabíjení',
+            'fastcharging' => 'DC rychlonabíjení',
+            'reservedcharging' => 'Naplánované nabíjení',
+            'wirelesscharging' => 'Bezdrátové nabíjení',
+            'v2loperating' => 'V2L aktivní',
+            'v2lstop' => 'V2L zastaveno',
+            'v2xoperating' => 'V2X aktivní',
+        ];
+        return $labels[$value] ?? ($value !== '' ? $value : '—');
+    };
+    $chargingMinutes = static function ($minutes): string {
+        if (!is_numeric($minutes) || (int)$minutes <= 0) {
+            return '';
+        }
+        $minutes = (int)$minutes;
+        $hours = intdiv($minutes, 60);
+        $rest = $minutes % 60;
+        if ($hours > 0 && $rest > 0) {
+            return $hours . ' h ' . $rest . ' min';
+        }
+        return $hours > 0 ? $hours . ' h' : $rest . ' min';
     };
     $climateDuration = static function ($seconds): string {
         if (!is_numeric($seconds) || (int)$seconds <= 0) {
@@ -87,21 +116,42 @@ require __DIR__ . '/partials/header.php';
             $livePlugged = $liveTelemetry['is_plugged_in'] !== NULL ? (bool)$liveTelemetry['is_plugged_in'] : NULL;
             $liveChargingLabel = '—';
             $liveChargingDetail = 'stav není dostupný';
+            $chargingDetails = [];
             if ($liveCharging === TRUE) {
                 $liveChargingLabel = 'Nabíjí';
-                $liveChargingDetail = $liveTelemetry['charging_power_kw'] !== NULL
-                    ? cz((float)$liveTelemetry['charging_power_kw'], 1) . ' kW'
-                    : 'aktivní nabíjení';
+                if ($liveTelemetry['charging_power_kw'] !== NULL) {
+                    $chargingDetails[] = cz((float)$liveTelemetry['charging_power_kw'], 1) . ' kW';
+                }
             } elseif ($livePlugged === TRUE) {
                 $liveChargingLabel = 'Připojeno';
-                $liveChargingDetail = 'kabel je připojen';
+                $chargingDetails[] = 'kabel je připojen';
             } elseif ($livePlugged === FALSE) {
                 $liveChargingLabel = 'Odpojeno';
-                $liveChargingDetail = 'kabel není připojen';
+                $chargingDetails[] = 'kabel není připojen';
             } elseif ($liveCharging === FALSE) {
                 $liveChargingLabel = 'Nenabíjí';
-                $liveChargingDetail = 'nabíjení není aktivní';
+                $chargingDetails[] = 'nabíjení není aktivní';
             }
+            if (($liveTelemetry['charging_status'] ?? NULL) !== NULL) {
+                $chargingDetails[] = $chargingStateLabel($liveTelemetry['charging_status']);
+            }
+            $remainingCharging = $chargingMinutes($liveTelemetry['charging_remaining_minutes'] ?? NULL);
+            if ($liveCharging === TRUE && $remainingCharging !== '') {
+                $chargingDetails[] = 'zbývá ' . $remainingCharging;
+            }
+            $targetStandard = $liveTelemetry['charging_target_standard_pct'] ?? NULL;
+            $targetQuick = $liveTelemetry['charging_target_quick_pct'] ?? NULL;
+            if ($targetStandard !== NULL || $targetQuick !== NULL) {
+                $targets = [];
+                if ($targetStandard !== NULL) {
+                    $targets[] = 'AC ' . cz((float)$targetStandard, 0) . ' %';
+                }
+                if ($targetQuick !== NULL) {
+                    $targets[] = 'DC ' . cz((float)$targetQuick, 0) . ' %';
+                }
+                $chargingDetails[] = 'cíl ' . implode(' / ', $targets);
+            }
+            $liveChargingDetail = $chargingDetails ? implode(' · ', array_unique($chargingDetails)) : 'stav není dostupný';
             $liveUpdatedAt = !empty($liveConnectedCar['last_synced_at'])
                 ? date('d.m.Y H:i', strtotime((string)$liveConnectedCar['last_synced_at']))
                 : '—';
@@ -133,7 +183,7 @@ require __DIR__ . '/partials/header.php';
                 <?php if ($liveTelemetry['is_charging'] !== NULL || $liveTelemetry['is_plugged_in'] !== NULL): ?>
                     <div class="live-vehicle-metric"><small>NABÍJENÍ</small><strong><?= h($liveChargingLabel) ?></strong><span><?= h($liveChargingDetail) ?></span></div>
                 <?php endif; ?>
-                <?php if ($liveTelemetry['fuel_level_pct'] !== NULL): ?>
+                <?php if ($hasFuelSystem && $liveTelemetry['fuel_level_pct'] !== NULL): ?>
                     <div class="live-vehicle-metric"><small>PALIVO</small><strong><?= cz((float)$liveTelemetry['fuel_level_pct'], 0) ?> %</strong><span>aktuální hladina</span></div>
                 <?php endif; ?>
                 <?php if ($liveTelemetry['battery_temperature_c'] !== NULL): ?>
@@ -144,6 +194,14 @@ require __DIR__ . '/partials/header.php';
                         $airDetails = [];
                         if (($liveTelemetry['air_conditioning_target_c'] ?? NULL) !== NULL) {
                             $airDetails[] = 'cíl ' . cz((float)$liveTelemetry['air_conditioning_target_c'], 1) . ' °C';
+                        }
+                        if (($liveTelemetry['climate_control_mode'] ?? NULL) !== NULL) {
+                            $mode = strtolower((string)$liveTelemetry['climate_control_mode']);
+                            $airDetails[] = $mode === 'auto' ? 'automatika' : ($mode === 'manual' ? 'manuální režim' : $mode);
+                        }
+                        if (($liveTelemetry['climate_blower_speed'] ?? NULL) !== NULL) {
+                            $blower = (int)$liveTelemetry['climate_blower_speed'];
+                            $airDetails[] = $blower < 0 ? 'ventilátor auto' : ($blower === 0 ? 'ventilátor vypnutý' : 'ventilátor ' . $blower . '/8');
                         }
                         if (($liveTelemetry['air_conditioning_without_external_power'] ?? NULL) !== NULL) {
                             $airDetails[] = (bool)$liveTelemetry['air_conditioning_without_external_power'] ? 'z baterie vozu' : 's externím napájením';
@@ -170,6 +228,15 @@ require __DIR__ . '/partials/header.php';
                 <?php endif; ?>
                 <?php if (($liveTelemetry['window_heating_front'] ?? NULL) !== NULL || ($liveTelemetry['window_heating_rear'] ?? NULL) !== NULL): ?>
                     <div class="live-vehicle-metric"><small>VYHŘÍVÁNÍ OKEN</small><strong><?= h($climateStateLabel(($liveTelemetry['window_heating_front'] ?? '') === 'ON' || ($liveTelemetry['window_heating_rear'] ?? '') === 'ON' ? 'ON' : 'OFF')) ?></strong><span>přední <?= h($climateStateLabel($liveTelemetry['window_heating_front'] ?? '')) ?> · zadní <?= h($climateStateLabel($liveTelemetry['window_heating_rear'] ?? '')) ?></span></div>
+                <?php endif; ?>
+                <?php if (($liveTelemetry['outside_temperature_c'] ?? NULL) !== NULL): ?>
+                    <div class="live-vehicle-metric"><small>VENKOVNÍ TEPLOTA</small><strong><?= cz((float)$liveTelemetry['outside_temperature_c'], 1) ?> °C</strong><span>hlášená vozidlem</span></div>
+                <?php endif; ?>
+                <?php if (($liveTelemetry['windshield_defrost_state'] ?? NULL) !== NULL): ?>
+                    <div class="live-vehicle-metric"><small>ČELNÍ SKLO</small><strong><?= h($climateStateLabel($liveTelemetry['windshield_defrost_state'])) ?></strong><span>odmlžení / defrost</span></div>
+                <?php endif; ?>
+                <?php if (($liveTelemetry['steering_wheel_heat_state'] ?? NULL) !== NULL): ?>
+                    <div class="live-vehicle-metric"><small>VYHŘÍVÁNÍ VOLANTU</small><strong><?= h($climateStateLabel($liveTelemetry['steering_wheel_heat_state'])) ?></strong><span>aktuální stav</span></div>
                 <?php endif; ?>
             </div>
         </section>

@@ -146,7 +146,8 @@ final class KiaConnector implements VehicleConnectorInterface, RefreshableVehicl
         $normalized = KiaVehicleNormalizer::normalize(
             $vin,
             isset($response['payloads']) && is_array($response['payloads']) ? $response['payloads'] : [],
-            isset($response['partial_errors']) && is_array($response['partial_errors']) ? $response['partial_errors'] : []
+            isset($response['partial_errors']) && is_array($response['partial_errors']) ? $response['partial_errors'] : [],
+            (string)($vehicle['powertrain_type'] ?? '')
         );
 
         $externalName = (string)($vehicle['name'] ?? 'Kia');

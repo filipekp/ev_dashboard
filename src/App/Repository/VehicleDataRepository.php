@@ -310,12 +310,15 @@ final class VehicleDataRepository
         $q = $this->pdo->prepare(
             'INSERT IGNORE INTO vehicle_telemetry_snapshots(
                 vehicle_id,connection_id,source,observed_at,fingerprint,soc_pct,range_km,odometer_km,
-                latitude,longitude,parking_address,is_charging,is_plugged_in,charging_power_kw,battery_temperature_c,fuel_level_pct,
-                air_conditioning_state,air_conditioning_target_c,air_conditioning_without_external_power,air_conditioning_at_unlock,
-                window_heating_front,window_heating_rear,auxiliary_heating_state,auxiliary_heating_start_mode,
-                auxiliary_heating_duration_seconds,auxiliary_heating_target_c,active_ventilation_state,
-                active_ventilation_duration_seconds,raw_json
-             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+                latitude,longitude,vehicle_speed_kmh,parking_address,is_charging,is_plugged_in,charging_power_kw,
+                charging_status,charging_plugin_status,charging_target_standard_pct,charging_target_quick_pct,
+                charging_remaining_minutes,battery_temperature_c,fuel_level_pct,ignition_status,sleep_mode,is_parked,
+                air_conditioning_state,air_conditioning_target_c,climate_control_mode,climate_blower_speed,
+                air_conditioning_without_external_power,air_conditioning_at_unlock,window_heating_front,window_heating_rear,
+                windshield_defrost_state,steering_wheel_heat_state,outside_temperature_c,auxiliary_heating_state,
+                auxiliary_heating_start_mode,auxiliary_heating_duration_seconds,auxiliary_heating_target_c,
+                active_ventilation_state,active_ventilation_duration_seconds,raw_json
+             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
         );
         $q->execute([
             $vehicleId,
@@ -328,14 +331,29 @@ final class VehicleDataRepository
             $telemetry['odometer_km'] ?? null,
             $telemetry['latitude'] ?? null,
             $telemetry['longitude'] ?? null,
+            $telemetry['vehicle_speed_kmh'] ?? null,
             $this->nullableString($telemetry['parking_address'] ?? null, 255),
             array_key_exists('is_charging', $telemetry) && $telemetry['is_charging'] !== null ? (int)(bool)$telemetry['is_charging'] : null,
             array_key_exists('is_plugged_in', $telemetry) && $telemetry['is_plugged_in'] !== null ? (int)(bool)$telemetry['is_plugged_in'] : null,
             $telemetry['charging_power_kw'] ?? null,
+            $this->nullableString($telemetry['charging_status'] ?? null, 32),
+            $this->nullableString($telemetry['charging_plugin_status'] ?? null, 24),
+            $telemetry['charging_target_standard_pct'] ?? null,
+            $telemetry['charging_target_quick_pct'] ?? null,
+            isset($telemetry['charging_remaining_minutes']) && is_numeric($telemetry['charging_remaining_minutes'])
+                ? max(0, (int)$telemetry['charging_remaining_minutes'])
+                : null,
             $telemetry['battery_temperature_c'] ?? null,
             $telemetry['fuel_level_pct'] ?? null,
+            $this->nullableString($telemetry['ignition_status'] ?? null, 24),
+            $this->nullableString($telemetry['sleep_mode'] ?? null, 24),
+            array_key_exists('is_parked', $telemetry) && $telemetry['is_parked'] !== null ? (int)(bool)$telemetry['is_parked'] : null,
             $this->nullableString($telemetry['air_conditioning_state'] ?? null, 64),
             $telemetry['air_conditioning_target_c'] ?? null,
+            $this->nullableString($telemetry['climate_control_mode'] ?? null, 24),
+            isset($telemetry['climate_blower_speed']) && is_numeric($telemetry['climate_blower_speed'])
+                ? (int)$telemetry['climate_blower_speed']
+                : null,
             array_key_exists('air_conditioning_without_external_power', $telemetry) && $telemetry['air_conditioning_without_external_power'] !== null
                 ? (int)(bool)$telemetry['air_conditioning_without_external_power']
                 : null,
@@ -344,6 +362,9 @@ final class VehicleDataRepository
                 : null,
             $this->nullableString($telemetry['window_heating_front'] ?? null, 24),
             $this->nullableString($telemetry['window_heating_rear'] ?? null, 24),
+            $this->nullableString($telemetry['windshield_defrost_state'] ?? null, 24),
+            $this->nullableString($telemetry['steering_wheel_heat_state'] ?? null, 24),
+            $telemetry['outside_temperature_c'] ?? null,
             $this->nullableString($telemetry['auxiliary_heating_state'] ?? null, 64),
             $this->nullableString($telemetry['auxiliary_heating_start_mode'] ?? null, 64),
             isset($telemetry['auxiliary_heating_duration_seconds']) && is_numeric($telemetry['auxiliary_heating_duration_seconds'])

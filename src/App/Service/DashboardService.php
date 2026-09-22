@@ -132,15 +132,22 @@
                 'Rychlé okresky (65–85 km/h)',
                 'Dálnice (>85 km/h)'
             ];
-            $bandValues = array_fill(0, 4, 0.0);
+            $bandValues = array_fill(0, 4, NULL);
             $bandKm     = array_fill(0, 4, 0.0);
-            $q          = $this->pdo->prepare("SELECT CASE WHEN avg_speed_kmh<40 THEN 0 WHEN avg_speed_kmh<65 THEN 1 WHEN avg_speed_kmh<=85 THEN 2 ELSE 3 END band,SUM(distance_km) km,SUM(consumed_kwh) kwh FROM trips WHERE $where GROUP BY band");
+            $q          = $this->pdo->prepare(
+                "SELECT CASE WHEN avg_speed_kmh<40 THEN 0 WHEN avg_speed_kmh<65 THEN 1 WHEN avg_speed_kmh<=85 THEN 2 ELSE 3 END band,"
+                . "SUM(distance_km) km,SUM(consumed_kwh) kwh FROM trips WHERE $where AND avg_speed_kmh IS NOT NULL GROUP BY band"
+            );
             $q->execute($params);
             foreach ($q->fetchAll() as $r) {
-                $idx              = (int)$r['band'];
-                $km               = (float)$r['km'];
-                $bandValues[$idx] = round($km > 0 ? (float)$r['kwh'] / $km * 100 : 0, 1);
-                $bandKm[$idx]     = round($km, 1);
+                $idx          = (int)$r['band'];
+                $km           = (float)$r['km'];
+                $energyKwh    = $r['kwh'] !== NULL ? (float)$r['kwh'] : NULL;
+                $bandKm[$idx] = round($km, 1);
+
+                if ($km > 0 && $energyKwh !== NULL) {
+                    $bandValues[$idx] = round($energyKwh / $km * 100, 1);
+                }
             }
             $routes = [];
             $q      = $this->pdo->prepare("SELECT start_address,end_address,COUNT(*) c,SUM(distance_km) km,SUM(consumed_kwh) kwh FROM trips WHERE $where AND (start_address<>'' OR end_address<>'') GROUP BY start_address,end_address ORDER BY c DESC,km DESC LIMIT 10");

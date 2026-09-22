@@ -9640,14 +9640,148 @@ body.modal-open {
         rgba(255, 255, 255, .012);
 }
 
-.chart-visual.chart-visual-radar {
-    height: clamp(270px, 30vw, 350px);
+.chart-visual.chart-visual-speed {
+    height: clamp(250px, 27vw, 320px);
 }
 
 .chart-visual canvas {
     width: 100% !important;
     height: 100% !important;
     max-height: none !important;
+}
+
+.speed-band-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.speed-band-row {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 11px;
+    background: color-mix(in srgb, var(--cockpit-panel-2) 88%, transparent);
+    border: 1px solid var(--cockpit-line);
+    border-radius: 10px;
+}
+
+.speed-band-row > span {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 8px minmax(0, 1fr);
+    align-items: center;
+    gap: 2px 7px;
+}
+
+.speed-band-row > span > i {
+    grid-row: 1 / 3;
+    width: 7px;
+    height: 28px;
+    border-radius: 6px;
+    background: var(--cockpit-teal);
+}
+
+.speed-band-row-1 > span > i { background: var(--cockpit-cyan); }
+.speed-band-row-2 > span > i { background: var(--cockpit-orange); }
+.speed-band-row-3 > span > i { background: var(--cockpit-danger); }
+
+.speed-band-row b,
+.speed-band-row small,
+.speed-band-row strong,
+.speed-band-row em {
+    display: block;
+}
+
+.speed-band-row b {
+    overflow: hidden;
+    color: var(--cockpit-text);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.speed-band-row small {
+    color: var(--cockpit-muted);
+    font-size: 8px;
+}
+
+.speed-band-row strong {
+    flex: 0 0 auto;
+    color: var(--cockpit-text);
+    font-size: 15px;
+    text-align: right;
+}
+
+.speed-band-row em {
+    margin-top: 1px;
+    color: var(--cockpit-muted);
+    font-size: 8px;
+    font-style: normal;
+    font-weight: 650;
+}
+
+@media (max-width: 900px) {
+    .mobile-topbar {
+        width: 100%;
+        grid-template-columns: max-content minmax(0, 1fr) max-content !important;
+        gap: 8px !important;
+        padding-inline: 12px !important;
+    }
+
+    .mobile-brand {
+        display: flex;
+        min-width: max-content;
+        align-items: center;
+        gap: 4px;
+        color: var(--cockpit-text) !important;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    .mobile-vehicle-picker {
+        width: 100%;
+        min-width: 0;
+        margin: 0;
+    }
+
+    .mobile-vehicle-picker select {
+        width: 100%;
+        min-width: 0;
+        height: 38px;
+        margin: 0;
+        padding: 7px 30px 7px 10px;
+        color: var(--cockpit-text);
+        background-color: var(--cockpit-panel-2);
+        border: 1px solid var(--cockpit-line);
+        border-radius: 10px;
+        box-shadow: none;
+        font-size: 11px;
+        font-weight: 750;
+        text-overflow: ellipsis;
+    }
+
+    .mobile-vehicle-picker select:focus {
+        border-color: rgba(var(--cockpit-primary-rgb), .65);
+        box-shadow: 0 0 0 3px rgba(var(--cockpit-primary-rgb), .10);
+        outline: 0;
+    }
+
+    .mobile-vehicle-picker-placeholder {
+        min-width: 0;
+        color: var(--cockpit-muted);
+        font-size: 11px;
+        text-align: center;
+    }
+
+    .mobile-avatar {
+        justify-self: end;
+        flex: 0 0 auto;
+        margin-left: auto;
+    }
 }
 
 @media (max-width: 760px) {
@@ -9674,8 +9808,12 @@ body.modal-open {
     }
 
     .chart-visual,
-    .chart-visual.chart-visual-radar {
-        height: 280px;
+    .chart-visual.chart-visual-speed {
+        height: 260px;
+    }
+
+    .speed-band-summary {
+        grid-template-columns: 1fr;
     }
 }
 

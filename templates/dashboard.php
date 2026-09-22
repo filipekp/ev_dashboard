@@ -325,9 +325,21 @@ require __DIR__ . '/partials/header.php';
                 <footer>Celkem: <b><?= cz((float)$operationSummary['total_cost'], 0) ?> Kč</b><span><a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">doplnit provozní evidenci</a></span></footer>
             </div>
         <?php endif; ?>
-        <div class="card chart-card"><h2><i class="bi bi-speedometer"></i> <?= $hasTractionBattery ? 'Spotřeba podle rychlostních pásem' : 'Nájezd podle rychlostních pásem' ?></h2>
-            <p><?= $hasTractionBattery ? 'Jízdy jsou seskupené podle průměrné rychlosti' : 'Ujeté kilometry podle průměrné rychlosti jízd' ?></p>
-            <div class="chart-visual chart-visual-radar"><canvas id="speed"></canvas></div>
+        <div class="card chart-card speed-band-card"><h2><i class="bi bi-speedometer"></i> <?= $hasTractionBattery ? 'Spotřeba podle rychlostních pásem' : 'Nájezd podle rychlostních pásem' ?></h2>
+            <p><?= $hasTractionBattery ? 'Vážená průměrná spotřeba jízd v jednotlivých rychlostních pásmech' : 'Ujeté kilometry podle průměrné rychlosti jízd' ?></p>
+            <div class="chart-visual chart-visual-speed"><canvas id="speed"></canvas></div>
+            <div class="speed-band-summary" aria-label="Hodnoty podle rychlostních pásem">
+                <?php foreach ($bandLabels as $bandIndex => $bandLabel): ?>
+                    <div class="speed-band-row speed-band-row-<?= (int)$bandIndex ?>">
+                        <span><i aria-hidden="true"></i><b><?= h($bandLabel) ?></b><small><?= cz((float)$bandKm[$bandIndex], 1) ?> km jízd</small></span>
+                        <?php if ($hasTractionBattery): ?>
+                            <strong><?= $bandValues[$bandIndex] !== NULL ? cz((float)$bandValues[$bandIndex], 1) : '—' ?><em>kWh/100 km</em></strong>
+                        <?php else: ?>
+                            <strong><?= cz((float)$bandKm[$bandIndex], 1) ?><em>km</em></strong>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
         </div>
         <div class="card"><h2><i class="bi bi-arrow-repeat"></i> Pravidelné dojíždění</h2>
             <p>Nejčastější směry v importovaných datech</p><?php if ($routes): ?>
@@ -576,7 +588,14 @@ foreach ($historyTrips as $tripRow) {
     const monthlyCons = <?=json_encode($monthCons)?>;
     const hours = <?=json_encode(array_values($hourData))?>;
     const speedLabels = <?=json_encode($bandLabels, JSON_UNESCAPED_UNICODE)?>;
+    const speedChartLabels = [
+        ['Město', '< 40 km/h'],
+        ['Okresky', '40–65 km/h'],
+        ['Rychlé okresky', '65–85 km/h'],
+        ['Dálnice', '> 85 km/h']
+    ];
     const speedValues = <?=json_encode($hasTractionBattery ? $bandValues : $bandKm)?>;
+    const speedBandKm = <?=json_encode($bandKm)?>;
 
     const themeStyles = getComputedStyle(document.documentElement);
     const chartGrid = themeStyles.getPropertyValue('--chart-grid').trim() || 'rgba(148,163,184,.12)';
@@ -755,37 +774,92 @@ foreach ($historyTrips as $tripRow) {
 
     const speedCanvas = document.getElementById('speed');
     if (speedCanvas) {
+        const speedNumberFormat = new Intl.NumberFormat('cs-CZ', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        const speedUnit = <?= json_encode($hasTractionBattery ? 'kWh/100 km' : 'km', JSON_UNESCAPED_UNICODE) ?>;
+        const speedValueLabels = {
+            id: 'speedValueLabels',
+            afterDatasetsDraw(chart) {
+                const meta = chart.getDatasetMeta(0);
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.fillStyle = chartStrong;
+                ctx.font = '700 10px Inter, system-ui, sans-serif';
+                ctx.textBaseline = 'middle';
+
+                meta.data.forEach((bar, index) => {
+                    const value = speedValues[index];
+                    if (value === null || value === undefined || speedBandKm[index] <= 0) {
+                        return;
+                    }
+
+                    const text = `${speedNumberFormat.format(Number(value))} ${speedUnit}`;
+                    const textWidth = ctx.measureText(text).width;
+                    const preferredX = bar.x + 8;
+                    const availableRight = chart.width - 8;
+                    if (preferredX + textWidth <= availableRight) {
+                        ctx.textAlign = 'left';
+                        ctx.fillText(text, preferredX, bar.y);
+                    } else {
+                        ctx.textAlign = 'right';
+                        ctx.fillText(text, availableRight, bar.y);
+                    }
+                });
+                ctx.restore();
+            }
+        };
+
         new Chart(speedCanvas, {
-            type: 'radar',
+            type: 'bar',
+            plugins: [speedValueLabels],
             data: {
-                labels: speedLabels,
+                labels: speedChartLabels,
                 datasets: [{
-                    label: <?= json_encode($hasTractionBattery ? 'kWh/100 km' : 'km', JSON_UNESCAPED_UNICODE) ?>,
+                    label: speedUnit,
                     data: speedValues,
-                    borderColor: palette.sky,
-                    backgroundColor: 'rgba(56,189,248,.16)',
-                    pointBackgroundColor: palette.lime,
-                    pointBorderColor: chartPanel,
-                    pointHoverBackgroundColor: palette.coral,
-                    pointRadius: 4,
-                    pointHoverRadius: 7,
-                    borderWidth: 2.4
+                    backgroundColor: [palette.teal, palette.sky, palette.amber, palette.coral],
+                    hoverBackgroundColor: [palette.emerald, '#60a5fa', '#fbbf24', '#f43f5e'],
+                    borderWidth: 0,
+                    borderRadius: 8,
+                    borderSkipped: false,
+                    barThickness: 22,
+                    maxBarThickness: 26
                 }]
             },
             options: {
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: { mode: 'nearest', axis: 'y', intersect: false },
+                layout: { padding: { right: <?= $hasTractionBattery ? '78' : '48' ?> } },
                 plugins: {
                     ...commonPlugins,
-                    legend: { display: false }
+                    legend: { display: false },
+                    tooltip: {
+                        ...commonPlugins.tooltip,
+                        callbacks: {
+                            label(context) {
+                                const value = context.raw;
+                                if (value === null || value === undefined) {
+                                    return 'Bez dat';
+                                }
+                                return `${speedNumberFormat.format(Number(value))} ${speedUnit}`;
+                            },
+                            afterLabel(context) {
+                                return `${speedNumberFormat.format(Number(speedBandKm[context.dataIndex] || 0))} km jízd`;
+                            }
+                        }
+                    }
                 },
                 scales: {
-                    r: {
+                    x: {
                         beginAtZero: true,
-                        angleLines: { color: chartGrid },
-                        grid: { color: chartGrid },
-                        pointLabels: { color: chartText, font: { size: 11, weight: '600' } },
-                        ticks: { display: false, backdropColor: 'transparent' }
+                        grid: { color: chartGrid, drawBorder: false },
+                        ticks: { color: chartText },
+                        title: { display: true, text: speedUnit, color: chartText }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: chartStrong, font: { size: 10, weight: '600' } }
                     }
                 }
             }

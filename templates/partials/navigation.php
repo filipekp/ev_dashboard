@@ -17,6 +17,10 @@ $navCurrent = static function (string $page) use ($navPage): string {
     return $navPage === $page ? ' is-active' : '';
 };
 $navVehicleQuery = $navVehicleId ? '?vehicle_id=' . $navVehicleId : '';
+$navVehicleAwarePages = ['index.php', 'dashboard.php', 'operations.php', 'documents.php', 'timeline.php', 'import.php'];
+$navVehicleTargetPage = in_array($navPage, $navVehicleAwarePages, true)
+    ? ($navPage === 'dashboard.php' ? 'index.php' : $navPage)
+    : 'index.php';
 $navInitial = mb_strtoupper(mb_substr((string)($navUser['name'] ?? 'U'), 0, 1));
 $navPageLabel = [
     'index.php' => 'Dashboard vozidla',
@@ -64,10 +68,7 @@ $navPageLabel = [
                         <?php
                         $optionId = (int)$option['id'];
                         $optionPowertrain = strtoupper((string)($option['powertrain_type'] ?? 'BEV'));
-                        $targetPage = in_array($navPage, ['index.php', 'dashboard.php', 'operations.php', 'documents.php', 'timeline.php', 'import.php'], true)
-                            ? ($navPage === 'dashboard.php' ? 'index.php' : $navPage)
-                            : 'index.php';
-                        $targetUrl = $targetPage . '?vehicle_id=' . $optionId;
+                        $targetUrl = $navVehicleTargetPage . '?vehicle_id=' . $optionId;
                         ?>
                         <a class="vehicle-picker-option<?= $optionId === $navVehicleId ? ' is-selected' : '' ?>" href="<?= h($targetUrl) ?>" role="option" aria-selected="<?= $optionId === $navVehicleId ? 'true' : 'false' ?>">
                             <span class="vehicle-picker-icon"><i class="bi <?= in_array($optionPowertrain, ['BEV', 'PHEV'], true) ? 'bi-lightning-charge-fill' : 'bi-fuel-pump-fill' ?>"></i></span>
@@ -123,9 +124,22 @@ $navPageLabel = [
 </aside>
 
 <header class="mobile-topbar">
-    <a class="mobile-brand" href="garage.php"><i class="bi bi-lightning-charge-fill"></i> <b>EV Stats</b></a>
-    <?php if ($navHasVehicle && $navVehicles): ?><a class="mobile-vehicle-link" href="garage.php"><b><?= h((string)$navVehicle['name']) ?></b><small><?= h($navPowertrain) ?></small></a><?php endif; ?>
-    <a class="mobile-avatar" href="profile.php"><?= h($navInitial) ?></a>
+    <a class="mobile-brand" href="garage.php" aria-label="EV Stats – Garáž"><i class="bi bi-lightning-charge-fill"></i> <b>EV Stats</b></a>
+    <?php if ($navVehicles): ?>
+        <form class="mobile-vehicle-picker" method="get" action="<?= h($navVehicleTargetPage) ?>">
+            <label class="visually-hidden" for="mobileVehicleSelect">Aktivní vozidlo</label>
+            <select id="mobileVehicleSelect" name="vehicle_id" data-auto-submit aria-label="Vybrat vozidlo z garáže">
+                <?php if (!$navHasVehicle): ?><option value="" selected disabled>Vybrat vozidlo</option><?php endif; ?>
+                <?php foreach ($navVehicles as $option): ?>
+                    <?php $optionId = (int)$option['id']; ?>
+                    <option value="<?= $optionId ?>"<?= $optionId === $navVehicleId ? ' selected' : '' ?>><?= h((string)$option['name']) ?><?= ((isset($option['registration_plate'])) ? ' | ' . h((string)$option['registration_plate']) : '') ?></option>
+                <?php endforeach; ?>
+            </select>
+        </form>
+    <?php else: ?>
+        <span class="mobile-vehicle-picker-placeholder">Garáž</span>
+    <?php endif; ?>
+    <a class="mobile-avatar" href="profile.php" aria-label="Můj profil"><?= h($navInitial) ?></a>
 </header>
 
 <nav class="mobile-bottom-nav" aria-label="Mobilní navigace">

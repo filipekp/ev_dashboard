@@ -8548,7 +8548,9 @@ body {
     width: auto;
     max-width: none;
     margin: 0 var(--cockpit-rail-width) 0 0;
-    padding: 24px 26px 56px;
+    /* Desktop navigation is fixed, so reserve its full height in the
+       document flow and keep the normal 24px content breathing room. */
+    padding: calc(var(--cockpit-topbar-height) + 24px) 26px 56px;
 }
 
 .site-footer {

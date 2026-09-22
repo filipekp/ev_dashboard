@@ -310,16 +310,6 @@ final class KiaVehicleNormalizer
     }
 
     /** @param mixed $value */
-    private static function integer($value, int $min, int $max): ?int
-    {
-        if (!is_numeric($value)) {
-            return null;
-        }
-        $number = (int)$value;
-        return $number >= $min && $number <= $max ? $number : null;
-    }
-
-    /** @param mixed $value */
     private static function boolValue($value): ?bool
     {
         if (is_bool($value)) {

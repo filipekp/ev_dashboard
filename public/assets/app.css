@@ -10291,3 +10291,32 @@ body.modal-open {
 .cockpit-topbar-actions .cockpit-vehicle-dot {
     flex: 0 0 32px;
 }
+
+/* Live OEM trip ------------------------------------------------------- */
+.trip-is-live {
+    background: linear-gradient(90deg, rgba(26, 210, 173, .055), transparent 48%) !important;
+}
+
+.live-trip-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 7px;
+    padding: 3px 7px;
+    color: #57e8c3;
+    background: rgba(26, 210, 173, .10);
+    border: 1px solid rgba(26, 210, 173, .25);
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    vertical-align: middle;
+}
+
+.trip-is-live .icon-action:disabled {
+    opacity: .68;
+    cursor: progress;
+    color: #57e8c3 !important;
+    background: rgba(26, 210, 173, .08) !important;
+    border-color: rgba(26, 210, 173, .20) !important;
+}

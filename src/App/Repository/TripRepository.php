@@ -23,6 +23,11 @@ final class TripRepository
     private $columns = [
         'trip_hash',
         'canonical_key',
+        'trip_state',
+        'telemetry_connection_id',
+        'telemetry_start_snapshot_id',
+        'telemetry_last_snapshot_id',
+        'telemetry_last_movement_at',
         'started_at',
         'ended_at',
         'classification',
@@ -66,7 +71,9 @@ final class TripRepository
     /** @param array<string,mixed> $trip */
     public function insertIgnore(int $vehicleId, array $trip): bool
     {
-        $trip['canonical_key'] = $trip['canonical_key'] ?? $this->canonicalKey($trip);
+        if (!array_key_exists('canonical_key', $trip)) {
+            $trip['canonical_key'] = $this->canonicalKey($trip);
+        }
 
         $existing = $this->findByHash($vehicleId, (string)($trip['trip_hash'] ?? ''));
         if ($existing === null) {
@@ -122,7 +129,9 @@ final class TripRepository
     /** @param array<string,mixed> $trip */
     public function insertManual(int $vehicleId, array $trip): int
     {
-        $trip['canonical_key'] = $trip['canonical_key'] ?? $this->canonicalKey($trip);
+        if (!array_key_exists('canonical_key', $trip)) {
+            $trip['canonical_key'] = $this->canonicalKey($trip);
+        }
         $columns = array_merge(['vehicle_id'], $this->columns);
         $sql = 'INSERT INTO trips (' . implode(',', $columns) . ') VALUES ('
             . implode(',', array_fill(0, count($columns), '?')) . ')';
@@ -139,7 +148,16 @@ final class TripRepository
         $editableColumns = array_values(array_filter(
             $this->columns,
             static function (string $column): bool {
-                return !in_array($column, ['trip_hash', 'canonical_key', 'source_format'], true);
+                return !in_array($column, [
+                    'trip_hash',
+                    'canonical_key',
+                    'trip_state',
+                    'telemetry_connection_id',
+                    'telemetry_start_snapshot_id',
+                    'telemetry_last_snapshot_id',
+                    'telemetry_last_movement_at',
+                    'source_format',
+                ], true);
             }
         ));
 
@@ -170,6 +188,192 @@ final class TripRepository
         $row = $statement->fetch();
 
         return $row ?: null;
+    }
+
+    /** @return array<string,mixed>|null */
+    public function findActiveTelemetryTrip(int $vehicleId, int $connectionId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT * FROM trips
+             WHERE vehicle_id=? AND telemetry_connection_id=? AND trip_state='active'
+             ORDER BY started_at DESC,id DESC LIMIT 1"
+        );
+        $statement->execute([$vehicleId, $connectionId]);
+        $row = $statement->fetch();
+
+        return $row ?: null;
+    }
+
+    /**
+     * @param array<string,mixed> $trip
+     * @return array{id:int,created:bool,completed:bool}
+     */
+    public function createActiveTelemetryTrip(int $vehicleId, array $trip): array
+    {
+        $trip['canonical_key'] = null;
+        $trip['trip_state'] = 'active';
+
+        $existing = $this->findByHash($vehicleId, (string)($trip['trip_hash'] ?? ''));
+        if ($existing !== null) {
+            if ((string)($existing['trip_state'] ?? 'completed') === 'completed') {
+                return ['id' => (int)$existing['id'], 'created' => false, 'completed' => true];
+            }
+            $this->updateActiveTelemetryTrip($vehicleId, (int)$existing['id'], $trip);
+            return ['id' => (int)$existing['id'], 'created' => false, 'completed' => false];
+        }
+
+        $columns = array_merge(['vehicle_id'], $this->columns);
+        $sql = 'INSERT INTO trips (' . implode(',', $columns) . ') VALUES ('
+            . implode(',', array_fill(0, count($columns), '?')) . ')';
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($this->valuesForTrip($vehicleId, $trip));
+
+        return ['id' => (int)$this->pdo->lastInsertId(), 'created' => true, 'completed' => false];
+    }
+
+    /** @param array<string,mixed> $trip */
+    public function updateActiveTelemetryTrip(int $vehicleId, int $tripId, array $trip): void
+    {
+        $this->updateTelemetryFields($vehicleId, $tripId, $trip);
+        $statement = $this->pdo->prepare(
+            "UPDATE trips SET trip_state='active',canonical_key=NULL WHERE id=? AND vehicle_id=?"
+        );
+        $statement->execute([$tripId, $vehicleId]);
+    }
+
+    /**
+     * Dokončí živou telemetry jízdu a před nastavením canonical_key ji ještě
+     * sloučí s případným přesnějším CSV/importovaným záznamem.
+     *
+     * @param array<string,mixed> $trip
+     * @return array{id:int,merged:bool}
+     */
+    public function finalizeTelemetryTrip(int $vehicleId, int $tripId, array $trip): array
+    {
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
+            $this->pdo->beginTransaction();
+        }
+
+        try {
+            $this->updateTelemetryFields($vehicleId, $tripId, $trip);
+            $current = $this->findByIdForVehicle($vehicleId, $tripId);
+            if ($current === null) {
+                throw new RuntimeException('Živá telemetry jízda nebyla nalezena.');
+            }
+
+            $candidate = array_merge($current, $trip);
+            $candidate['trip_state'] = 'completed';
+            $candidate['canonical_key'] = $this->canonicalKey($candidate);
+
+            $duplicate = $this->findDuplicate($vehicleId, $candidate, $tripId);
+            if ($duplicate === null) {
+                $duplicate = $this->findByCanonicalKey(
+                    $vehicleId,
+                    (string)$candidate['canonical_key'],
+                    $tripId
+                );
+            }
+
+            if ($duplicate !== null) {
+                $duplicateSource = (string)($duplicate['source_format'] ?? '');
+                if (!$this->isTelemetrySource($duplicateSource)) {
+                    $this->mergeDuplicate($vehicleId, $duplicate, $candidate);
+                    $this->deleteById($vehicleId, $tripId);
+                    if ($ownsTransaction) {
+                        $this->pdo->commit();
+                    }
+                    return ['id' => (int)$duplicate['id'], 'merged' => true];
+                }
+
+                $this->mergeDuplicate($vehicleId, $current, $duplicate);
+                $this->deleteById($vehicleId, (int)$duplicate['id']);
+            }
+
+            $statement = $this->pdo->prepare(
+                "UPDATE trips
+                 SET trip_state='completed',canonical_key=?,trip_note=?
+                 WHERE id=? AND vehicle_id=?"
+            );
+            $statement->execute([
+                (string)$candidate['canonical_key'],
+                $trip['trip_note'] ?? $current['trip_note'] ?? null,
+                $tripId,
+                $vehicleId,
+            ]);
+
+            if ($ownsTransaction) {
+                $this->pdo->commit();
+            }
+            return ['id' => $tripId, 'merged' => $duplicate !== null];
+        } catch (\Throwable $e) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /** @param array<string,mixed> $trip */
+    private function updateTelemetryFields(int $vehicleId, int $tripId, array $trip): void
+    {
+        $columns = [
+            'started_at',
+            'ended_at',
+            'trip_note',
+            'start_address',
+            'end_address',
+            'start_lat',
+            'start_lng',
+            'end_lat',
+            'end_lng',
+            'distance_km',
+            'start_odometer_km',
+            'end_odometer_km',
+            'driving_minutes',
+            'travel_minutes',
+            'avg_speed_kmh',
+            'consumed_kwh',
+            'avg_consumption_kwh_100',
+            'fuel_consumed_l',
+            'avg_fuel_consumption_l_100',
+            'start_soc',
+            'end_soc',
+            'public_charging_stops',
+            'public_charge_soc_gained',
+            'short_trip',
+            'source_format',
+            'telemetry_connection_id',
+            'telemetry_start_snapshot_id',
+            'telemetry_last_snapshot_id',
+            'telemetry_last_movement_at',
+        ];
+
+        $set = [];
+        $values = [];
+        foreach ($columns as $column) {
+            if (!array_key_exists($column, $trip)) {
+                continue;
+            }
+            $set[] = $column . '=?';
+            $values[] = $trip[$column];
+        }
+        if ($set === []) {
+            return;
+        }
+        $values[] = $tripId;
+        $values[] = $vehicleId;
+
+        $statement = $this->pdo->prepare(
+            'UPDATE trips SET ' . implode(',', $set) . ' WHERE id=? AND vehicle_id=?'
+        );
+        $statement->execute($values);
+    }
+
+    private function deleteById(int $vehicleId, int $tripId): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM trips WHERE id=? AND vehicle_id=?');
+        $statement->execute([$tripId, $vehicleId]);
     }
 
     public function countForVehicle(int $vehicleId): int
@@ -210,7 +414,7 @@ final class TripRepository
     }
 
     /** @param array<string,mixed> $trip @return array<string,mixed>|null */
-    private function findDuplicate(int $vehicleId, array $trip): ?array
+    private function findDuplicate(int $vehicleId, array $trip, int $excludeId = 0): ?array
     {
         $started = strtotime((string)($trip['started_at'] ?? ''));
         $ended = strtotime((string)($trip['ended_at'] ?? ''));
@@ -219,11 +423,12 @@ final class TripRepository
         }
 
         $query = $this->pdo->prepare(
-            'SELECT * FROM trips WHERE vehicle_id=? AND started_at>=? AND started_at<=? AND ended_at>=? AND ended_at<=? '
+            'SELECT * FROM trips WHERE vehicle_id=? AND id<>? AND started_at>=? AND started_at<=? AND ended_at>=? AND ended_at<=? '
             . 'ORDER BY ABS(TIMESTAMPDIFF(SECOND, started_at, ?)) + ABS(TIMESTAMPDIFF(SECOND, ended_at, ?)) LIMIT 20'
         );
         $query->execute([
             $vehicleId,
+            $excludeId,
             date('Y-m-d H:i:s', $started - 3600),
             date('Y-m-d H:i:s', $started + 3600),
             date('Y-m-d H:i:s', $ended - 3600),
@@ -345,13 +550,13 @@ final class TripRepository
     }
 
     /** @return array<string,mixed>|null */
-    private function findByCanonicalKey(int $vehicleId, string $key): ?array
+    private function findByCanonicalKey(int $vehicleId, string $key, int $excludeId = 0): ?array
     {
         if ($key === '') {
             return null;
         }
-        $query = $this->pdo->prepare('SELECT * FROM trips WHERE vehicle_id=? AND canonical_key=? LIMIT 1');
-        $query->execute([$vehicleId, $key]);
+        $query = $this->pdo->prepare('SELECT * FROM trips WHERE vehicle_id=? AND id<>? AND canonical_key=? LIMIT 1');
+        $query->execute([$vehicleId, $excludeId, $key]);
         $row = $query->fetch();
         return $row ?: null;
     }
@@ -381,6 +586,10 @@ final class TripRepository
     {
         $values = [$vehicleId];
         foreach ($this->columns as $column) {
+            if ($column === 'trip_state') {
+                $values[] = $trip[$column] ?? 'completed';
+                continue;
+            }
             $values[] = $trip[$column] ?? null;
         }
 

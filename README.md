@@ -1670,3 +1670,14 @@ Migrace `migrate_v23.sql` rozšiřuje normalizovanou telemetrii o parkovací adr
 - dashboard zobrazuje stav `airConditioning`, `auxiliaryHeating`, `activeVentilation` a vyhřívání předního/zadního okna, pokud je výrobce poskytne;
 - OEM nabíjecí relace se založí v `vehicle_energy_entries` už při zahájení nabíjení a během dalších synchronizací se aktualizuje SoC, odhad kWh a cena;
 - výchozí cena elektřiny vozidla se použije automaticky; ručně zadaná cena se telemetrií nepřepisuje a spárovaná faktura má nejvyšší prioritu a nahradí odhad přesnými údaji.
+
+## Živé OEM jízdy (v5.5)
+
+Migrace `migrate_v25.sql` přidává stav jízdy `active/completed` a vazbu na telemetry connection/snapshoty.
+
+- při prvním přírůstku odometru se jízda založí okamžitě jako `active` a zobrazí se v historii s označením `LIVE`;
+- každý další AutoSync aktualizuje stejný řádek jízdy: konec, vzdálenost, čas, průměrnou rychlost, cílovou lokaci, SoC a odhad spotřeby;
+- po více než 2 hodinách bez dalšího přírůstku odometru se jízda přepne na `completed` a dostane finální `canonical_key` pro deduplikaci s CSV/importy;
+- každé volání AutoSync CRONu nejdřív provede lifecycle kontrolu všech aktivních konektorů bez ohledu na `next_sync_at`/`retry_after`; jízda se proto může uzavřít i bez nového OEM requestu, a při skutečné synchronizaci se kontrola zopakuje před i po síťovém volání;
+- pokud nový přírůstek dorazí až po více než 2 hodinách od posledního pohybu, stará jízda se nejprve uzavře a nový přírůstek založí novou jízdu;
+- vznikají provider-agnostické Connected Car události `trip_started` a `trip_completed`.

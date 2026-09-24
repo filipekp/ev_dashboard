@@ -569,9 +569,9 @@ require __DIR__ . '/partials/header.php';
                     <th class="trip-actions-col">AKCE</th>
                 </tr>
                 </thead>
-                <tbody><?php foreach ($historyTrips as $t): ?>
-                    <tr>
-                        <td><?= date('d.m.Y H:i', strtotime($t['started_at'])) ?></td>
+                <tbody><?php foreach ($historyTrips as $t): $isActiveTrip = (string)($t['trip_state'] ?? 'completed') === 'active'; ?>
+                    <tr class="<?= $isActiveTrip ? 'trip-is-live' : '' ?>">
+                        <td><?= date('d.m.Y H:i', strtotime($t['started_at'])) ?><?php if ($isActiveTrip): ?> <span class="live-trip-badge"><i class="bi bi-broadcast-pin"></i> LIVE</span><?php endif; ?></td>
                         <td>
                             <div class="route-cell">
                                 <b><?= h(displayRoute($t['start_address'], $t['end_address'])) ?></b>
@@ -594,7 +594,11 @@ require __DIR__ . '/partials/header.php';
                                 <?php if (($t['start_lat'] ?? null) !== null || ($t['end_lat'] ?? null) !== null || strpos((string)($t['source_format'] ?? ''), 'telemetry_') === 0): ?>
                                     <button type="button" class="icon-action map-action" data-trip-map="<?= (int)$t['id'] ?>" title="Zobrazit trasu" aria-label="Zobrazit trasu na mapě"><i class="bi bi-map"></i></button>
                                 <?php endif; ?>
-                                <button type="button" class="icon-action" data-trip-edit="<?= (int)$t['id'] ?>" title="Upravit jízdu" aria-label="Upravit jízdu"><i class="bi bi-pencil"></i></button>
+                                <?php if ($isActiveTrip): ?>
+                                    <button type="button" class="icon-action" disabled title="Probíhající jízda se aktualizuje automaticky" aria-label="Probíhající jízdu nelze zatím upravit"><i class="bi bi-arrow-repeat"></i></button>
+                                <?php else: ?>
+                                    <button type="button" class="icon-action" data-trip-edit="<?= (int)$t['id'] ?>" title="Upravit jízdu" aria-label="Upravit jízdu"><i class="bi bi-pencil"></i></button>
+                                <?php endif; ?>
                             </div>
                         </td>
                     </tr>

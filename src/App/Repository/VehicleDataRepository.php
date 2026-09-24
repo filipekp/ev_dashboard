@@ -130,6 +130,19 @@ final class VehicleDataRepository
     }
 
     /** @return array<int,array<string,mixed>> */
+    public function allActiveConnections(): array
+    {
+        return $this->pdo->query(
+            "SELECT c.*,v.name vehicle_name,v.vin vehicle_vin,v.manufacturer vehicle_manufacturer,
+                    v.powertrain_type vehicle_powertrain
+             FROM vehicle_connector_connections c
+             JOIN vehicles v ON v.id=c.vehicle_id
+             WHERE c.status='active'
+             ORDER BY c.id"
+        )->fetchAll();
+    }
+
+    /** @return array<int,array<string,mixed>> */
     public function activeConnections(): array
     {
         return $this->pdo->query(

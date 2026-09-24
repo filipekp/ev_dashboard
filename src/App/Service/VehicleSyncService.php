@@ -93,6 +93,13 @@ final class VehicleSyncService
         $eventCount = 0;
 
         try {
+            // Lifecycle projekce běží ještě před síťovým voláním. Díky tomu
+            // každý CRON dokáže po 2 hodinách uzavřít živou jízdu i tehdy,
+            // když OEM vrací stále stejný snapshot nebo aktuální API request
+            // následně selže.
+            $before = $this->derivedData->project($vehicleId, $connectionId, $provider, false);
+            $eventCount += (int)($before['events'] ?? 0);
+
             $credentials = $this->cipher->decrypt($encryptedCredentials);
             if ($connector instanceof RefreshableVehicleConnectorInterface) {
                 $prepared = $connector->refreshCredentialsIfNeeded($credentials);
@@ -162,10 +169,11 @@ final class VehicleSyncService
                 $this->updateVehicleOperationalState($vehicleId, $normalized);
             }
 
-            // Projekce je idempotentní, proto běží i po duplicitním snapshotu.
-            // Pokud předchozí sync skončil po uložení snapshotu chybou, další běh
-            // tak může dokončit odvozenou jízdu nebo nabíjecí relaci.
-            $this->derivedData->project($vehicleId, $connectionId, $provider, $inserted);
+            // Po načtení OEM dat lifecycle projekci spustíme znovu. Nový
+            // přírůstek odometru tak založí/aktualizuje živou jízdu okamžitě,
+            // ne až po dvouhodinovém timeoutu.
+            $after = $this->derivedData->project($vehicleId, $connectionId, $provider, $inserted);
+            $eventCount += (int)($after['events'] ?? 0);
 
             $nextSyncAt = isset($metadata['next_sync_at']) && is_string($metadata['next_sync_at'])
                 ? $metadata['next_sync_at']
@@ -200,6 +208,25 @@ final class VehicleSyncService
     public function syncAll(): array
     {
         $result = ['connections' => 0, 'snapshots' => 0, 'events' => 0, 'failed' => 0];
+
+        // Každé CRON volání nejdřív zpracuje lifecycle nad uloženými daty pro
+        // všechny aktivní konektory, i když mají next_sync_at v budoucnu nebo
+        // čekají na retry_after. Ukončení jízdy tak není závislé na dalším
+        // úspěšném síťovém requestu k automobilce.
+        foreach ($this->repository->allActiveConnections() as $connection) {
+            try {
+                $derived = $this->derivedData->project(
+                    (int)$connection['vehicle_id'],
+                    (int)$connection['id'],
+                    (string)$connection['provider'],
+                    false
+                );
+                $result['events'] += (int)($derived['events'] ?? 0);
+            } catch (Throwable $e) {
+                error_log('[EV Stats AutoSync lifecycle] ' . $e->getMessage());
+            }
+        }
+
         foreach ($this->repository->activeConnections() as $connection) {
             $result['connections']++;
             try {

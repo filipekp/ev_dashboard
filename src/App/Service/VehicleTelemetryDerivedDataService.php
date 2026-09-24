@@ -10,11 +10,11 @@ use App\Repository\VehicleOperationRepository;
 use PDO;
 
 /**
- * Odvozuje z posloupnosti OEM snapshotů dokončené jízdy a nabíjecí relace.
+ * Odvozuje z posloupnosti OEM snapshotů živé jízdy a nabíjecí relace.
  *
- * Jízda začíná prvním zaznamenaným přírůstkem tachometru. Za ukončenou se
- * považuje až po dvou hodinách bez dalšího přírůstku, takže krátké zastávky
- * nerozdělují jednu cestu na více záznamů.
+ * Jízda vzniká už při prvním zaznamenaném přírůstku tachometru, během dalších
+ * synchronizací se aktualizuje a po dvou hodinách bez dalšího přírůstku se
+ * uzavře. Krátké zastávky proto nerozdělují jednu cestu na více záznamů.
  */
 final class VehicleTelemetryDerivedDataService
 {
@@ -46,60 +46,121 @@ final class VehicleTelemetryDerivedDataService
         $this->operations = $operations;
     }
 
-    /** @return array{trips:int,charges:int} */
+    /** @return array{trips:int,charges:int,events:int} */
     public function project(int $vehicleId, int $connectionId, string $provider, bool $snapshotInserted = true): array
     {
         // 240 snapshotů při běžném 5–15min intervalu pokryje nejen 2hodinovou
         // potvrzovací periodu, ale i delší cestu a její parkovací kontext.
         $snapshots = $this->telemetry->recentTelemetry($connectionId, 240);
-        if (count($snapshots) < 2) {
-            return ['trips' => 0, 'charges' => 0];
+        if ($snapshots === []) {
+            return ['trips' => 0, 'charges' => 0, 'events' => 0];
         }
 
         $snapshots = $this->chronological($snapshots);
         $vehicle = $this->vehicleEnergySettings($vehicleId);
-        $trips = $this->projectCompletedTrip($vehicleId, $connectionId, $provider, $vehicle, $snapshots);
-        $charges = $this->projectChargingSession($vehicleId, $connectionId, $provider, $vehicle, $snapshots);
+        $tripResult = $this->projectTripLifecycle($vehicleId, $connectionId, $provider, $vehicle, $snapshots);
+        $charges = count($snapshots) >= 2
+            ? $this->projectChargingSession($vehicleId, $connectionId, $provider, $vehicle, $snapshots)
+            : 0;
 
-        return ['trips' => $trips, 'charges' => $charges];
+        return [
+            'trips' => (int)$tripResult['trips'],
+            'charges' => $charges,
+            'events' => (int)$tripResult['events'],
+        ];
     }
 
     /**
+     * Živá jízda vzniká už při prvním přírůstku odometru. Každý další sync ji
+     * aktualizuje. Po dvou hodinách bez změny odometru se stejný řádek uzavře.
+     *
      * @param array<string,mixed> $vehicle
      * @param array<int,array<string,mixed>> $snapshots Chronologicky od nejstaršího.
+     * @return array{trips:int,events:int}
      */
-    private function projectCompletedTrip(
+    private function projectTripLifecycle(
         int $vehicleId,
         int $connectionId,
         string $provider,
         array $vehicle,
         array $snapshots
-    ): int {
-        $movements = [];
-        for ($i = 1, $count = count($snapshots); $i < $count; $i++) {
-            if ($this->odometerDelta($snapshots[$i], $snapshots[$i - 1]) <= self::MOVEMENT_THRESHOLD_KM) {
-                continue;
+    ): array {
+        $tripsChanged = 0;
+        $eventsCreated = 0;
+        $active = $this->trips->findActiveTelemetryTrip($vehicleId, $connectionId);
+        $movements = $this->movementSegments($snapshots);
+
+        if ($active !== null) {
+            $activeEndOdo = $this->number($active['end_odometer_km'] ?? null);
+            $activeLastMovementAt = strtotime((string)($active['telemetry_last_movement_at'] ?? '')) ?: 0;
+            $firstNewMovementOffset = null;
+
+            if ($activeEndOdo !== null) {
+                foreach ($movements as $offset => $movement) {
+                    if ((float)$movement['end_odo'] > $activeEndOdo + self::MOVEMENT_THRESHOLD_KM) {
+                        $firstNewMovementOffset = $offset;
+                        break;
+                    }
+                }
             }
-            $movements[] = [
-                'older_index' => $i - 1,
-                'newer_index' => $i,
-                'received_at' => $this->receivedTimestamp($snapshots[$i]),
-            ];
+
+            // Pokud nový přírůstek přijde až po více než 2h od posledního
+            // pohybu, starou jízdu nejdřív ukončíme a tento přírůstek už patří
+            // do nové jízdy. Funguje to i když OEM mezitím vracel identický
+            // snapshot, který se kvůli fingerprint deduplikaci znovu neuložil.
+            if ($firstNewMovementOffset !== null && $activeLastMovementAt > 0) {
+                $firstNewMovementAt = (int)$movements[$firstNewMovementOffset]['received_at'];
+                if ($firstNewMovementAt - $activeLastMovementAt > self::TRIP_IDLE_SECONDS) {
+                    $finalPayload = $this->finalPayloadFromActive($active, $snapshots);
+                    $final = $this->trips->finalizeTelemetryTrip(
+                        $vehicleId,
+                        (int)$active['id'],
+                        $finalPayload
+                    );
+                    $eventsCreated += $this->insertTripCompletedEvent(
+                        $vehicleId,
+                        $connectionId,
+                        $provider,
+                        (int)$final['id'],
+                        $finalPayload
+                    );
+                    $tripsChanged++;
+                    $active = null;
+                    $movements = array_slice($movements, $firstNewMovementOffset);
+                }
+            }
+
+            if ($active !== null && $firstNewMovementOffset === null) {
+                if ($activeLastMovementAt > 0 && time() - $activeLastMovementAt > self::TRIP_IDLE_SECONDS) {
+                    $finalPayload = $this->finalPayloadFromActive($active, $snapshots);
+                    $final = $this->trips->finalizeTelemetryTrip(
+                        $vehicleId,
+                        (int)$active['id'],
+                        $finalPayload
+                    );
+                    $eventsCreated += $this->insertTripCompletedEvent(
+                        $vehicleId,
+                        $connectionId,
+                        $provider,
+                        (int)$final['id'],
+                        $finalPayload
+                    );
+                    $tripsChanged++;
+                } else {
+                    $this->refreshActiveDestination($vehicleId, $active, $snapshots);
+                }
+
+                return ['trips' => $tripsChanged, 'events' => $eventsCreated];
+            }
         }
 
         if ($movements === []) {
-            return 0;
+            return ['trips' => $tripsChanged, 'events' => $eventsCreated];
         }
 
+        // Z posledních přírůstků vybereme poslední souvislou jízdu. Historická
+        // data před zavedením live stavu tak lze stále bezpečně doprojektovat.
         $lastMovementIndex = count($movements) - 1;
-        $lastMovement = $movements[$lastMovementIndex];
-        $lastMovementReceived = (int)$lastMovement['received_at'];
-        if ($lastMovementReceived <= 0 || time() - $lastMovementReceived <= self::TRIP_IDLE_SECONDS) {
-            return 0;
-        }
-
-        // Přírůstky tachometru patří do stejné jízdy, dokud mezi nimi není
-        // potvrzená alespoň dvouhodinová mezera bez změny odometru.
         $firstMovementIndex = $lastMovementIndex;
         while ($firstMovementIndex > 0) {
             $current = $movements[$firstMovementIndex];
@@ -110,7 +171,107 @@ final class VehicleTelemetryDerivedDataService
             $firstMovementIndex--;
         }
 
+        $trip = $this->buildTripFromMovements(
+            $connectionId,
+            $provider,
+            $vehicle,
+            $snapshots,
+            $movements,
+            $firstMovementIndex,
+            $lastMovementIndex
+        );
+        if ($trip === null) {
+            return ['trips' => $tripsChanged, 'events' => $eventsCreated];
+        }
+
+        $lastMovementAt = strtotime((string)($trip['telemetry_last_movement_at'] ?? '')) ?: 0;
+        $alreadyStale = $lastMovementAt > 0 && time() - $lastMovementAt > self::TRIP_IDLE_SECONDS;
+
+        if ($active !== null) {
+            $trip = $this->preserveActiveTripStart($active, $trip, $vehicle);
+            $this->trips->updateActiveTelemetryTrip($vehicleId, (int)$active['id'], $trip);
+            $tripId = (int)$active['id'];
+        } else {
+            $created = $this->trips->createActiveTelemetryTrip($vehicleId, $trip);
+            $tripId = (int)$created['id'];
+            if (!empty($created['completed'])) {
+                return ['trips' => $tripsChanged, 'events' => $eventsCreated];
+            }
+            if (!empty($created['created'])) {
+                $tripsChanged++;
+                if (!$alreadyStale) {
+                    $eventsCreated += $this->insertTripStartedEvent(
+                        $vehicleId,
+                        $connectionId,
+                        $provider,
+                        $tripId,
+                        $trip
+                    );
+                }
+            }
+        }
+
+        // preserveActiveTripStart může posunout metadata aktivní jízdy, proto
+        // timeout po update vyhodnotíme ještě jednou z finálního payloadu.
+        $lastMovementAt = strtotime((string)($trip['telemetry_last_movement_at'] ?? '')) ?: 0;
+        if ($lastMovementAt > 0 && time() - $lastMovementAt > self::TRIP_IDLE_SECONDS) {
+            $trip['trip_note'] = 'Automaticky odvozeno z OEM telemetrie; jízda ukončena po 2 hodinách bez změny tachometru.';
+            $final = $this->trips->finalizeTelemetryTrip($vehicleId, $tripId, $trip);
+            $eventsCreated += $this->insertTripCompletedEvent(
+                $vehicleId,
+                $connectionId,
+                $provider,
+                (int)$final['id'],
+                $trip
+            );
+            $tripsChanged++;
+        }
+
+        return ['trips' => $tripsChanged, 'events' => $eventsCreated];
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $snapshots
+     * @return array<int,array<string,mixed>>
+     */
+    private function movementSegments(array $snapshots): array
+    {
+        $movements = [];
+        for ($i = 1, $count = count($snapshots); $i < $count; $i++) {
+            $olderOdo = $this->number($snapshots[$i - 1]['odometer_km'] ?? null);
+            $newerOdo = $this->number($snapshots[$i]['odometer_km'] ?? null);
+            if ($olderOdo === null || $newerOdo === null || $newerOdo - $olderOdo <= self::MOVEMENT_THRESHOLD_KM) {
+                continue;
+            }
+            $movements[] = [
+                'older_index' => $i - 1,
+                'newer_index' => $i,
+                'received_at' => $this->receivedTimestamp($snapshots[$i]),
+                'start_odo' => $olderOdo,
+                'end_odo' => $newerOdo,
+            ];
+        }
+
+        return $movements;
+    }
+
+    /**
+     * @param array<string,mixed> $vehicle
+     * @param array<int,array<string,mixed>> $snapshots
+     * @param array<int,array<string,mixed>> $movements
+     * @return array<string,mixed>|null
+     */
+    private function buildTripFromMovements(
+        int $connectionId,
+        string $provider,
+        array $vehicle,
+        array $snapshots,
+        array $movements,
+        int $firstMovementIndex,
+        int $lastMovementIndex
+    ): ?array {
         $firstMovement = $movements[$firstMovementIndex];
+        $lastMovement = $movements[$lastMovementIndex];
         $originIndex = (int)$firstMovement['older_index'];
         $firstMovementSnapshotIndex = (int)$firstMovement['newer_index'];
         $lastMovementSnapshotIndex = (int)$lastMovement['newer_index'];
@@ -120,18 +281,14 @@ final class VehicleTelemetryDerivedDataService
         $lastMovementSnapshot = $snapshots[$lastMovementSnapshotIndex];
         $endOdo = $this->number($lastMovementSnapshot['odometer_km'] ?? null);
         if ($endOdo === null) {
-            return 0;
+            return null;
         }
 
         $destinationIndex = $lastMovementSnapshotIndex;
-        $endTimeIndex = $lastMovementSnapshotIndex;
         for ($i = $lastMovementSnapshotIndex + 1, $count = count($snapshots); $i < $count; $i++) {
             $odometer = $this->number($snapshots[$i]['odometer_km'] ?? null);
             if ($odometer === null || abs($odometer - $endOdo) > self::MOVEMENT_THRESHOLD_KM) {
                 break;
-            }
-            if ($endTimeIndex === $lastMovementSnapshotIndex) {
-                $endTimeIndex = $i;
             }
             if ($this->hasParkingData($snapshots[$i])) {
                 $destinationIndex = $i;
@@ -141,29 +298,31 @@ final class VehicleTelemetryDerivedDataService
 
         $startOdo = $this->number($start['odometer_km'] ?? null);
         if ($startOdo === null || $endOdo <= $startOdo) {
-            return 0;
+            return null;
         }
 
         $distance = round($endOdo - $startOdo, 2);
         if ($distance < self::MOVEMENT_THRESHOLD_KM || $distance > 1500) {
-            return 0;
+            return null;
         }
 
         $startAt = $this->dateTimeValue($start, 'observed_at');
-        $endAt = $this->dateTimeValue($snapshots[$endTimeIndex], 'observed_at');
+        $endAt = $this->dateTimeValue($lastMovementSnapshot, 'observed_at');
         if (strtotime($endAt) < strtotime($startAt)) {
             $startAt = $this->dateTimeValue($snapshots[$firstMovementSnapshotIndex], 'observed_at');
-            $endAt = $this->dateTimeValue($lastMovementSnapshot, 'observed_at');
         }
         $intervalMinutes = max(1, (int)round((strtotime($endAt) - strtotime($startAt)) / 60));
         $travelMinutes = min(1440, $intervalMinutes);
         $avgSpeed = $travelMinutes > 0 ? round($distance / ($travelMinutes / 60), 2) : null;
 
         $startSoc = $this->number($origin['soc_pct'] ?? $start['soc_pct'] ?? null);
-        $endSoc = $this->number($destination['soc_pct'] ?? $lastMovementSnapshot['soc_pct'] ?? null);
+        // SoC na konci cesty bereme z posledního snapshotu, ve kterém se změnil
+        // odometr. Pozdější nabíjení při stejném odometru tak spotřebu jízdy
+        // zpětně nezkreslí.
+        $endSoc = $this->number($lastMovementSnapshot['soc_pct'] ?? null);
         $batteryKwh = $this->number($vehicle['battery_kwh'] ?? null);
         $containsCharging = false;
-        for ($i = $originIndex; $i <= $destinationIndex; $i++) {
+        for ($i = $originIndex; $i <= $lastMovementSnapshotIndex; $i++) {
             if ((int)($snapshots[$i]['is_charging'] ?? 0) === 1) {
                 $containsCharging = true;
                 break;
@@ -180,19 +339,25 @@ final class VehicleTelemetryDerivedDataService
             }
         }
 
-        $trip = [
+        return [
+            // Hash živé jízdy je stabilní od prvního přírůstku a nemění se s
+            // každým dalším snapshotem. canonical_key se doplní až při uzavření.
             'trip_hash' => hash('sha256', implode('|', [
-                'telemetry',
+                'telemetry-live',
                 (string)$connectionId,
                 (string)$snapshots[$firstMovementSnapshotIndex]['id'],
-                (string)$lastMovementSnapshot['id'],
                 (string)$startOdo,
-                (string)$endOdo,
             ])),
+            'canonical_key' => null,
+            'trip_state' => 'active',
+            'telemetry_connection_id' => $connectionId,
+            'telemetry_start_snapshot_id' => (int)($snapshots[$firstMovementSnapshotIndex]['id'] ?? 0),
+            'telemetry_last_snapshot_id' => (int)($lastMovementSnapshot['id'] ?? 0),
+            'telemetry_last_movement_at' => date('Y-m-d H:i:s', (int)$lastMovement['received_at']),
             'started_at' => $startAt,
             'ended_at' => $endAt,
             'classification' => null,
-            'trip_note' => 'Automaticky odvozeno z OEM telemetrie; ukončení potvrzeno po 2 hodinách bez změny tachometru.',
+            'trip_note' => 'Probíhající jízda automaticky aktualizovaná z OEM telemetrie.',
             'start_address' => $this->parkingAddress($origin),
             'end_address' => $this->parkingAddress($destination),
             'start_lat' => $this->number($origin['latitude'] ?? null),
@@ -223,8 +388,154 @@ final class VehicleTelemetryDerivedDataService
             'avg_aux_consumption_kwh_100' => null,
             'avg_recuperation_kwh_100' => null,
         ];
+    }
 
-        return $this->trips->insertIgnore($vehicleId, $trip) ? 1 : 0;
+    /**
+     * @param array<string,mixed> $active
+     * @param array<string,mixed> $trip
+     * @param array<string,mixed> $vehicle
+     * @return array<string,mixed>
+     */
+    private function preserveActiveTripStart(array $active, array $trip, array $vehicle): array
+    {
+        foreach ([
+            'trip_hash',
+            'started_at',
+            'start_address',
+            'start_lat',
+            'start_lng',
+            'start_odometer_km',
+            'start_soc',
+            'telemetry_connection_id',
+            'telemetry_start_snapshot_id',
+        ] as $column) {
+            if (array_key_exists($column, $active)) {
+                $trip[$column] = $active[$column];
+            }
+        }
+        $trip['canonical_key'] = null;
+        $trip['trip_state'] = 'active';
+
+        $startOdo = $this->number($trip['start_odometer_km'] ?? null);
+        $endOdo = $this->number($trip['end_odometer_km'] ?? null);
+        if ($startOdo !== null && $endOdo !== null && $endOdo > $startOdo) {
+            $trip['distance_km'] = round($endOdo - $startOdo, 2);
+        }
+
+        $startAt = strtotime((string)($trip['started_at'] ?? '')) ?: 0;
+        $endAt = strtotime((string)($trip['ended_at'] ?? '')) ?: 0;
+        if ($startAt > 0 && $endAt >= $startAt) {
+            $minutes = max(1, min(1440, (int)round(($endAt - $startAt) / 60)));
+            $trip['driving_minutes'] = $minutes;
+            $trip['travel_minutes'] = $minutes;
+            $distance = max(0.0, (float)($trip['distance_km'] ?? 0));
+            $trip['avg_speed_kmh'] = $minutes > 0 ? round($distance / ($minutes / 60), 2) : null;
+        }
+
+        $startSoc = $this->number($trip['start_soc'] ?? null);
+        $endSoc = $this->number($trip['end_soc'] ?? null);
+        $batteryKwh = $this->number($vehicle['battery_kwh'] ?? null);
+        if ($batteryKwh !== null && $batteryKwh > 0 && $startSoc !== null && $endSoc !== null) {
+            $socDrop = $startSoc - $endSoc;
+            if ($socDrop > 0 && $socDrop <= 60) {
+                $trip['consumed_kwh'] = round($batteryKwh * $socDrop / 100, 3);
+                $distance = max(0.0, (float)($trip['distance_km'] ?? 0));
+                $trip['avg_consumption_kwh_100'] = $distance > 0
+                    ? round((float)$trip['consumed_kwh'] * 100 / $distance, 2)
+                    : null;
+            }
+        }
+        $trip['short_trip'] = (float)($trip['distance_km'] ?? 0) <= 5 ? 1 : 0;
+
+        return $trip;
+    }
+
+    /**
+     * @param array<string,mixed> $active
+     * @param array<int,array<string,mixed>> $snapshots
+     * @return array<string,mixed>
+     */
+    private function finalPayloadFromActive(array $active, array $snapshots): array
+    {
+        $payload = $active;
+        $payload['trip_note'] = 'Automaticky odvozeno z OEM telemetrie; jízda ukončena po 2 hodinách bez změny tachometru.';
+        $endOdo = $this->number($active['end_odometer_km'] ?? null);
+        if ($endOdo === null) {
+            return $payload;
+        }
+
+        for ($i = count($snapshots) - 1; $i >= 0; $i--) {
+            $odometer = $this->number($snapshots[$i]['odometer_km'] ?? null);
+            if ($odometer === null || abs($odometer - $endOdo) > self::MOVEMENT_THRESHOLD_KM) {
+                continue;
+            }
+            if (!$this->hasParkingData($snapshots[$i])) {
+                continue;
+            }
+            $payload['end_address'] = $this->parkingAddress($snapshots[$i]);
+            $payload['end_lat'] = $this->number($snapshots[$i]['latitude'] ?? null);
+            $payload['end_lng'] = $this->number($snapshots[$i]['longitude'] ?? null);
+            break;
+        }
+
+        return $payload;
+    }
+
+    /** @param array<string,mixed> $active @param array<int,array<string,mixed>> $snapshots */
+    private function refreshActiveDestination(int $vehicleId, array $active, array $snapshots): void
+    {
+        $payload = $this->finalPayloadFromActive($active, $snapshots);
+        $payload['trip_note'] = 'Probíhající jízda automaticky aktualizovaná z OEM telemetrie.';
+        $this->trips->updateActiveTelemetryTrip($vehicleId, (int)$active['id'], $payload);
+    }
+
+    /** @param array<string,mixed> $trip */
+    private function insertTripStartedEvent(
+        int $vehicleId,
+        int $connectionId,
+        string $provider,
+        int $tripId,
+        array $trip
+    ): int {
+        return $this->telemetry->insertEvent(
+            $vehicleId,
+            $connectionId,
+            $provider,
+            'trip_started',
+            'info',
+            'Začala jízda',
+            (string)$trip['started_at'],
+            [
+                'trip_id' => $tripId,
+                'start_odometer_km' => $trip['start_odometer_km'] ?? null,
+                'start_address' => $trip['start_address'] ?? null,
+            ]
+        ) ? 1 : 0;
+    }
+
+    /** @param array<string,mixed> $trip */
+    private function insertTripCompletedEvent(
+        int $vehicleId,
+        int $connectionId,
+        string $provider,
+        int $tripId,
+        array $trip
+    ): int {
+        return $this->telemetry->insertEvent(
+            $vehicleId,
+            $connectionId,
+            $provider,
+            'trip_completed',
+            'info',
+            'Jízda byla ukončena',
+            (string)$trip['ended_at'],
+            [
+                'trip_id' => $tripId,
+                'distance_km' => $trip['distance_km'] ?? null,
+                'end_odometer_km' => $trip['end_odometer_km'] ?? null,
+                'end_address' => $trip['end_address'] ?? null,
+            ]
+        ) ? 1 : 0;
     }
 
     /**

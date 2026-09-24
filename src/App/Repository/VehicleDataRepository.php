@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use PDO;
+use PDOException;
 use RuntimeException;
 
 /**
@@ -262,6 +263,58 @@ final class VehicleDataRepository
         return $q->fetchAll();
     }
 
+    /** @return array<int,array<string,mixed>> */
+    public function allTelemetryForConnection(int $connectionId): array
+    {
+        $q = $this->pdo->prepare(
+            'SELECT * FROM vehicle_telemetry_snapshots
+             WHERE connection_id=? AND odometer_km IS NOT NULL
+             ORDER BY received_at ASC,id ASC'
+        );
+        $q->execute([$connectionId]);
+
+        return $q->fetchAll();
+    }
+
+    /** @return array<int,array<string,mixed>> */
+    public function queuedTripRebuilds(int $limit = 50): array
+    {
+        $limit = max(1, min(500, $limit));
+
+        try {
+            $q = $this->pdo->query(
+                'SELECT q.connection_id,q.vehicle_id,q.reason,c.provider
+                 FROM vehicle_trip_rebuild_queue q
+                 JOIN vehicle_connector_connections c ON c.id=q.connection_id
+                 ORDER BY q.queued_at ASC,q.connection_id ASC
+                 LIMIT ' . $limit
+            );
+        } catch (PDOException $e) {
+            // Umožní bezpečné nasazení kódu těsně před spuštěním migrate_v26.
+            if (strpos($e->getMessage(), 'vehicle_trip_rebuild_queue') !== false) {
+                return [];
+            }
+            throw $e;
+        }
+
+        return $q->fetchAll();
+    }
+
+    public function completeTripRebuild(int $connectionId): void
+    {
+        $q = $this->pdo->prepare('DELETE FROM vehicle_trip_rebuild_queue WHERE connection_id=?');
+        $q->execute([$connectionId]);
+    }
+
+    public function deleteTripLifecycleEvents(int $connectionId): void
+    {
+        $q = $this->pdo->prepare(
+            "DELETE FROM vehicle_events
+             WHERE connection_id=? AND event_type IN ('trip_started','trip_completed')"
+        );
+        $q->execute([$connectionId]);
+    }
+
     /**
      * Vrátí nejnovější telemetry snapshot aktivního OEM konektoru pro vozidlo.
      *
@@ -391,7 +444,20 @@ final class VehicleDataRepository
             $raw !== false ? $raw : null,
         ]);
 
-        return $q->rowCount() > 0;
+        $inserted = $q->rowCount() > 0;
+        if (!$inserted) {
+            // Identický OEM stav se kvůli fingerprintu znovu neukládá. Posouváme
+            // ale last_seen_at, abychom věděli, do kdy byl stejný odometr skutečně
+            // potvrzen. To je zásadní pro korektní oddělení jízd po delším stání.
+            $seen = $this->pdo->prepare(
+                'UPDATE vehicle_telemetry_snapshots
+                 SET last_seen_at=NOW()
+                 WHERE connection_id=? AND fingerprint=?'
+            );
+            $seen->execute([$connectionId, $fingerprint]);
+        }
+
+        return $inserted;
     }
 
     /** @param array<string,mixed> $data */

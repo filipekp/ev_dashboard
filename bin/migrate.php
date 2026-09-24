@@ -6,6 +6,10 @@ declare(strict_types=1);
 use App\Config;
 use App\Database;
 use App\MigrationManager;
+use App\Repository\TripRepository;
+use App\Repository\VehicleDataRepository;
+use App\Repository\VehicleOperationRepository;
+use App\Service\VehicleTelemetryDerivedDataService;
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(404);
@@ -42,6 +46,47 @@ function out(string $message = ''): void
 function err(string $message): void
 {
     fwrite(STDERR, $message . PHP_EOL);
+}
+
+/**
+ * Zpracuje jednorázovou frontu rekonstrukce telemetry jízd. Pokud v26 ještě
+ * není aplikovaná, repository vrátí prázdnou frontu.
+ *
+ * @return array{repaired:int,failed:int}
+ */
+function repairTelemetryTripQueue(PDO $pdo): array
+{
+    $telemetryRepository = new VehicleDataRepository($pdo);
+    $tripRepository = new TripRepository($pdo);
+    $operationRepository = new VehicleOperationRepository($pdo);
+    $derivedData = new VehicleTelemetryDerivedDataService(
+        $pdo,
+        $telemetryRepository,
+        $tripRepository,
+        $operationRepository
+    );
+
+    $repaired = 0;
+    $failed = 0;
+    foreach ($telemetryRepository->queuedTripRebuilds(500) as $queued) {
+        try {
+            $derivedData->rebuildTelemetryTrips(
+                (int)$queued['vehicle_id'],
+                (int)$queued['connection_id'],
+                (string)$queued['provider']
+            );
+            $telemetryRepository->completeTripRebuild((int)$queued['connection_id']);
+            $repaired++;
+        } catch (Throwable $e) {
+            $failed++;
+            err(
+                '  WARN konektor #' . (int)$queued['connection_id']
+                . ': ' . $e->getMessage()
+            );
+        }
+    }
+
+    return ['repaired' => $repaired, 'failed' => $failed];
 }
 
 function printHelp(): void
@@ -168,8 +213,15 @@ try {
     });
 
     if ($pending === []) {
+        $repair = repairTelemetryTripQueue($pdo);
         out();
         out('Databáze je aktuální. Není co migrovat.');
+        if ($repair['repaired'] > 0 || $repair['failed'] > 0) {
+            out('Opravené telemetry konektory: ' . $repair['repaired']);
+            if ($repair['failed'] > 0) {
+                out('Neopravené konektory: ' . $repair['failed'] . ' (další CRON je zkusí znovu)');
+            }
+        }
         exit(0);
     }
 
@@ -185,6 +237,16 @@ try {
 
     foreach ($applied as $migration) {
         out('  OK  ' . $migration);
+    }
+
+    $repair = repairTelemetryTripQueue($pdo);
+    if ($repair['repaired'] > 0 || $repair['failed'] > 0) {
+        out();
+        out('Opravuji telemetry jízdy z uložených snapshotů...');
+        out('  Opravené konektory: ' . $repair['repaired']);
+        if ($repair['failed'] > 0) {
+            out('  Neopravené konektory: ' . $repair['failed'] . ' (další CRON je zkusí znovu)');
+        }
     }
 
     out();

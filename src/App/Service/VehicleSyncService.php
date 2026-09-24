@@ -209,6 +209,23 @@ final class VehicleSyncService
     {
         $result = ['connections' => 0, 'snapshots' => 0, 'events' => 0, 'failed' => 0];
 
+        // Jednorázový rebuild po migraci v26 opraví chybně slepené telemetry
+        // jízdy ještě před běžným lifecycle zpracováním. Fronta zůstává v DB,
+        // takže případná chyba se zkusí znovu při dalším CRONu.
+        foreach ($this->repository->queuedTripRebuilds(100) as $queued) {
+            try {
+                $rebuilt = $this->derivedData->rebuildTelemetryTrips(
+                    (int)$queued['vehicle_id'],
+                    (int)$queued['connection_id'],
+                    (string)$queued['provider']
+                );
+                $result['events'] += (int)($rebuilt['events'] ?? 0);
+                $this->repository->completeTripRebuild((int)$queued['connection_id']);
+            } catch (Throwable $e) {
+                error_log('[EV Stats telemetry trip rebuild] ' . $e->getMessage());
+            }
+        }
+
         // Každé CRON volání nejdřív zpracuje lifecycle nad uloženými daty pro
         // všechny aktivní konektory, i když mají next_sync_at v budoucnu nebo
         // čekají na retry_after. Ukončení jízdy tak není závislé na dalším

@@ -204,6 +204,46 @@ final class TripRepository
         return $row ?: null;
     }
 
+    /** @return array<string,mixed>|null */
+    public function findLatestTelemetryTrip(int $vehicleId, int $connectionId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT * FROM trips
+             WHERE vehicle_id=? AND telemetry_connection_id=?
+             ORDER BY COALESCE(telemetry_last_snapshot_id,0) DESC,id DESC LIMIT 1"
+        );
+        $statement->execute([$vehicleId, $connectionId]);
+        $row = $statement->fetch();
+
+        return $row ?: null;
+    }
+
+    public function deleteTelemetryTripsForConnection(int $vehicleId, int $connectionId): int
+    {
+        // Čistě telemetry řádky lze bezpečně přestavět. Pokud byla telemetry
+        // dříve sloučena do CSV/importované jízdy, samotnou jízdu zachováme a
+        // pouze odpojíme projekční metadata; rebuild je následně doplní znovu.
+        $clear = $this->pdo->prepare(
+            "UPDATE trips
+             SET telemetry_connection_id=NULL,
+                 telemetry_start_snapshot_id=NULL,
+                 telemetry_last_snapshot_id=NULL,
+                 telemetry_last_movement_at=NULL
+             WHERE vehicle_id=? AND telemetry_connection_id=?
+               AND source_format NOT LIKE 'telemetry_%'"
+        );
+        $clear->execute([$vehicleId, $connectionId]);
+
+        $statement = $this->pdo->prepare(
+            "DELETE FROM trips
+             WHERE vehicle_id=? AND telemetry_connection_id=?
+               AND source_format LIKE 'telemetry_%'"
+        );
+        $statement->execute([$vehicleId, $connectionId]);
+
+        return $statement->rowCount();
+    }
+
     /**
      * @param array<string,mixed> $trip
      * @return array{id:int,created:bool,completed:bool}

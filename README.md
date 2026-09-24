@@ -1681,3 +1681,15 @@ Migrace `migrate_v25.sql` přidává stav jízdy `active/completed` a vazbu na t
 - každé volání AutoSync CRONu nejdřív provede lifecycle kontrolu všech aktivních konektorů bez ohledu na `next_sync_at`/`retry_after`; jízda se proto může uzavřít i bez nového OEM requestu, a při skutečné synchronizaci se kontrola zopakuje před i po síťovém volání;
 - pokud nový přírůstek dorazí až po více než 2 hodinách od posledního pohybu, stará jízda se nejprve uzavře a nový přírůstek založí novou jízdu;
 - vznikají provider-agnostické Connected Car události `trip_started` a `trip_completed`.
+
+## Oprava LIVE jízd a rekonstrukce telemetry historie (v5.6)
+
+Migrace `migrate_v26.sql` opravuje dvě slabiny původního v5.5 lifecycle modelu.
+
+- `vehicle_telemetry_snapshots.last_seen_at` uchovává čas posledního potvrzení identického OEM snapshotu. Pokud automobil stojí několik hodin a fingerprint se nemění, řádek se neduplikuje, ale `last_seen_at` se při každém syncu posune. Při následném zvýšení odometru tak lze nový trip ukotvit na poslední skutečně potvrzené stání místo ranního snapshotu.
+- lifecycle už neprochází znovu všechny staré pohybové segmenty. Každá jízda si pamatuje `telemetry_last_snapshot_id` a další AutoSync zpracuje pouze nové přírůstky odometru. Dokončená ranní jízda se proto nemůže znovu připojit k odpolednímu pohybu.
+- pokud mezi posledním přírůstkem aktivní jízdy a novým přírůstkem uplynou více než 2 hodiny, stará jízda se před zpracováním nového pohybu dokončí a vznikne nový `LIVE` záznam.
+- první nový přírůstek odometru vždy vytvoří `LIVE` jízdu okamžitě; další přírůstky aktualizují tentýž řádek až do 2hodinového timeoutu.
+- u historických snapshotů, které ještě `last_seen_at` neměly, je více než 2hodinová mezera mezi přírůstky konzervativně považována za hranici nové jízdy. Přesný čas odjezdu v takovém historickém intervalu není známý, proto se nepoužije falešné několikahodinové trvání.
+
+Migrace vytvoří frontu `vehicle_trip_rebuild_queue` pro konektory s odometrovou telemetrií. `php bin/migrate.php` se ji pokusí zpracovat okamžitě: čistě telemetry jízdy vytvořené chybnou verzí se znovu sestaví z `vehicle_telemetry_snapshots`. CSV/importované/ruční jízdy se nemažou; pokud byly dříve spárované s telemetrií, pouze se odpojí stará projekční metadata a při rebuild procesu se znovu správně spárují. Pokud okamžitý rebuild některého konektoru selže, položka zůstane ve frontě a další `/cron/sync-vehicles.php` ji zkusí znovu.

@@ -395,6 +395,7 @@ CREATE TABLE IF NOT EXISTS vehicle_telemetry_snapshots (
     source VARCHAR(40) NOT NULL,
     observed_at DATETIME NOT NULL,
     received_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
     fingerprint CHAR(64) NOT NULL,
     soc_pct DECIMAL(5,2) NULL,
     range_km DECIMAL(9,2) NULL,
@@ -440,6 +441,16 @@ CREATE TABLE IF NOT EXISTS vehicle_telemetry_snapshots (
     KEY idx_vehicle_telemetry_connection_time (connection_id, observed_at),
     CONSTRAINT fk_vehicle_telemetry_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
     CONSTRAINT fk_vehicle_telemetry_connection FOREIGN KEY (connection_id) REFERENCES vehicle_connector_connections(id) ON DELETE SET NULL
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
+
+CREATE TABLE IF NOT EXISTS vehicle_trip_rebuild_queue (
+    connection_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+    vehicle_id BIGINT UNSIGNED NOT NULL,
+    reason VARCHAR(120) NOT NULL DEFAULT 'v26_live_trip_fix',
+    queued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_trip_rebuild_connection FOREIGN KEY (connection_id) REFERENCES vehicle_connector_connections(id) ON DELETE CASCADE,
+    CONSTRAINT fk_trip_rebuild_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
 
 CREATE TABLE IF NOT EXISTS vehicle_events (

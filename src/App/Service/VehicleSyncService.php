@@ -204,15 +204,16 @@ final class VehicleSyncService
         }
     }
 
-    /** @return array{connections:int,snapshots:int,events:int,failed:int} */
-    public function syncAll(): array
+    /**
+     * Zpracuje frontu rekonstrukce telemetry jízd. Metoda je veřejná, aby ji
+     * mohl spustit nejen CRON, ale také webová administrace po aplikaci migrací.
+     *
+     * @return array{repaired:int,failed:int,events:int}
+     */
+    public function repairQueuedTelemetryTrips(int $limit = 100): array
     {
-        $result = ['connections' => 0, 'snapshots' => 0, 'events' => 0, 'failed' => 0];
-
-        // Jednorázový rebuild po migraci v26 opraví chybně slepené telemetry
-        // jízdy ještě před běžným lifecycle zpracováním. Fronta zůstává v DB,
-        // takže případná chyba se zkusí znovu při dalším CRONu.
-        foreach ($this->repository->queuedTripRebuilds(100) as $queued) {
+        $result = ['repaired' => 0, 'failed' => 0, 'events' => 0];
+        foreach ($this->repository->queuedTripRebuilds($limit) as $queued) {
             try {
                 $rebuilt = $this->derivedData->rebuildTelemetryTrips(
                     (int)$queued['vehicle_id'],
@@ -221,10 +222,34 @@ final class VehicleSyncService
                 );
                 $result['events'] += (int)($rebuilt['events'] ?? 0);
                 $this->repository->completeTripRebuild((int)$queued['connection_id']);
+                $result['repaired']++;
             } catch (Throwable $e) {
+                $result['failed']++;
                 error_log('[EV Stats telemetry trip rebuild] ' . $e->getMessage());
             }
         }
+
+        return $result;
+    }
+
+    /** @return array{connections:int,snapshots:int,events:int,failed:int,repairs:int,repair_failed:int} */
+    public function syncAll(): array
+    {
+        $result = [
+            'connections' => 0,
+            'snapshots' => 0,
+            'events' => 0,
+            'failed' => 0,
+            'repairs' => 0,
+            'repair_failed' => 0,
+        ];
+
+        // Rebuild po migracích v26/v27 opraví dříve slepené nebo časově
+        // nevěrohodné telemetry jízdy ještě před běžným lifecycle zpracováním.
+        $repair = $this->repairQueuedTelemetryTrips(100);
+        $result['events'] += (int)$repair['events'];
+        $result['repairs'] = (int)$repair['repaired'];
+        $result['repair_failed'] = (int)$repair['failed'];
 
         // Každé CRON volání nejdřív zpracuje lifecycle nad uloženými daty pro
         // všechny aktivní konektory, i když mají next_sync_at v budoucnu nebo

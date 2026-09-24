@@ -1693,3 +1693,11 @@ Migrace `migrate_v26.sql` opravuje dvě slabiny původního v5.5 lifecycle model
 - u historických snapshotů, které ještě `last_seen_at` neměly, je více než 2hodinová mezera mezi přírůstky konzervativně považována za hranici nové jízdy. Přesný čas odjezdu v takovém historickém intervalu není známý, proto se nepoužije falešné několikahodinové trvání.
 
 Migrace vytvoří frontu `vehicle_trip_rebuild_queue` pro konektory s odometrovou telemetrií. `php bin/migrate.php` se ji pokusí zpracovat okamžitě: čistě telemetry jízdy vytvořené chybnou verzí se znovu sestaví z `vehicle_telemetry_snapshots`. CSV/importované/ruční jízdy se nemažou; pokud byly dříve spárované s telemetrií, pouze se odpojí stará projekční metadata a při rebuild procesu se znovu správně spárují. Pokud okamžitý rebuild některého konektoru selže, položka zůstane ve frontě a další `/cron/sync-vehicles.php` ji zkusí znovu.
+
+## Oprava rekonstrukce času telemetry jízd a migrace přes HTTP CRON (v5.7)
+
+- historický odometrový skok se už nepřevede na jízdu, pokud nemá věrohodné časové okno nebo by z něj vyšla rychlost nad 300 km/h; takový interval nelze z uložené telemetrie bezpečně rozdělit na skutečné jízdy a aplikace jej raději vynechá než vytváří falešná data;
+- při dostupném `last_seen_at` se nový pohyb ukotví na poslední potvrzení původního odometru a pro nový lifecycle tak zůstává zachováno okamžité zakládání LIVE jízd;
+- `migrate_v27.sql` znovu zařadí všechny OEM konektory s odometrovou telemetrií do rebuild fronty, aby odstranil chybné jízdy vytvořené v26;
+- `/cron/sync-vehicles.php` před synchronizací automaticky aplikuje čekající databázové migrace. Hosting bez CLI tedy po nasazení opraví schéma i rebuild frontu při nejbližším chráněném CRON volání;
+- administrátorská stránka Aktualizace po ručním spuštění migrací nebo GitHub update rovnou zpracuje i frontu oprav telemetry jízd.

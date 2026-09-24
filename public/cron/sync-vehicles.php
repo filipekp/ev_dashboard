@@ -137,6 +137,13 @@
 
     try {
         /*
+         * V hostingu bez CLI (např. VEDOS) zajistí první CRON po nasazení
+         * aplikaci čekajících databázových migrací. Endpoint je chráněný
+         * CRON_HTTP_TOKENem a lockem, takže se migrace nemohou spustit souběžně.
+         */
+        $appliedMigrations = $app->migrations()->migrate();
+
+        /*
          * Stejná služba jako v:
          * bin/sync-vehicles.php
          */
@@ -157,6 +164,9 @@
             'snapshots' => (int)($result['snapshots'] ?? 0),
             'events' => (int)($result['events'] ?? 0),
             'failed' => (int)($result['failed'] ?? 0),
+            'trip_repairs' => (int)($result['repairs'] ?? 0),
+            'trip_repair_failed' => (int)($result['repair_failed'] ?? 0),
+            'migrations_applied' => array_values($appliedMigrations),
 
             'duration_ms' => $durationMs,
             'finished_at' => date(DATE_ATOM),

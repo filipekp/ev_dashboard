@@ -21,6 +21,7 @@ final class VehicleTelemetryDerivedDataService
     private const MOVEMENT_THRESHOLD_KM = 0.05;
     private const TRIP_IDLE_SECONDS = 7200;
     private const CHARGE_CONTEXT_SECONDS = 7200;
+    private const MAX_PLAUSIBLE_SPEED_KMH = 300.0;
 
     /** @var PDO */
     private $pdo;
@@ -341,17 +342,39 @@ final class VehicleTelemetryDerivedDataService
             return null;
         }
 
-        $startAt = $this->movementStartDateTime(
-            $start,
-            $snapshots[$firstMovementSnapshotIndex]
-        );
-        $endAt = $this->dateTimeValue($lastMovementSnapshot, 'observed_at');
-        if (strtotime($endAt) < strtotime($startAt)) {
-            $startAt = $endAt;
+        $firstTiming = null;
+        $lastTiming = null;
+        for ($movementIndex = $firstMovementIndex; $movementIndex <= $lastMovementIndex; $movementIndex++) {
+            $segment = $movements[$movementIndex];
+            $segmentDistance = (float)$segment['end_odo'] - (float)$segment['start_odo'];
+            $timing = $this->movementTiming(
+                $snapshots[(int)$segment['older_index']],
+                $snapshots[(int)$segment['newer_index']],
+                $segmentDistance
+            );
+            if ($timing === null) {
+                // Z velkého/nekonzistentního odometrového skoku bez věrohodného
+                // časového okna nesmíme vyrobit falešnou jízdu ani rychlost v
+                // tisících km/h. Takový interval raději vynecháme.
+                return null;
+            }
+            if ($firstTiming === null) {
+                $firstTiming = $timing;
+            }
+            $lastTiming = $timing;
         }
-        $intervalMinutes = max(1, (int)round((strtotime($endAt) - strtotime($startAt)) / 60));
-        $travelMinutes = min(1440, $intervalMinutes);
-        $avgSpeed = $travelMinutes > 0 ? round($distance / ($travelMinutes / 60), 2) : null;
+        if ($firstTiming === null || $lastTiming === null) {
+            return null;
+        }
+
+        $startAt = (string)$firstTiming['start_at'];
+        $endAt = (string)$lastTiming['end_at'];
+        $intervalSeconds = max(1, (int)$lastTiming['end_ts'] - (int)$firstTiming['start_ts']);
+        $travelMinutes = max(1, min(1440, (int)round($intervalSeconds / 60)));
+        $avgSpeed = $this->averageSpeedOrNull($distance, $travelMinutes);
+        if ($avgSpeed === null) {
+            return null;
+        }
 
         $startSoc = $this->number($origin['soc_pct'] ?? $start['soc_pct'] ?? null);
         // SoC na konci cesty bereme z posledního snapshotu, ve kterém se změnil
@@ -467,7 +490,7 @@ final class VehicleTelemetryDerivedDataService
             $trip['driving_minutes'] = $minutes;
             $trip['travel_minutes'] = $minutes;
             $distance = max(0.0, (float)($trip['distance_km'] ?? 0));
-            $trip['avg_speed_kmh'] = $minutes > 0 ? round($distance / ($minutes / 60), 2) : null;
+            $trip['avg_speed_kmh'] = $this->averageSpeedOrNull($distance, $minutes);
         }
 
         $startSoc = $this->number($trip['start_soc'] ?? null);
@@ -846,33 +869,101 @@ final class VehicleTelemetryDerivedDataService
     }
 
     /**
-     * Nejlepší známý čas odjezdu z výchozího odometru.
+     * Vrátí důvěryhodné časové okno jednoho odometrového přírůstku.
      *
-     * last_seen_at je čas posledního CRONu, při kterém byl stejný fingerprint
-     * stále potvrzen. Pokud historicky chybí a mezi snapshoty je >2h mezera,
-     * přesný odjezd neznáme; použijeme proto čas nového snapshotu místo
-     * falešného několikahodinového trvání.
+     * U nových dat používá last_seen_at jako poslední potvrzení původního
+     * odometru. U historických dat bez takového potvrzení dovolí pouze interval
+     * do dvou hodin. Pokud z časů vychází fyzikálně nesmyslná rychlost, zkusí
+     * ještě serverové received_at; pokud ani to není věrohodné, segment se
+     * nerekonstruuje. Je lepší nemít jednu historickou jízdu než zobrazit
+     * falešných 5 000 km/h.
      *
      * @param array<string,mixed> $older
      * @param array<string,mixed> $newer
+     * @return array{start_at:string,end_at:string,start_ts:int,end_ts:int}|null
      */
-    private function movementStartDateTime(array $older, array $newer): string
+    private function movementTiming(array $older, array $newer, float $distanceKm): ?array
     {
+        if ($distanceKm <= self::MOVEMENT_THRESHOLD_KM) {
+            return null;
+        }
+
         $olderReceived = $this->receivedTimestamp($older);
         $newerReceived = $this->receivedTimestamp($newer);
+        if ($olderReceived <= 0 || $newerReceived <= $olderReceived) {
+            return null;
+        }
+
         $lastSeen = $this->lastSeenTimestamp($older);
+        $hasRepeatedStableConfirmation = $lastSeen > $olderReceived + 30
+            && $lastSeen <= $newerReceived;
 
-        if ($lastSeen > $olderReceived && $lastSeen <= $newerReceived) {
-            return date('Y-m-d H:i:s', $lastSeen);
+        if ($hasRepeatedStableConfirmation) {
+            return $this->plausibleTimingCandidate($lastSeen, $newerReceived, $distanceKm);
         }
 
-        if ($olderReceived > 0
-            && $newerReceived > 0
-            && $newerReceived - $olderReceived > self::TRIP_IDLE_SECONDS) {
-            return $this->dateTimeValue($newer, 'observed_at');
+        // Bez opakovaného potvrzení původního odometru nevíme, kolik jízd se
+        // mohlo odehrát během dlouhé mezery. Historický skok >2h proto nikdy
+        // neslepíme do jedné automatické jízdy.
+        if ($newerReceived - $olderReceived > self::TRIP_IDLE_SECONDS) {
+            return null;
         }
 
-        return $this->dateTimeValue($older, 'observed_at');
+        $olderObserved = $this->fieldTimestamp($older, 'observed_at');
+        $newerObserved = $this->fieldTimestamp($newer, 'observed_at');
+        if ($olderObserved > 0 && $newerObserved > $olderObserved) {
+            $candidate = $this->plausibleTimingCandidate($olderObserved, $newerObserved, $distanceKm);
+            if ($candidate !== null) {
+                return $candidate;
+            }
+        }
+
+        return $this->plausibleTimingCandidate($olderReceived, $newerReceived, $distanceKm);
+    }
+
+    /**
+     * @return array{start_at:string,end_at:string,start_ts:int,end_ts:int}|null
+     */
+    private function plausibleTimingCandidate(int $startTs, int $endTs, float $distanceKm): ?array
+    {
+        $seconds = $endTs - $startTs;
+        if ($seconds <= 0) {
+            return null;
+        }
+
+        $speed = $distanceKm / ($seconds / 3600);
+        if (!is_finite($speed) || $speed > self::MAX_PLAUSIBLE_SPEED_KMH) {
+            return null;
+        }
+
+        return [
+            'start_at' => date('Y-m-d H:i:s', $startTs),
+            'end_at' => date('Y-m-d H:i:s', $endTs),
+            'start_ts' => $startTs,
+            'end_ts' => $endTs,
+        ];
+    }
+
+    private function averageSpeedOrNull(float $distanceKm, int $minutes): ?float
+    {
+        if ($distanceKm <= 0 || $minutes <= 0) {
+            return null;
+        }
+
+        $speed = $distanceKm / ($minutes / 60);
+        if (!is_finite($speed) || $speed > self::MAX_PLAUSIBLE_SPEED_KMH) {
+            return null;
+        }
+
+        return round($speed, 2);
+    }
+
+    /** @param array<string,mixed> $snapshot */
+    private function fieldTimestamp(array $snapshot, string $key): int
+    {
+        $value = trim((string)($snapshot[$key] ?? ''));
+        $timestamp = $value !== '' ? strtotime($value) : false;
+        return $timestamp !== false ? (int)$timestamp : 0;
     }
 
     /** @param array<string,mixed> $snapshot */

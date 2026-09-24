@@ -44,18 +44,28 @@ final class UpdateController
 
                 if ($action === 'migrate') {
                     $applied = $migrations->migrate();
+                    $repair = $this->app->vehicleSync()->repairQueuedTelemetryTrips(500);
                     $message = $applied
-                        ? 'Migrace dokončeny: ' . implode(', ', $applied)
-                        : 'Databáze je aktuální, nebyla potřeba žádná migrace.';
+                        ? 'Migrace dokončeny: ' . implode(', ', $applied) . '.'
+                        : 'Databáze je aktuální.';
+                    if ((int)$repair['repaired'] > 0 || (int)$repair['failed'] > 0) {
+                        $message .= ' Oprava telemetry jízd: ' . (int)$repair['repaired']
+                            . ' konektorů, chyby: ' . (int)$repair['failed'] . '.';
+                    }
                 } elseif ($action === 'update') {
                     $result = $updater->update();
                     $applied = $result['migrations'] ?? [];
+                    $repair = $this->app->vehicleSync()->repairQueuedTelemetryTrips(500);
                     $message = 'Aktualizace z GitHubu na verzi '
                         . (string)($result['version'] ?? '')
                         . ' byla dokončena.'
                         . ($applied
                             ? ' Provedené migrace: ' . implode(', ', $applied) . '.'
                             : ' Databáze nevyžadovala novou migraci.');
+                    if ((int)$repair['repaired'] > 0 || (int)$repair['failed'] > 0) {
+                        $message .= ' Oprava telemetry jízd: ' . (int)$repair['repaired']
+                            . ' konektorů, chyby: ' . (int)$repair['failed'] . '.';
+                    }
 
                     // Po úspěšném update čteme metadata znovu, aby stránka ihned ukázala nový stav.
                     $installedVersion = $this->app->version()->info();

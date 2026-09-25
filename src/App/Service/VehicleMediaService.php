@@ -70,4 +70,62 @@ final class VehicleMediaService
             'is_primary' => !$existing,
         ]);
     }
+    /**
+     * Smaže fotografii z databáze i fyzického úložiště.
+     *
+     * Soubor se nejprve atomicky přesune na dočasné jméno. Pokud databázová
+     * operace selže, vrátí se zpět. Po úspěšném commitu se dočasný soubor
+     * definitivně odstraní.
+     */
+    public function deletePhoto(int $vehicleId, int $mediaId): void
+    {
+        $media = $this->repository->find($mediaId);
+        if (!$media || (int)$media['vehicle_id'] !== $vehicleId) {
+            throw new RuntimeException('Fotografie nebyla nalezena.');
+        }
+
+        $path = $this->storageRoot . '/vehicle-media/' . basename((string)$media['stored_name']);
+        $quarantine = $this->quarantine($path);
+
+        try {
+            $this->repository->delete($vehicleId, $mediaId);
+        } catch (\Throwable $e) {
+            $this->restoreQuarantine($quarantine, $path);
+            throw $e;
+        }
+
+        $this->purgeQuarantine($quarantine, 'Fotografie byla odstraněna z aplikace, ale fyzický soubor se nepodařilo smazat.');
+    }
+
+    private function quarantine(string $path): ?string
+    {
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $quarantine = $path . '.delete-' . bin2hex(random_bytes(6));
+        if (!@rename($path, $quarantine)) {
+            throw new RuntimeException('Fotografii se nepodařilo připravit k fyzickému smazání.');
+        }
+
+        return $quarantine;
+    }
+
+    private function restoreQuarantine(?string $quarantine, string $path): void
+    {
+        if ($quarantine !== null && is_file($quarantine) && !is_file($path)) {
+            @rename($quarantine, $path);
+        }
+    }
+
+    private function purgeQuarantine(?string $quarantine, string $errorMessage): void
+    {
+        if ($quarantine === null || !is_file($quarantine)) {
+            return;
+        }
+        if (!@unlink($quarantine) && is_file($quarantine)) {
+            throw new RuntimeException($errorMessage . ' Zkontrolujte oprávnění adresáře storage/vehicle-media.');
+        }
+    }
+
 }

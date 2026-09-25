@@ -97,6 +97,7 @@ final class DocumentsController
             'vehicles' => $this->app->auth()->allowedVehicles($user),
             'vehicle' => $vehicle,
             'documents' => $this->app->documents()->listForVehicle($vehicleId, Pagination::DEFAULT_PER_PAGE, $scope['from'], $documentOffset),
+            'photos' => $this->app->vehicleMedia()->listForVehicle($vehicleId, $scope['from']),
             'pagination' => $documentPagination,
             'documentPagination' => $documentPagination,
             'run' => $run,
@@ -134,6 +135,30 @@ final class DocumentsController
                     (string)($_POST['extraction_mode'] ?? DocumentImportService::EXTRACTION_AUTO)
                 );
                 $this->redirectAfterExtraction($vehicleId, $runId, true);
+            }
+
+            if ($action === 'delete_document') {
+                $documentId = (int)($_POST['document_id'] ?? 0);
+                $document = $this->app->documents()->document($documentId);
+                if (
+                    !$document
+                    || (int)$document['vehicle_id'] !== $vehicleId
+                    || !$this->app->userAccess()->canReadDetailAt(
+                        $user,
+                        $vehicleId,
+                        (string)($document['created_at'] ?? '')
+                    )
+                ) {
+                    throw new \RuntimeException('Doklad nebyl nalezen.');
+                }
+
+                $removed = $this->app->documentImportService()->deleteDocument($vehicleId, $documentId);
+                $message = 'Doklad i jeho fyzický soubor byly trvale smazány.';
+                if ($removed > 0) {
+                    $message .= ' Odstraněno nebo odpojeno souvisejících provozních položek: ' . $removed . '.';
+                }
+                $this->app->session()->flash($message);
+                Http::redirect('documents.php?vehicle_id=' . $vehicleId);
             }
 
             if ($action === 'confirm_import') {

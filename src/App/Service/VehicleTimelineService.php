@@ -74,7 +74,7 @@ final class VehicleTimelineService
     private function sources(): array
     {
         return [
-            ['trip', 'started_at', 'SELECT id, started_at event_at, distance_km value, start_address label, end_address detail FROM trips WHERE vehicle_id=?', 'trips'],
+            ['trip', 'started_at', 'SELECT id, started_at event_at, distance_km value, start_address label, end_address detail, trip_state FROM trips WHERE vehicle_id=?', 'trips'],
             ['energy', 'occurred_at', 'SELECT id, occurred_at event_at, total_price value, station label, CONCAT(ROUND(quantity,2), " ", unit, " · ", energy_type) detail FROM vehicle_energy_entries WHERE vehicle_id=?', 'vehicle_energy_entries'],
             ['service', 'serviced_at', 'SELECT id, serviced_at event_at, cost value, title label, CONCAT(category, IF(provider IS NULL,"",CONCAT(" · ",provider))) detail FROM vehicle_service_records WHERE vehicle_id=?', 'vehicle_service_records'],
             ['expense', 'occurred_at', 'SELECT id, occurred_at event_at, amount value, title label, category detail FROM vehicle_expenses WHERE vehicle_id=?', 'vehicle_expenses'],

@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Service\VehicleDataQualityService;
 use App\Service\VehicleTripIntelligenceService;
 use PDO;
+use PDOException;
 use RuntimeException;
 
 /**
@@ -238,6 +239,91 @@ final class TripRepository
         return $row ?: null;
     }
 
+    /**
+     * Smaže dokončenou jízdu uživatelem.
+     *
+     * Pokud jízda vznikla z OEM telemetrie nebo s ní byla sloučena, uloží se
+     * rozsah snapshotů do tombstone tabulky. Raw telemetrie tak může zůstat
+     * zachovaná pro ostatní analytiku, ale rebuild jízdu znovu nevytvoří.
+     *
+     * @return array<string,mixed> Smazaný řádek jízdy.
+     */
+    public function deleteForVehicle(int $vehicleId, int $tripId, int $deletedByUserId): array
+    {
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
+            $this->pdo->beginTransaction();
+        }
+
+        try {
+            $query = $this->pdo->prepare(
+                'SELECT * FROM trips WHERE id=? AND vehicle_id=? LIMIT 1 FOR UPDATE'
+            );
+            $query->execute([$tripId, $vehicleId]);
+            $trip = $query->fetch();
+            if (!$trip) {
+                throw new RuntimeException('Jízda nebyla nalezena.');
+            }
+            if ((string)($trip['trip_state'] ?? 'completed') === 'active') {
+                throw new RuntimeException(
+                    'Probíhající jízdu nelze smazat. Počkejte na její automatické ukončení.'
+                );
+            }
+
+            $this->rememberDeletedTelemetryTrip($trip, $deletedByUserId);
+            $this->deleteTripLifecycleEvents($vehicleId, $tripId);
+
+            $delete = $this->pdo->prepare('DELETE FROM trips WHERE id=? AND vehicle_id=?');
+            $delete->execute([$tripId, $vehicleId]);
+            if ($delete->rowCount() !== 1) {
+                throw new RuntimeException('Jízdu se nepodařilo smazat.');
+            }
+
+            if ($ownsTransaction) {
+                $this->pdo->commit();
+            }
+
+            return $trip;
+        } catch (\Throwable $e) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * @return array<int,array{start_snapshot_id:int,last_snapshot_id:int}>
+     */
+    public function deletedTelemetryRanges(int $vehicleId, int $connectionId): array
+    {
+        try {
+            $query = $this->pdo->prepare(
+                'SELECT telemetry_start_snapshot_id start_snapshot_id, '
+                . 'telemetry_last_snapshot_id last_snapshot_id '
+                . 'FROM trip_deletion_tombstones '
+                . 'WHERE vehicle_id=? AND connection_id=? '
+                . 'ORDER BY telemetry_start_snapshot_id ASC'
+            );
+            $query->execute([$vehicleId, $connectionId]);
+            $result = [];
+            foreach ($query->fetchAll() as $row) {
+                $result[] = [
+                    'start_snapshot_id' => (int)$row['start_snapshot_id'],
+                    'last_snapshot_id' => (int)$row['last_snapshot_id'],
+                ];
+            }
+            return $result;
+        } catch (PDOException $e) {
+            // Krátké okno mezi nasazením PHP souborů a spuštěním v29 nesmí
+            // zablokovat běžný sync Connected Car.
+            if (strpos($e->getMessage(), 'trip_deletion_tombstones') !== false) {
+                return [];
+            }
+            throw $e;
+        }
+    }
+
     /** @return array<string,mixed>|null */
     public function findActiveTelemetryTrip(int $vehicleId, int $connectionId): ?array
     {
@@ -300,6 +386,10 @@ final class TripRepository
     {
         $trip['canonical_key'] = null;
         $trip['trip_state'] = 'active';
+
+        if ($this->telemetryTripWasDeleted($vehicleId, $trip)) {
+            return ['id' => 0, 'created' => false, 'completed' => true];
+        }
 
         $existing = $this->findByHash($vehicleId, (string)($trip['trip_hash'] ?? ''));
         if ($existing !== null) {
@@ -548,6 +638,93 @@ final class TripRepository
             $intelligence['trip_intelligence_json'],
             $tripId,
             $vehicleId,
+        ]);
+    }
+
+    /** @param array<string,mixed> $trip */
+    private function rememberDeletedTelemetryTrip(array $trip, int $deletedByUserId): void
+    {
+        $connectionId = (int)($trip['telemetry_connection_id'] ?? 0);
+        $startSnapshotId = (int)($trip['telemetry_start_snapshot_id'] ?? 0);
+        $lastSnapshotId = (int)($trip['telemetry_last_snapshot_id'] ?? 0);
+        if ($connectionId <= 0 || $startSnapshotId <= 0 || $lastSnapshotId <= 0) {
+            return;
+        }
+        if ($lastSnapshotId < $startSnapshotId) {
+            [$startSnapshotId, $lastSnapshotId] = [$lastSnapshotId, $startSnapshotId];
+        }
+
+        try {
+            $query = $this->pdo->prepare(
+                'INSERT INTO trip_deletion_tombstones '
+                . '(vehicle_id,connection_id,trip_hash,telemetry_start_snapshot_id,telemetry_last_snapshot_id,'
+                . 'started_at,ended_at,deleted_by_user_id) '
+                . 'VALUES(?,?,?,?,?,?,?,?) '
+                . 'ON DUPLICATE KEY UPDATE trip_hash=VALUES(trip_hash),deleted_by_user_id=VALUES(deleted_by_user_id)'
+            );
+            $query->execute([
+                (int)$trip['vehicle_id'],
+                $connectionId,
+                $this->hasValue($trip['trip_hash'] ?? null) ? (string)$trip['trip_hash'] : null,
+                $startSnapshotId,
+                $lastSnapshotId,
+                $this->hasValue($trip['started_at'] ?? null) ? (string)$trip['started_at'] : null,
+                $this->hasValue($trip['ended_at'] ?? null) ? (string)$trip['ended_at'] : null,
+                $deletedByUserId > 0 ? $deletedByUserId : null,
+            ]);
+        } catch (PDOException $e) {
+            if (strpos($e->getMessage(), 'trip_deletion_tombstones') !== false) {
+                throw new RuntimeException(
+                    'Pro bezpečné smazání telemetry jízdy nejprve spusťte databázovou migraci v29.',
+                    0,
+                    $e
+                );
+            }
+            throw $e;
+        }
+    }
+
+    /** @param array<string,mixed> $trip */
+    private function telemetryTripWasDeleted(int $vehicleId, array $trip): bool
+    {
+        $connectionId = (int)($trip['telemetry_connection_id'] ?? 0);
+        $startSnapshotId = (int)($trip['telemetry_start_snapshot_id'] ?? 0);
+        $lastSnapshotId = (int)($trip['telemetry_last_snapshot_id'] ?? 0);
+        if ($connectionId <= 0 || $startSnapshotId <= 0 || $lastSnapshotId <= 0) {
+            return false;
+        }
+        if ($lastSnapshotId < $startSnapshotId) {
+            [$startSnapshotId, $lastSnapshotId] = [$lastSnapshotId, $startSnapshotId];
+        }
+
+        try {
+            $query = $this->pdo->prepare(
+                'SELECT 1 FROM trip_deletion_tombstones '
+                . 'WHERE vehicle_id=? AND connection_id=? '
+                . 'AND telemetry_start_snapshot_id<=? AND telemetry_last_snapshot_id>=? LIMIT 1'
+            );
+            $query->execute([$vehicleId, $connectionId, $lastSnapshotId, $startSnapshotId]);
+            return (bool)$query->fetchColumn();
+        } catch (PDOException $e) {
+            if (strpos($e->getMessage(), 'trip_deletion_tombstones') !== false) {
+                return false;
+            }
+            throw $e;
+        }
+    }
+
+    private function deleteTripLifecycleEvents(int $vehicleId, int $tripId): void
+    {
+        $tripIdText = (string)$tripId;
+        $query = $this->pdo->prepare(
+            "DELETE FROM vehicle_events
+             WHERE vehicle_id=? AND event_type IN ('trip_started','trip_completed')
+               AND (data_json LIKE ? OR data_json LIKE ?)"
+        );
+        $query->execute([
+            $vehicleId,
+            '%"trip_id":' . $tripIdText . ',%',
+            '%"trip_id":' . $tripIdText . '}%',
         ]);
     }
 

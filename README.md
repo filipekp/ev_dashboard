@@ -1709,3 +1709,13 @@ Migrace `migrate_v28.sql` přidává metadata kvality telemetrie a jízd. Nové 
 Součástí v5.8 je také první verze Trip Intelligence, Battery Health a EV Stats Prediction. Trip Intelligence porovnává spotřebu s historicky podobnými jízdami stejného vozu, Battery Health robustně odhaduje využitelnou kapacitu z jízd s dostatečným poklesem SoC a Prediction vytváří vlastní odhad reálného dojezdu z historie, teploty, rychlosti, kvality dat a aktuální jízdy. `live-drive.php` poskytuje lehký JSON endpoint nad již uloženou telemetrií; dashboard jej polluje po 30 sekundách bez dalších OEM API requestů.
 
 Na hostingu bez CLI stačí po nahrání souborů otevřít administraci **Aktualizace** a spustit databázové migrace. Webová migrace aplikuje v28, znovu sestaví telemetry jízdy z uložených snapshotů a přepočítá Data Quality / Trip Intelligence pro historické jízdy. CLI varianta `php bin/migrate.php` provede stejný postup.
+
+## Mazání jízd, dokladů a fotografií (v5.8.1)
+
+EV Stats nyní podporuje bezpečné trvalé mazání dokončených jízd, dokumentů a fotografií vozidla. Mazání je chráněné CSRF tokenem a respektuje oprávnění i časový rozsah přístupu uživatele k vozidlu. Probíhající Live Drive nelze smazat, dokud není automaticky ukončen.
+
+U jízd odvozených z OEM telemetrie se raw telemetry snapshoty nemažou, protože je používá Data Quality, Battery Health a další analytika. Migrace `migrate_v29.sql` proto přidává tombstone tabulku s rozsahem snapshotů uživatelem smazané jízdy. Synchronizace i pozdější rebuild tento rozsah přeskočí, takže smazaná telemetry jízda se znovu neobjeví.
+
+Dokumenty v `storage/documents` a fotografie v `storage/vehicle-media` se při smazání odstraňují také fyzicky z disku. Soubor se nejprve atomicky přejmenuje na dočasné jméno; pokud databázová operace selže, vrátí se zpět. Po úspěšném DB commitu se fyzický soubor definitivně odstraní. Při smazání hlavní fotografie se automaticky zvolí nová hlavní fotografie z těch zbývajících.
+
+Při smazání potvrzeného dokladu se současně odstraní provozní položky vytvořené výhradně tímto dokladem. Pokud doklad pouze doplnil cenu k existující telemetry nabíjecí relaci, telemetry záznam zůstane zachovaný a odstraní se pouze vazba/cena pocházející z dokumentu. Servisní záznam s vlastními přílohami je záměrně chráněn a smazání zdrojového dokladu se v takovém případě zastaví, aby nevznikla ztráta dalších souborů.

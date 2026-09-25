@@ -11999,3 +11999,100 @@ body.modal-open {
         border-bottom: 0;
     }
 }
+
+/* Destructive actions: trips, documents and vehicle photos ---------------- */
+.trip-delete-inline,
+.timeline-event-actions form,
+.vehicle-photo-actions form,
+.document-delete-form {
+    margin: 0;
+}
+
+.trip-row-actions .trip-delete-inline {
+    display: inline-flex;
+}
+
+.icon-action.danger-action:not(:disabled) {
+    color: var(--cockpit-danger) !important;
+    background: rgba(236, 80, 104, .08) !important;
+    border-color: rgba(236, 80, 104, .28) !important;
+}
+
+.icon-action.danger-action:not(:disabled):hover {
+    color: #fff !important;
+    background: var(--cockpit-danger) !important;
+    border-color: var(--cockpit-danger) !important;
+}
+
+.icon-action.danger-action:disabled {
+    cursor: not-allowed;
+    opacity: .45;
+}
+
+.timeline-event-actions {
+    min-width: 112px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 9px;
+}
+
+.timeline-event-actions > strong {
+    min-width: 76px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.destructive-link {
+    color: var(--cockpit-danger) !important;
+}
+
+.destructive-link:hover {
+    color: #ff7c91 !important;
+}
+
+.document-delete-form .link-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
+    white-space: nowrap;
+}
+
+.vehicle-photo-caption {
+    display: block;
+    min-height: 1.2em;
+}
+
+.vehicle-photo-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    margin-top: 5px;
+}
+
+.vehicle-photo-actions .link-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding-top: 2px;
+}
+
+@media (max-width: 760px) {
+    .timeline-event-actions {
+        grid-column: 2;
+        min-width: 0;
+        justify-content: flex-start;
+        padding-left: 18px;
+    }
+
+    .timeline-event-actions > strong {
+        min-width: 0;
+        text-align: left;
+    }
+
+    .document-row-actions {
+        justify-items: start;
+    }
+}

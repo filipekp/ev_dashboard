@@ -298,6 +298,48 @@ final class DocumentImportService
         return $replaced;
     }
 
+    /**
+     * Trvale smaže doklad včetně originálního souboru a položek, které vznikly
+     * jeho potvrzením. U telemetry nabíjení se odstraní pouze cena převzatá z
+     * dokladu; samotná telemetry relace zůstane zachovaná.
+     *
+     * @return int Počet odstraněných/odpojených provozních položek.
+     */
+    public function deleteDocument(int $vehicleId, int $documentId): int
+    {
+        $quarantine = null;
+        $path = null;
+        $this->pdo->beginTransaction();
+
+        try {
+            $document = $this->documents->documentForUpdate($documentId, $vehicleId);
+            if (!$document) {
+                throw new RuntimeException('Doklad nebyl nalezen.');
+            }
+
+            $path = $this->storedDocumentPath($document);
+            $quarantine = $this->quarantineStoredFile($path);
+            $removedOperations = $this->documents->removeLinkedOperations($documentId, $vehicleId);
+            $this->documents->deleteDocument($documentId, $vehicleId);
+            $this->pdo->commit();
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            if ($path !== null) {
+                $this->restoreQuarantine($quarantine, $path);
+            }
+            throw $e;
+        }
+
+        $this->purgeQuarantine(
+            $quarantine,
+            'Doklad byl odstraněn z aplikace, ale fyzický soubor se nepodařilo smazat.'
+        );
+
+        return $removedOperations;
+    }
+
     private function executeExtraction(
         int $runId,
         int $documentId,
@@ -375,6 +417,37 @@ final class DocumentImportService
             $this->ai->name(),
             $this->ai->extract($path, $mimeType, $originalName),
         ];
+    }
+
+    private function quarantineStoredFile(string $path): ?string
+    {
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $quarantine = $path . '.delete-' . bin2hex(random_bytes(6));
+        if (!@rename($path, $quarantine)) {
+            throw new RuntimeException('Doklad se nepodařilo připravit k fyzickému smazání.');
+        }
+
+        return $quarantine;
+    }
+
+    private function restoreQuarantine(?string $quarantine, string $path): void
+    {
+        if ($quarantine !== null && is_file($quarantine) && !is_file($path)) {
+            @rename($quarantine, $path);
+        }
+    }
+
+    private function purgeQuarantine(?string $quarantine, string $message): void
+    {
+        if ($quarantine === null || !is_file($quarantine)) {
+            return;
+        }
+        if (!@unlink($quarantine) && is_file($quarantine)) {
+            throw new RuntimeException($message . ' Zkontrolujte oprávnění adresáře storage/documents.');
+        }
     }
 
     /** @param array<string,mixed> $document */

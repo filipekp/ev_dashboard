@@ -3,6 +3,7 @@ $pageTitle = 'Dokumenty';
 $showNavigation = true;
 $navTitle = 'Dokumenty';
 $runHistory = isset($runHistory) && is_array($runHistory) ? $runHistory : [];
+$photos = isset($photos) && is_array($photos) ? $photos : [];
 $linkedOperationCount = isset($linkedOperationCount) ? (int)$linkedOperationCount : 0;
 $aiAvailable = !empty($aiAvailable);
 require __DIR__ . '/partials/header.php';
@@ -43,7 +44,6 @@ require __DIR__ . '/partials/header.php';
 
     <div class="card" id="vehicle-photos">
       <h2>📸 Fotografie vozidla</h2>
-      <?php $photos = $app->vehicleMedia()->listForVehicle((int)$vehicle['id']); ?>
       <form method="post" action="media.php" enctype="multipart/form-data" class="stack">
         <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
         <input type="hidden" name="action" value="upload_photo">
@@ -65,16 +65,25 @@ require __DIR__ . '/partials/header.php';
             <figure class="vehicle-photo-card <?= !empty($photo['is_primary']) ? 'is-primary' : '' ?>">
               <img src="media.php?view=<?= (int)$photo['id'] ?>" alt="<?= h((string)($photo['caption'] ?: $vehicle['name'])) ?>">
               <figcaption>
-                <?= !empty($photo['is_primary']) ? '★ Hlavní · ' : '' ?><?= h((string)($photo['caption'] ?? '')) ?>
-                <?php if (empty($photo['is_primary'])): ?>
-                  <form method="post" action="media.php">
+                <span class="vehicle-photo-caption"><?= !empty($photo['is_primary']) ? '★ Hlavní · ' : '' ?><?= h((string)($photo['caption'] ?? '')) ?></span>
+                <div class="vehicle-photo-actions">
+                  <?php if (empty($photo['is_primary'])): ?>
+                    <form method="post" action="media.php">
+                      <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
+                      <input type="hidden" name="action" value="set_primary">
+                      <input type="hidden" name="vehicle_id" value="<?= (int)$vehicle['id'] ?>">
+                      <input type="hidden" name="media_id" value="<?= (int)$photo['id'] ?>">
+                      <button class="link-button">Nastavit jako hlavní</button>
+                    </form>
+                  <?php endif; ?>
+                  <form method="post" action="media.php" data-confirm="Opravdu chcete tuto fotografii trvale smazat? Fyzický soubor bude odstraněn také z úložiště serveru.">
                     <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
-                    <input type="hidden" name="action" value="set_primary">
+                    <input type="hidden" name="action" value="delete_photo">
                     <input type="hidden" name="vehicle_id" value="<?= (int)$vehicle['id'] ?>">
                     <input type="hidden" name="media_id" value="<?= (int)$photo['id'] ?>">
-                    <button class="link-button">Nastavit jako hlavní</button>
+                    <button class="link-button destructive-link" type="submit"><i class="bi bi-trash3"></i> Smazat</button>
                   </form>
-                <?php endif; ?>
+                </div>
               </figcaption>
             </figure>
           <?php endforeach; ?>
@@ -278,6 +287,12 @@ require __DIR__ . '/partials/header.php';
                       <option value="ai" <?= !$aiAvailable ? 'disabled' : '' ?>>AI<?= !$aiAvailable ? ' – off' : '' ?></option>
                     </select>
                     <button class="link-button" type="submit">↻ Vytěžit znovu</button>
+                  </form>
+                  <form method="post" class="document-delete-form" data-confirm="Opravdu chcete tento doklad trvale smazat? Originální soubor bude fyzicky odstraněn ze serveru. Položky provozní evidence vytvořené pouze tímto dokladem budou odstraněny; u telemetry nabíjení se zruší pouze cena převzatá z dokladu.">
+                    <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
+                    <input type="hidden" name="action" value="delete_document">
+                    <input type="hidden" name="document_id" value="<?= (int)$doc['id'] ?>">
+                    <button class="link-button destructive-link" type="submit"><i class="bi bi-trash3"></i> Smazat</button>
                   </form>
                 </div>
               </td>

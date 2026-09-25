@@ -39,11 +39,69 @@ final class VehicleMediaRepository
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function listForVehicle(int $vehicleId): array
+    public function listForVehicle(int $vehicleId, ?string $from = null): array
     {
-        $q = $this->pdo->prepare('SELECT * FROM vehicle_media WHERE vehicle_id=? ORDER BY is_primary DESC,id DESC');
-        $q->execute([$vehicleId]);
+        $sql = 'SELECT * FROM vehicle_media WHERE vehicle_id=?';
+        $params = [$vehicleId];
+        if ($from !== null) {
+            $sql .= ' AND created_at>=?';
+            $params[] = $from;
+        }
+        $sql .= ' ORDER BY is_primary DESC,id DESC';
+        $q = $this->pdo->prepare($sql);
+        $q->execute($params);
         return $q->fetchAll();
+    }
+
+    /**
+     * Odstraní fotografii a pokud byla hlavní, zvolí jako novou hlavní
+     * nejnovější zbývající fotografii stejného vozidla.
+     */
+    public function delete(int $vehicleId, int $mediaId): void
+    {
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
+            $this->pdo->beginTransaction();
+        }
+
+        try {
+            $q = $this->pdo->prepare(
+                'SELECT id,is_primary FROM vehicle_media WHERE id=? AND vehicle_id=? LIMIT 1 FOR UPDATE'
+            );
+            $q->execute([$mediaId, $vehicleId]);
+            $row = $q->fetch();
+            if (!$row) {
+                throw new \RuntimeException('Fotografie nebyla nalezena.');
+            }
+
+            $delete = $this->pdo->prepare('DELETE FROM vehicle_media WHERE id=? AND vehicle_id=?');
+            $delete->execute([$mediaId, $vehicleId]);
+            if ($delete->rowCount() !== 1) {
+                throw new \RuntimeException('Fotografii se nepodařilo smazat.');
+            }
+
+            if (!empty($row['is_primary'])) {
+                $next = $this->pdo->prepare(
+                    'SELECT id FROM vehicle_media WHERE vehicle_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE'
+                );
+                $next->execute([$vehicleId]);
+                $nextId = (int)$next->fetchColumn();
+                if ($nextId > 0) {
+                    $this->pdo->prepare(
+                        'UPDATE vehicle_media SET is_primary=1 WHERE id=? AND vehicle_id=?'
+                    )->execute([$nextId, $vehicleId]);
+                }
+            }
+
+            if ($ownsTransaction) {
+                $this->pdo->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
     }
 
     /** @return array<string,mixed>|null */

@@ -49,6 +49,23 @@ final class MediaController
             } elseif ($action === 'set_primary') {
                 $this->app->vehicleMedia()->setPrimary($vehicleId, (int)($_POST['media_id'] ?? 0));
                 $this->app->session()->flash('Hlavní fotografie byla změněna.');
+            } elseif ($action === 'delete_photo') {
+                $mediaId = (int)($_POST['media_id'] ?? 0);
+                $media = $this->app->vehicleMedia()->find($mediaId);
+                if (
+                    !$media
+                    || (int)$media['vehicle_id'] !== $vehicleId
+                    || !$this->app->userAccess()->canReadDetailAt(
+                        $user,
+                        $vehicleId,
+                        (string)($media['created_at'] ?? '')
+                    )
+                ) {
+                    throw new \RuntimeException('Fotografie nebyla nalezena.');
+                }
+
+                $this->app->vehicleMediaService()->deletePhoto($vehicleId, $mediaId);
+                $this->app->session()->flash('Fotografie i její fyzický soubor byly trvale smazány.');
             }
         } catch (Throwable $e) {
             $this->app->session()->flash($e->getMessage(), 'error');

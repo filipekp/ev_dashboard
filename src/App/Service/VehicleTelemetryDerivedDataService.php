@@ -100,12 +100,16 @@ final class VehicleTelemetryDerivedDataService
             ? (int)($latest['telemetry_last_snapshot_id'] ?? 0)
             : 0;
         $movements = $this->movementSegments($snapshots);
+        $deletedRanges = $this->trips->deletedTelemetryRanges($vehicleId, $connectionId);
         $newMovements = [];
 
         foreach ($movements as $movement) {
             $newerIndex = (int)$movement['newer_index'];
             $snapshotId = (int)($snapshots[$newerIndex]['id'] ?? 0);
             if ($processedSnapshotId > 0 && $snapshotId <= $processedSnapshotId) {
+                continue;
+            }
+            if ($this->snapshotWasDeleted($snapshotId, $deletedRanges)) {
                 continue;
             }
             $newMovements[] = $movement;
@@ -268,6 +272,25 @@ final class VehicleTelemetryDerivedDataService
             }
             throw $e;
         }
+    }
+
+    /**
+     * @param array<int,array{start_snapshot_id:int,last_snapshot_id:int}> $ranges
+     */
+    private function snapshotWasDeleted(int $snapshotId, array $ranges): bool
+    {
+        if ($snapshotId <= 0) {
+            return false;
+        }
+        foreach ($ranges as $range) {
+            if (
+                $snapshotId >= (int)$range['start_snapshot_id']
+                && $snapshotId <= (int)$range['last_snapshot_id']
+            ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -703,8 +703,16 @@ require __DIR__ . '/partials/header.php';
                                 <?php endif; ?>
                                 <?php if ($isActiveTrip): ?>
                                     <button type="button" class="icon-action" disabled title="Probíhající jízda se aktualizuje automaticky" aria-label="Probíhající jízdu nelze zatím upravit"><i class="bi bi-arrow-repeat"></i></button>
+                                    <button type="button" class="icon-action danger-action" disabled title="Probíhající jízdu nelze smazat" aria-label="Probíhající jízdu nelze smazat"><i class="bi bi-trash3"></i></button>
                                 <?php else: ?>
                                     <button type="button" class="icon-action" data-trip-edit="<?= (int)$t['id'] ?>" title="Upravit jízdu" aria-label="Upravit jízdu"><i class="bi bi-pencil"></i></button>
+                                    <form method="post" action="trip-delete.php" class="trip-delete-inline" data-confirm="Opravdu chcete tuto jízdu trvale smazat? U telemetry jízdy zůstanou raw data zachována, ale jízda se už při synchronizaci ani rebuild procesu znovu nevytvoří.">
+                                        <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
+                                        <input type="hidden" name="vehicle_id" value="<?= (int)$vehicle['id'] ?>">
+                                        <input type="hidden" name="trip_id" value="<?= (int)$t['id'] ?>">
+                                        <input type="hidden" name="return_to" value="dashboard">
+                                        <button type="submit" class="icon-action danger-action" title="Smazat jízdu" aria-label="Smazat jízdu"><i class="bi bi-trash3"></i></button>
+                                    </form>
                                 <?php endif; ?>
                             </div>
                         </td>

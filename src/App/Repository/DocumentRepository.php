@@ -383,4 +383,25 @@ final class DocumentRepository
 
         return $row ?: null;
     }
+
+    /** @return array<string,mixed>|null */
+    public function documentForUpdate(int $documentId, int $vehicleId): ?array
+    {
+        $query = $this->pdo->prepare(
+            'SELECT * FROM vehicle_documents WHERE id=? AND vehicle_id=? LIMIT 1 FOR UPDATE'
+        );
+        $query->execute([$documentId, $vehicleId]);
+        $row = $query->fetch();
+
+        return $row ?: null;
+    }
+
+    public function deleteDocument(int $documentId, int $vehicleId): void
+    {
+        $query = $this->pdo->prepare('DELETE FROM vehicle_documents WHERE id=? AND vehicle_id=?');
+        $query->execute([$documentId, $vehicleId]);
+        if ($query->rowCount() !== 1) {
+            throw new RuntimeException('Doklad se nepodařilo smazat.');
+        }
+    }
 }

@@ -45,17 +45,6 @@ require __DIR__ . '/partials/header.php';
         || ($liveTelemetry['steering_wheel_heat_state'] ?? NULL) !== NULL
         || ($liveTelemetry['outside_temperature_c'] ?? NULL) !== NULL
     );
-    if ($hasTractionBattery && isset($batteryHealth['soh_pct']) && $batteryHealth['soh_pct'] !== NULL) {
-        $soh = (float)$batteryHealth['soh_pct'];
-        $sohSourceMap = [
-            'manual_diagnostic' => 'Diagnostická hodnota',
-            'trip_energy_model' => 'EV Stats Battery Health',
-            'insufficient_data' => 'Nedostatek dat',
-        ];
-        $sohSource = $sohSourceMap[(string)($batteryHealth['source'] ?? '')] ?? 'EV Stats odhad';
-        $sohSamples = array_fill(0, max(0, (int)($batteryHealth['sample_count'] ?? 0)), 1);
-        $sohClass = $soh >= 90 ? 'green' : ($soh >= 80 ? 'amber' : 'red');
-    }
     $qualityLabel = static function ($status): string {
         $labels = [
             'good' => 'Spolehlivá',
@@ -205,10 +194,10 @@ require __DIR__ . '/partials/header.php';
                 </div>
             </div>
             <div class="live-vehicle-metrics">
-                <?php if ($liveTelemetry['soc_pct'] !== NULL): ?>
+                <?php if ($liveDrive === NULL && $liveTelemetry['soc_pct'] !== NULL): ?>
                     <div class="live-vehicle-metric"><small>STAV BATERIE</small><strong><?= cz((float)$liveTelemetry['soc_pct'], 0) ?> %</strong><span>aktuální SoC</span></div>
                 <?php endif; ?>
-                <?php if ($liveTelemetry['range_km'] !== NULL): ?>
+                <?php if ($liveDrive === NULL && $liveTelemetry['range_km'] !== NULL): ?>
                     <div class="live-vehicle-metric"><small>AKTUÁLNÍ DOJEZD</small><strong><?= cz((float)$liveTelemetry['range_km'], 0) ?> km</strong><span>hlášený vozidlem</span></div>
                 <?php endif; ?>
                 <?php if ($liveTelemetry['odometer_km'] !== NULL): ?>
@@ -276,24 +265,36 @@ require __DIR__ . '/partials/header.php';
         </section>
     <?php endif; ?>
     <section class="live-drive-panel<?= $liveDrive === NULL ? ' is-idle' : '' ?>" data-live-drive data-vehicle-id="<?= (int)$vehicle['id'] ?>" <?= $liveDrive === NULL ? 'hidden' : '' ?>>
-        <div class="live-drive-head">
+        <div class="live-drive-head live-drive-head-v2">
             <div>
                 <span class="live-drive-pulse" aria-hidden="true"></span>
-                <div><small>LIVE DRIVE</small><strong>Probíhající jízda</strong></div>
+                <div><small>LIVE TRIP INTELLIGENCE</small><strong>Probíhající jízda</strong></div>
             </div>
-            <span data-live-field="last_snapshot_at"><?= $liveDrive !== NULL && !empty($liveDrive['last_snapshot_at']) ? h(date('H:i:s', strtotime((string)$liveDrive['last_snapshot_at']))) : '—' ?></span>
+            <div class="live-drive-head-status">
+                <span class="live-drive-efficiency-status" data-live-field="efficiency_label"><?= h((string)($liveDrive['efficiency_label'] ?? 'Model se učí')) ?></span>
+                <span data-live-field="last_snapshot_at"><?= $liveDrive !== NULL && !empty($liveDrive['last_snapshot_at']) ? h(date('H:i:s', strtotime((string)$liveDrive['last_snapshot_at']))) : '—' ?></span>
+            </div>
         </div>
-        <div class="live-drive-grid">
-            <div><small>AKTUÁLNÍ RYCHLOST</small><strong data-live-field="current_speed_kmh"><?= $liveDrive !== NULL && $liveDrive['current_speed_kmh'] !== NULL ? cz((float)$liveDrive['current_speed_kmh'], 0) : '—' ?></strong><span>km/h</span></div>
-            <div><small>UJETO</small><strong data-live-field="distance_km"><?= $liveDrive !== NULL ? cz((float)$liveDrive['distance_km'], 1) : '—' ?></strong><span>km</span></div>
-            <div><small>PRŮM. SPOTŘEBA</small><strong data-live-field="avg_consumption_kwh_100"><?= $liveDrive !== NULL && $liveDrive['avg_consumption_kwh_100'] !== NULL ? cz((float)$liveDrive['avg_consumption_kwh_100'], 1) : '—' ?></strong><span>kWh/100 km</span></div>
-            <div><small>SoC</small><strong data-live-field="current_soc"><?= $liveDrive !== NULL && $liveDrive['current_soc'] !== NULL ? cz((float)$liveDrive['current_soc'], 0) : '—' ?></strong><span>%</span></div>
-            <div><small>EV STATS DOJEZD</small><strong data-live-field="predicted_remaining_range_km"><?= $liveDrive !== NULL && $liveDrive['predicted_remaining_range_km'] !== NULL ? cz((float)$liveDrive['predicted_remaining_range_km'], 0) : '—' ?></strong><span>km</span></div>
-            <div><small>DATA QUALITY</small><strong data-live-field="quality_score"><?= $liveDrive !== NULL && $liveDrive['quality_score'] !== NULL ? (int)$liveDrive['quality_score'] : '—' ?></strong><span>/ 100</span></div>
+        <div class="live-drive-primary-grid">
+            <div class="live-drive-primary"><small>RYCHLOST</small><strong data-live-field="current_speed_kmh"><?= $liveDrive !== NULL && $liveDrive['current_speed_kmh'] !== NULL ? cz((float)$liveDrive['current_speed_kmh'], 0) : '—' ?></strong><span>km/h</span></div>
+            <div class="live-drive-primary"><small>UJETO</small><strong data-live-field="distance_km"><?= $liveDrive !== NULL ? cz((float)$liveDrive['distance_km'], 1) : '—' ?></strong><span>km</span></div>
+            <div class="live-drive-primary"><small>SoC</small><strong data-live-field="current_soc"><?= $liveDrive !== NULL && $liveDrive['current_soc'] !== NULL ? cz((float)$liveDrive['current_soc'], 0) : '—' ?></strong><span>% · −<b data-live-field="soc_used_pct"><?= $liveDrive !== NULL && ($liveDrive['soc_used_pct'] ?? NULL) !== NULL ? cz((float)$liveDrive['soc_used_pct'], 1) : '—' ?></b> p. b.</span></div>
+            <div class="live-drive-primary live-drive-range"><small>EV STATS DOJEZD</small><strong data-live-field="predicted_remaining_range_km"><?= $liveDrive !== NULL && $liveDrive['predicted_remaining_range_km'] !== NULL ? cz((float)$liveDrive['predicted_remaining_range_km'], 0) : '—' ?></strong><span>km</span></div>
         </div>
-        <div class="live-drive-foot">
+        <div class="live-drive-intelligence-grid">
+            <div><small>AKTUÁLNÍ SPOTŘEBA</small><strong><b data-live-field="avg_consumption_kwh_100"><?= $liveDrive !== NULL && $liveDrive['avg_consumption_kwh_100'] !== NULL ? cz((float)$liveDrive['avg_consumption_kwh_100'], 1) : '—' ?></b> kWh/100 km</strong><span>během této jízdy</span></div>
+            <div><small>MODEL OČEKÁVÁ</small><strong><b data-live-field="expected_consumption_kwh_100"><?= $liveDrive !== NULL && ($liveDrive['expected_consumption_kwh_100'] ?? NULL) !== NULL ? cz((float)$liveDrive['expected_consumption_kwh_100'], 1) : '—' ?></b> kWh/100 km</strong><span>podobné podmínky</span></div>
+            <div><small>ROZDÍL PROTI MODELU</small><strong class="live-delta" data-live-field="consumption_delta_pct"><?= $liveDrive !== NULL && ($liveDrive['consumption_delta_pct'] ?? NULL) !== NULL ? (($liveDrive['consumption_delta_pct'] > 0 ? '+' : '') . cz((float)$liveDrive['consumption_delta_pct'], 1) . ' %') : '—' ?></strong><span>nižší je úspornější</span></div>
+            <div><small>EFFICIENCY SCORE</small><strong><b data-live-field="efficiency_score"><?= $liveDrive !== NULL && ($liveDrive['efficiency_score'] ?? NULL) !== NULL ? (int)$liveDrive['efficiency_score'] : '—' ?></b> / 100</strong><span>živé hodnocení</span></div>
+        </div>
+        <div class="live-drive-range-band">
+            <span>konzervativně <b data-live-field="conservative_remaining_range_km"><?= $liveDrive !== NULL && ($liveDrive['conservative_remaining_range_km'] ?? NULL) !== NULL ? cz((float)$liveDrive['conservative_remaining_range_km'], 0) . ' km' : '—' ?></b></span>
+            <i aria-hidden="true"></i>
+            <span>optimisticky <b data-live-field="optimistic_remaining_range_km"><?= $liveDrive !== NULL && ($liveDrive['optimistic_remaining_range_km'] ?? NULL) !== NULL ? cz((float)$liveDrive['optimistic_remaining_range_km'], 0) . ' km' : '—' ?></b></span>
+        </div>
+        <div class="live-drive-foot live-drive-foot-v2">
             <span><i class="bi bi-geo-alt"></i> <b data-live-field="start_address"><?= h((string)($liveDrive['start_address'] ?? 'Start')) ?></b> → <b data-live-field="current_address"><?= h((string)($liveDrive['current_address'] ?? 'aktuální poloha')) ?></b></span>
-            <span>Jízda běží <b data-live-field="elapsed_minutes"><?= $liveDrive !== NULL ? (int)$liveDrive['elapsed_minutes'] : 0 ?></b> min · predikce <b data-live-field="prediction_confidence_pct"><?= $liveDrive !== NULL ? (int)($liveDrive['prediction_confidence_pct'] ?? 0) : 0 ?></b> % confidence</span>
+            <span><b data-live-field="elapsed_minutes"><?= $liveDrive !== NULL ? (int)$liveDrive['elapsed_minutes'] : 0 ?></b> min · Data Quality <b data-live-field="quality_score"><?= $liveDrive !== NULL && $liveDrive['quality_score'] !== NULL ? (int)$liveDrive['quality_score'] : '—' ?></b>/100 · predikce <b data-live-field="prediction_confidence_pct"><?= $liveDrive !== NULL ? (int)($liveDrive['prediction_confidence_pct'] ?? 0) : 0 ?></b> %</span>
         </div>
     </section>
     <?php if ($newVehicleModal): ?>
@@ -375,70 +376,130 @@ require __DIR__ . '/partials/header.php';
                                                        href="?vehicle_id=<?= $vehicle['id'] ?>&amp;period=<?= h($m) ?>&amp;year=<?= h($selectedYear) ?>"><?= h(substr($m, 5, 2) . '/' . substr($m, 0, 4)) ?></a><?php endforeach; ?>
         </div>
     </section>
-    <section class="kpis">
-        <div class="card kpi"><small>CELKOVÝ NÁJEZD</small><strong><?= cz($totalKm, 0) ?>
-                <em>km</em></strong><span>Tachometr: <?= cz($odoMin, 0) ?> → <?= cz($odoMax, 0) ?> km</span></div>
+    <section class="kpis kpis-condensed">
+        <div class="card kpi kpi-composite">
+            <small>JÍZDY & NÁJEZD</small>
+            <strong><?= cz($totalKm, 0) ?> <em>km</em></strong>
+            <span><?= $tripCount ?> jízd · <?= $shortTrips ?> krátkých · tachometr <?= cz($odoMax, 0) ?> km</span>
+        </div>
         <?php if ($hasTractionBattery): ?>
-            <div class="card kpi"><small>PRŮM. SPOTŘEBA</small><strong class="green"><?= cz($avgCons, 2) ?> <em>kWh/100 km</em></strong><span>Z baterie: <?= cz($totalKwh, 1) ?> kWh<?php if ($totalRecuperatedKwh > 0): ?> · Rekuperováno: <?= cz($totalRecuperatedKwh, 1) ?> kWh<?php endif; ?></span></div>
-            <div class="card kpi"><small>ODHAD DOJEZDU</small><strong>~<?= cz($range, 0) ?> <em>km</em></strong><span>na 100 % baterie</span></div>
-        <?php else: ?>
-            <div class="card kpi"><small>PRŮM. SPOTŘEBA</small><strong class="green"><?= $avgFuelCons > 0 ? cz($avgFuelCons, 2) : '—' ?> <em><?= h(fuelUnit($powertrain)) ?>/100 km</em></strong><span><?= $totalFuel > 0 ? 'Spotřebováno: ' . cz($totalFuel, 1) . ' ' . h(fuelUnit($powertrain)) : 'Spotřebu lze zadat u jednotlivých jízd' ?></span></div>
-            <div class="card kpi"><small>PROVOZNÍ NÁKLADY</small><strong><?= cz((float)$operationSummary['cost_per_km'], 2) ?> <em>Kč/km</em></strong><span>palivo + servis + ostatní</span></div>
-        <?php endif; ?>
-        <div class="card kpi"><small>DOBA JÍZDY</small><strong><?= cz($driveMin / 60, 1) ?> <em>hod</em></strong><span>Průměr: <?= cz($avgSpeed, 1) ?> km/h</span></div>
-        <?php if ($hasTractionBattery): ?>
-            <div class="card kpi"><small>POMALÉ / DC</small><?php if ($chargeDataAvailable): ?><strong><?= cz($homePct, 0) ?>%
-                    <em>/ <?= cz($publicPct, 0) ?>%</em></strong><span>Veřejné DC: <?= cz($publicStops, 0) ?>× · <?= cz($publicKwh, 1) ?> kWh*</span><?php else: ?>
-                    <strong>—</strong><span>Import neobsahuje SoC ani nabíjení</span><?php endif; ?>
+            <div class="card kpi kpi-composite">
+                <small>ENERGETICKÁ EFEKTIVITA</small>
+                <strong class="green"><?= cz($avgCons, 1) ?> <em>kWh/100 km</em></strong>
+                <span><?= cz($totalKwh, 1) ?> kWh spotřebováno<?php if ($totalRecuperatedKwh > 0): ?> · <?= cz($totalRecuperatedKwh, 1) ?> kWh rekuperováno<?php endif; ?></span>
             </div>
         <?php else: ?>
-            <div class="card kpi"><small>SERVIS</small><strong><?= cz((float)$operationSummary['service_cost'], 0) ?> <em>Kč</em></strong><span>evidované servisní náklady</span></div>
+            <div class="card kpi kpi-composite">
+                <small>PROVOZNÍ EFEKTIVITA</small>
+                <strong class="green"><?= $avgFuelCons > 0 ? cz($avgFuelCons, 1) : '—' ?> <em><?= h(fuelUnit($powertrain)) ?>/100 km</em></strong>
+                <span><?= cz((float)$operationSummary['cost_per_km'], 2) ?> Kč/km provozních nákladů</span>
+            </div>
         <?php endif; ?>
-        <div class="card kpi"><small>JÍZDY CELKEM</small><strong><?= $tripCount ?></strong><span>Z toho krátkých: <?= $shortTrips ?></span></div>
+        <div class="card kpi kpi-composite">
+            <small>ČAS & TEMPO</small>
+            <strong><?= cz($driveMin / 60, 1) ?> <em>hod</em></strong>
+            <span>Průměrná rychlost <?= cz($avgSpeed, 1) ?> km/h</span>
+        </div>
         <?php if ($hasTractionBattery): ?>
-            <div class="card kpi soh-kpi"><small>🔋 STATE OF HEALTH</small><?php if ($soh !== NULL): ?><strong class="<?= $sohClass ?>"><?= cz($soh, 1) ?> <em>%</em></strong>
-                    <span><?= $sohSource ?><?= count($sohSamples) ? ' · ' . count($sohSamples) . ' vzorků' : '' ?></span><?php else: ?>
-                    <strong>—</strong><span>Nedostatek dat pro spolehlivý odhad</span><?php endif; ?></div>
+            <div class="card kpi kpi-composite">
+                <small>NABÍJENÍ</small>
+                <?php if ($chargeDataAvailable): ?>
+                    <strong><?= cz($homePct, 0) ?> % <em>/ <?= cz($publicPct, 0) ?> %</em></strong>
+                    <span>pomalé / DC · veřejné DC <?= cz($publicStops, 0) ?>× · <?= cz($publicKwh, 1) ?> kWh*</span>
+                <?php else: ?>
+                    <strong>—</strong><span>Import neobsahuje SoC ani nabíjení</span>
+                <?php endif; ?>
+            </div>
         <?php else: ?>
-            <div class="card kpi"><small>CELKOVÉ NÁKLADY</small><strong><?= cz((float)$operationSummary['total_cost'], 0) ?> <em>Kč</em></strong><span><a href="operations.php?vehicle_id=<?= (int)$vehicle['id'] ?>">otevřít provozní evidenci</a></span></div>
+            <div class="card kpi kpi-composite">
+                <small>NÁKLADY</small>
+                <strong><?= cz((float)$operationSummary['total_cost'], 0) ?> <em>Kč</em></strong>
+                <span>servis <?= cz((float)$operationSummary['service_cost'], 0) ?> Kč · ostatní <?= cz((float)$operationSummary['other_cost'], 0) ?> Kč</span>
+            </div>
         <?php endif; ?>
-    </section>
-    <section class="insight-strip">
-        <div><span class="insight-icon">✦</span><p><small>EFFICIENCY INSIGHT</small><b><?php if ($hasTractionBattery): ?><?= cz($avgCons, 1) ?> kWh/100 km<?php else: ?>Provozní přehled<?php endif; ?></b><em><?= $tripCount ?> jízd v aktuálním období</em></p></div>
-        <div><span class="insight-icon">◉</span><p><small>COST INSIGHT</small><b><?= cz((float)$operationSummary['cost_per_km'], 2) ?> Kč/km</b><em><?= cz((float)$operationSummary['total_cost'], 0) ?> Kč evidovaných nákladů</em></p></div>
-        <div><span class="insight-icon">↗</span><p><small>USAGE INSIGHT</small><b><?= cz($totalKm, 0) ?> km</b><em><?= cz($driveMin / 60, 1) ?> h za volantem</em></p></div>
     </section>
 
     <?php if ($hasTractionBattery): ?>
-        <section class="ev-intelligence-grid">
-            <article class="card ev-intelligence-card">
-                <div class="ev-intelligence-head"><span><i class="bi bi-battery-charging"></i></span><div><small>BATTERY HEALTH</small><h2>Digitální zdraví baterie</h2></div></div>
-                <?php if (($batteryHealth['soh_pct'] ?? NULL) !== NULL): ?>
-                    <div class="ev-intelligence-value"><strong><?= cz((float)$batteryHealth['soh_pct'], 1) ?>%</strong><span>SoH</span></div>
-                    <div class="ev-intelligence-meter"><i style="width:<?= min(100, max(0, (float)$batteryHealth['soh_pct'])) ?>%"></i></div>
-                    <p>Odhadovaná využitelná kapacita <b><?= ($batteryHealth['usable_capacity_kwh'] ?? NULL) !== NULL ? cz((float)$batteryHealth['usable_capacity_kwh'], 1) . ' kWh' : '—' ?></b> z nominálních <?= ($batteryHealth['nominal_capacity_kwh'] ?? NULL) !== NULL ? cz((float)$batteryHealth['nominal_capacity_kwh'], 1) . ' kWh' : '—' ?>.</p>
-                    <footer><span><?= (int)($batteryHealth['sample_count'] ?? 0) ?> vzorků</span><span>confidence <?= (int)($batteryHealth['confidence_pct'] ?? 0) ?> %</span><?php if (($batteryHealth['trend_pct_per_10000_km'] ?? NULL) !== NULL): ?><span>trend <?= cz((float)$batteryHealth['trend_pct_per_10000_km'], 2) ?> % / 10 000 km</span><?php endif; ?></footer>
-                <?php else: ?>
-                    <div class="ev-intelligence-empty"><b>Potřebuji více jízd se SoC a energií.</b><span>Model se zpřesní automaticky s dalšími daty.</span></div>
-                <?php endif; ?>
-            </article>
-            <article class="card ev-intelligence-card">
-                <div class="ev-intelligence-head"><span><i class="bi bi-signpost-2"></i></span><div><small>EV STATS PREDICTION</small><h2>Reálný dojezd</h2></div></div>
-                <?php if (($rangePrediction['full_range_km'] ?? NULL) !== NULL): ?>
-                    <div class="ev-intelligence-value"><strong><?= cz((float)$rangePrediction['full_range_km'], 0) ?> km</strong><span>na 100 %</span></div>
-                    <p>Model očekává spotřebu <b><?= cz((float)$rangePrediction['expected_consumption_kwh_100'], 1) ?> kWh/100 km</b> podle historie tohoto vozu<?php if (($rangePrediction['soc_pct'] ?? NULL) !== NULL && ($rangePrediction['remaining_range_km'] ?? NULL) !== NULL): ?>. Při <?= cz((float)$rangePrediction['soc_pct'], 0) ?> % zbývá přibližně <b><?= cz((float)$rangePrediction['remaining_range_km'], 0) ?> km</b><?php endif; ?>.</p>
-                    <footer><span><?= (int)($rangePrediction['sample_count'] ?? 0) ?> jízd v modelu</span><span>confidence <?= (int)($rangePrediction['confidence_pct'] ?? 0) ?> %</span><?php if (($rangePrediction['vehicle_reported_range_km'] ?? NULL) !== NULL): ?><span>auto hlásí <?= cz((float)$rangePrediction['vehicle_reported_range_km'], 0) ?> km</span><?php endif; ?></footer>
-                <?php else: ?>
-                    <div class="ev-intelligence-empty"><b>Predikční model se právě učí.</b><span>Pro první odhad potřebuje alespoň několik dokončených jízd s energií.</span></div>
-                <?php endif; ?>
-            </article>
-            <article class="card ev-intelligence-card">
-                <div class="ev-intelligence-head"><span><i class="bi bi-shield-check"></i></span><div><small>DATA QUALITY ENGINE</small><h2>Důvěryhodnost historie</h2></div></div>
-                <div class="ev-intelligence-value"><strong><?= ($qualitySummary['total'] ?? 0) > 0 ? cz((float)($qualitySummary['avg_score'] ?? 0), 0) : '—' ?></strong><span>/ 100</span></div>
-                <div class="quality-summary-row"><span class="quality-dot good"></span><b><?= (int)($qualitySummary['good'] ?? 0) ?></b> spolehlivých <span class="quality-dot warning"></span><b><?= (int)($qualitySummary['warning'] ?? 0) ?></b> k prověření <span class="quality-dot bad"></span><b><?= (int)($qualitySummary['bad'] ?? 0) ?></b> podezřelých</div>
-                <p>GPS skoky, nesmyslná rychlost, výpadky telemetrie, překryvy jízd a chyby tachometru se označují před tím, než ovlivní analytiku.</p>
-                <footer><span><?= (int)($qualitySummary['total'] ?? 0) ?> jízd celkem</span><span><?= (int)($qualitySummary['unknown'] ?? 0) ?> čeká na kontrolu</span></footer>
-            </article>
+        <section class="card ev-intelligence-center">
+            <div class="ev-intelligence-center-head">
+                <div>
+                    <small>EV INTELLIGENCE CENTER</small>
+                    <h2>Battery Health AI & predikce dojezdu</h2>
+                    <p>Jeden model kombinuje energetickou historii, kvalitu dat, rychlost, teplotu a aktuální stav vozu.</p>
+                </div>
+                <span class="ev-intelligence-confidence">model <?= (int)($rangePrediction['confidence_pct'] ?? 0) ?> %</span>
+            </div>
+            <div class="ev-intelligence-primary-grid">
+                <article class="ev-ai-panel battery-ai-panel">
+                    <div class="ev-ai-panel-head">
+                        <span><i class="bi bi-battery-charging"></i></span>
+                        <div><small>BATTERY HEALTH AI</small><h3><?= h((string)($batteryHealth['health_label'] ?? 'Digitální zdraví baterie')) ?></h3></div>
+                    </div>
+                    <?php if (($batteryHealth['soh_pct'] ?? NULL) !== NULL): ?>
+                        <div class="battery-ai-value"><strong><?= cz((float)$batteryHealth['soh_pct'], 1) ?>%</strong><span>SoH</span></div>
+                        <div class="ev-intelligence-meter"><i style="width:<?= min(100, max(0, (float)$batteryHealth['soh_pct'])) ?>%"></i></div>
+                        <div class="battery-capacity-row">
+                            <span><small>VYUŽITELNÁ KAPACITA</small><b><?= ($batteryHealth['usable_capacity_kwh'] ?? NULL) !== NULL ? cz((float)$batteryHealth['usable_capacity_kwh'], 1) . ' kWh' : '—' ?></b></span>
+                            <span><small>NOMINÁLNÍ</small><b><?= ($batteryHealth['nominal_capacity_kwh'] ?? NULL) !== NULL ? cz((float)$batteryHealth['nominal_capacity_kwh'], 1) . ' kWh' : '—' ?></b></span>
+                            <span><small>ODHAD ZTRÁTY</small><b><?= ($batteryHealth['capacity_loss_kwh'] ?? NULL) !== NULL ? cz((float)$batteryHealth['capacity_loss_kwh'], 1) . ' kWh' : '—' ?></b></span>
+                        </div>
+                        <div class="ev-ai-insight">
+                            <i class="bi bi-stars"></i>
+                            <p><b><?= h((string)($batteryHealth['trend_label'] ?? 'trend zatím nelze určit')) ?></b><span><?php if (($batteryHealth['forecast_soh_10000_km'] ?? NULL) !== NULL): ?>Při zachování dosavadního trendu model odhaduje po dalších 10 000 km přibližně <?= cz((float)$batteryHealth['forecast_soh_10000_km'], 1) ?> % SoH.<?php else: ?>Na prognózu degradace je potřeba delší kilometrová historie; současný SoH je stále průběžný odhad.<?php endif; ?></span></p>
+                        </div>
+                        <footer>
+                            <span><?= (int)($batteryHealth['sample_count'] ?? 0) ?> vzorků</span>
+                            <span>confidence <?= (int)($batteryHealth['confidence_pct'] ?? 0) ?> % · <?= h((string)($batteryHealth['confidence_label'] ?? 'orientační')) ?></span>
+                            <?php if ((float)($batteryHealth['sample_mileage_km'] ?? 0) > 0): ?><span>rozsah <?= cz((float)$batteryHealth['sample_mileage_km'], 0) ?> km</span><?php endif; ?>
+                        </footer>
+                    <?php else: ?>
+                        <div class="ev-intelligence-empty"><b>Potřebuji více jízd se SoC a energií.</b><span>Battery Health AI se zpřesní automaticky s dalšími daty.</span></div>
+                    <?php endif; ?>
+                </article>
+
+                <article class="ev-ai-panel range-ai-panel">
+                    <div class="ev-ai-panel-head">
+                        <span><i class="bi bi-signpost-2"></i></span>
+                        <div><small>EV STATS PREDICTION</small><h3>Reálný dojezd podle vašeho auta</h3></div>
+                    </div>
+                    <?php if (($rangePrediction['full_range_km'] ?? NULL) !== NULL): ?>
+                        <div class="range-ai-hero">
+                            <?php if (($rangePrediction['remaining_range_km'] ?? NULL) !== NULL): ?>
+                                <div><small>TEĎ PŘI <?= cz((float)($rangePrediction['soc_pct'] ?? 0), 0) ?> %</small><strong><?= cz((float)$rangePrediction['remaining_range_km'], 0) ?> km</strong></div>
+                                <span>typicky</span>
+                            <?php else: ?>
+                                <div><small>NA 100 %</small><strong><?= cz((float)$rangePrediction['full_range_km'], 0) ?> km</strong></div>
+                                <span>typicky</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="range-ai-band">
+                            <span><small>KONZERVATIVNĚ</small><b><?= cz((float)(($rangePrediction['conservative_remaining_range_km'] ?? $rangePrediction['conservative_full_range_km'])), 0) ?> km</b></span>
+                            <i aria-hidden="true"></i>
+                            <span><small>OPTIMISTICKY</small><b><?= cz((float)(($rangePrediction['optimistic_remaining_range_km'] ?? $rangePrediction['optimistic_full_range_km'])), 0) ?> km</b></span>
+                        </div>
+                        <p class="range-ai-explanation">Model nyní počítá s <b><?= cz((float)$rangePrediction['expected_consumption_kwh_100'], 1) ?> kWh/100 km</b><?php if (($rangePrediction['temperature_c'] ?? NULL) !== NULL): ?> při <?= cz((float)$rangePrediction['temperature_c'], 1) ?> °C<?php endif; ?>. Interval vychází z rozptylu vašich reálných jízd.</p>
+                        <?php $rangeScenarios = is_array($rangePrediction['scenarios'] ?? NULL) ? $rangePrediction['scenarios'] : []; ?>
+                        <div class="range-scenarios">
+                            <?php foreach ([['city', 'Město', 'bi-buildings'], ['mixed', 'Okresky', 'bi-signpost-split'], ['highway', 'Dálnice', 'bi-speedometer2']] as $scenario): ?>
+                                <?php $scenarioData = is_array($rangeScenarios[$scenario[0]] ?? NULL) ? $rangeScenarios[$scenario[0]] : []; ?>
+                                <div><i class="bi <?= h($scenario[2]) ?>"></i><span><small><?= h($scenario[1]) ?></small><b><?= ($scenarioData['range_km'] ?? NULL) !== NULL ? cz((float)$scenarioData['range_km'], 0) . ' km' : 'učím se' ?></b></span></div>
+                            <?php endforeach; ?>
+                        </div>
+                        <footer>
+                            <span><?= (int)($rangePrediction['sample_count'] ?? 0) ?> jízd v modelu</span>
+                            <span>confidence <?= (int)($rangePrediction['confidence_pct'] ?? 0) ?> % · <?= h((string)($rangePrediction['confidence_label'] ?? 'orientační')) ?></span>
+                            <?php if (($rangePrediction['vehicle_reported_range_km'] ?? NULL) !== NULL): ?><span>auto <?= cz((float)$rangePrediction['vehicle_reported_range_km'], 0) ?> km<?php if (($rangePrediction['vehicle_delta_pct'] ?? NULL) !== NULL): ?> · EV Stats <?= $rangePrediction['vehicle_delta_pct'] > 0 ? '+' : '' ?><?= cz((float)$rangePrediction['vehicle_delta_pct'], 1) ?> %<?php endif; ?></span><?php endif; ?>
+                        </footer>
+                    <?php else: ?>
+                        <div class="ev-intelligence-empty"><b>Predikční model se právě učí.</b><span>Pro první odhad potřebuje alespoň několik dokončených jízd s energií.</span></div>
+                    <?php endif; ?>
+                </article>
+            </div>
+            <div class="ev-quality-compact">
+                <div><span class="ev-quality-icon"><i class="bi bi-shield-check"></i></span><p><small>DATA QUALITY ENGINE</small><b><?= ($qualitySummary['total'] ?? 0) > 0 ? cz((float)($qualitySummary['avg_score'] ?? 0), 0) . ' / 100' : 'čeká na data' ?></b></p></div>
+                <div class="quality-summary-row"><span class="quality-dot good"></span><b><?= (int)($qualitySummary['good'] ?? 0) ?></b> OK <span class="quality-dot warning"></span><b><?= (int)($qualitySummary['warning'] ?? 0) ?></b> prověřit <span class="quality-dot bad"></span><b><?= (int)($qualitySummary['bad'] ?? 0) ?></b> podezřelé</div>
+                <span><?= (int)($qualitySummary['total'] ?? 0) ?> jízd · <?= (int)($qualitySummary['review_count'] ?? 0) ?> vyžaduje pozornost</span>
+            </div>
         </section>
     <?php endif; ?>
 
@@ -1462,8 +1523,21 @@ foreach ($historyTrips as $tripRow) {
         text('current_speed_kmh', number(drive.current_speed_kmh, 0));
         text('distance_km', number(drive.distance_km, 1));
         text('avg_consumption_kwh_100', number(drive.avg_consumption_kwh_100, 1));
+        text('expected_consumption_kwh_100', number(drive.expected_consumption_kwh_100, 1));
+        text('consumption_delta_pct', drive.consumption_delta_pct == null
+            ? '—'
+            : `${Number(drive.consumption_delta_pct) > 0 ? '+' : ''}${number(drive.consumption_delta_pct, 1)} %`);
+        text('efficiency_score', drive.efficiency_score == null ? '—' : String(drive.efficiency_score));
+        text('efficiency_label', drive.efficiency_label || 'Model se učí');
         text('current_soc', number(drive.current_soc, 0));
+        text('soc_used_pct', number(drive.soc_used_pct, 1));
         text('predicted_remaining_range_km', number(drive.predicted_remaining_range_km, 0));
+        text('conservative_remaining_range_km', drive.conservative_remaining_range_km == null
+            ? '—'
+            : `${number(drive.conservative_remaining_range_km, 0)} km`);
+        text('optimistic_remaining_range_km', drive.optimistic_remaining_range_km == null
+            ? '—'
+            : `${number(drive.optimistic_remaining_range_km, 0)} km`);
         text('quality_score', drive.quality_score == null ? '—' : String(drive.quality_score));
         text('elapsed_minutes', String(drive.elapsed_minutes || 0));
         text('prediction_confidence_pct', String(drive.prediction_confidence_pct || 0));

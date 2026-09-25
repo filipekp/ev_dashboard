@@ -1719,3 +1719,13 @@ U jízd odvozených z OEM telemetrie se raw telemetry snapshoty nemažou, proto�
 Dokumenty v `storage/documents` a fotografie v `storage/vehicle-media` se při smazání odstraňují také fyzicky z disku. Soubor se nejprve atomicky přejmenuje na dočasné jméno; pokud databázová operace selže, vrátí se zpět. Po úspěšném DB commitu se fyzický soubor definitivně odstraní. Při smazání hlavní fotografie se automaticky zvolí nová hlavní fotografie z těch zbývajících.
 
 Při smazání potvrzeného dokladu se současně odstraní provozní položky vytvořené výhradně tímto dokladem. Pokud doklad pouze doplnil cenu k existující telemetry nabíjecí relaci, telemetry záznam zůstane zachovaný a odstraní se pouze vazba/cena pocházející z dokumentu. Servisní záznam s vlastními přílohami je záměrně chráněn a smazání zdrojového dokladu se v takovém případě zastaví, aby nevznikla ztráta dalších souborů.
+
+## EV Intelligence Center, Live Trip Intelligence a Battery Health AI (v5.9)
+
+Dashboard v5.9 slučuje redundantní EV widgety do jednoho **EV Intelligence Center**. Samostatné KPI pro SoH a dojezd a duplicitní Efficiency/Usage strip byly odstraněny; horní přehled nově používá čtyři kompaktní souhrny: jízdy a nájezd, energetická efektivita, čas a tempo a nabíjení. Pokud právě běží telemetry jízda, Connected Car panel už neopakuje SoC a dojezd, protože tyto hodnoty zobrazuje Live Trip Intelligence.
+
+**Live Trip Intelligence** porovnává průběžnou spotřebu aktivní jízdy s vlastním modelem vozidla, ukazuje rozdíl proti očekávání, živé efficiency score, spotřebované SoC, interval zbývajícího dojezdu a confidence predikce. Endpoint `live-drive.php` nadále čte pouze data již uložená v databázi a nevytváří další OEM requesty.
+
+**Battery Health AI** kromě SoH ukazuje využitelnou a nominální kapacitu, odhad ztracené kapacity, kvalitu odhadu, počet a kilometrový rozsah vzorků a trend. Prognóza budoucího SoH se zobrazuje pouze při dostatečně dlouhé historii a záporném trendu; kladný trend se nepovažuje za skutečné zlepšení baterie, protože u energetické heuristiky typicky znamená šum modelu.
+
+**EV Stats Prediction** nově vrací typický, konzervativní a optimistický dojezd podle rozptylu reálné spotřeby, scénáře Město / Okresky / Dálnice podle historie konkrétního vozu, srovnání s dojezdem hlášeným vozidlem a confidence upravenou podle variability dat. v5.9 nevyžaduje novou databázovou migraci; používá sloupce zavedené migrací v28.

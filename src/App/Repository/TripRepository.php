@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Service\VehicleDataQualityService;
+use App\Service\VehicleTripIntelligenceService;
 use PDO;
 use RuntimeException;
 
@@ -19,6 +21,12 @@ final class TripRepository
     /** @var PDO */
     private $pdo;
 
+    /** @var VehicleDataQualityService */
+    private $dataQuality;
+
+    /** @var VehicleTripIntelligenceService */
+    private $tripIntelligence;
+
     /** @var string[] */
     private $columns = [
         'trip_hash',
@@ -28,6 +36,21 @@ final class TripRepository
         'telemetry_start_snapshot_id',
         'telemetry_last_snapshot_id',
         'telemetry_last_movement_at',
+        'quality_score',
+        'quality_status',
+        'quality_issues_json',
+        'quality_checked_at',
+        'telemetry_point_count',
+        'telemetry_bad_point_count',
+        'telemetry_gap_minutes',
+        'max_speed_kmh',
+        'avg_outside_temperature_c',
+        'avg_battery_temperature_c',
+        'expected_consumption_kwh_100',
+        'consumption_delta_pct',
+        'efficiency_score',
+        'prediction_confidence_pct',
+        'trip_intelligence_json',
         'started_at',
         'ended_at',
         'classification',
@@ -66,6 +89,8 @@ final class TripRepository
     public function __construct(PDO $pdo)
     {
         $this->pdo = $pdo;
+        $this->dataQuality = new VehicleDataQualityService();
+        $this->tripIntelligence = new VehicleTripIntelligenceService($pdo);
     }
 
     /** @param array<string,mixed> $trip */
@@ -81,6 +106,7 @@ final class TripRepository
         }
         if ($existing !== null) {
             $this->mergeDuplicate($vehicleId, $existing, $trip);
+            $this->refreshDerivedMetrics($vehicleId, (int)$existing['id']);
             return false;
         }
 
@@ -92,6 +118,7 @@ final class TripRepository
         $statement->execute($this->valuesForTrip($vehicleId, $trip));
 
         if ($statement->rowCount() > 0) {
+            $this->refreshDerivedMetrics($vehicleId, (int)$this->pdo->lastInsertId());
             return true;
         }
 
@@ -99,6 +126,7 @@ final class TripRepository
         $existing = $this->findByCanonicalKey($vehicleId, (string)$trip['canonical_key']);
         if ($existing !== null) {
             $this->mergeDuplicate($vehicleId, $existing, $trip);
+            $this->refreshDerivedMetrics($vehicleId, (int)$existing['id']);
         }
 
         return false;
@@ -139,7 +167,10 @@ final class TripRepository
         $statement = $this->pdo->prepare($sql);
         $statement->execute($this->valuesForTrip($vehicleId, $trip));
 
-        return (int)$this->pdo->lastInsertId();
+        $tripId = (int)$this->pdo->lastInsertId();
+        $this->refreshDerivedMetrics($vehicleId, $tripId);
+
+        return $tripId;
     }
 
     /** @param array<string,mixed> $trip */
@@ -157,6 +188,21 @@ final class TripRepository
                     'telemetry_last_snapshot_id',
                     'telemetry_last_movement_at',
                     'source_format',
+                    'quality_score',
+                    'quality_status',
+                    'quality_issues_json',
+                    'quality_checked_at',
+                    'telemetry_point_count',
+                    'telemetry_bad_point_count',
+                    'telemetry_gap_minutes',
+                    'max_speed_kmh',
+                    'avg_outside_temperature_c',
+                    'avg_battery_temperature_c',
+                    'expected_consumption_kwh_100',
+                    'consumption_delta_pct',
+                    'efficiency_score',
+                    'prediction_confidence_pct',
+                    'trip_intelligence_json',
                 ], true);
             }
         ));
@@ -178,6 +224,8 @@ final class TripRepository
         if ($statement->rowCount() === 0 && !$this->findByIdForVehicle($vehicleId, $tripId)) {
             throw new RuntimeException('Jízda nebyla nalezena.');
         }
+
+        $this->refreshDerivedMetrics($vehicleId, $tripId);
     }
 
     /** @return array<string,mixed>|null */
@@ -268,7 +316,10 @@ final class TripRepository
         $statement = $this->pdo->prepare($sql);
         $statement->execute($this->valuesForTrip($vehicleId, $trip));
 
-        return ['id' => (int)$this->pdo->lastInsertId(), 'created' => true, 'completed' => false];
+        $tripId = (int)$this->pdo->lastInsertId();
+        $this->refreshDerivedMetrics($vehicleId, $tripId);
+
+        return ['id' => $tripId, 'created' => true, 'completed' => false];
     }
 
     /** @param array<string,mixed> $trip */
@@ -279,6 +330,7 @@ final class TripRepository
             "UPDATE trips SET trip_state='active',canonical_key=NULL WHERE id=? AND vehicle_id=?"
         );
         $statement->execute([$tripId, $vehicleId]);
+        $this->refreshDerivedMetrics($vehicleId, $tripId);
     }
 
     /**
@@ -320,6 +372,7 @@ final class TripRepository
                 if (!$this->isTelemetrySource($duplicateSource)) {
                     $this->mergeDuplicate($vehicleId, $duplicate, $candidate);
                     $this->deleteById($vehicleId, $tripId);
+                    $this->refreshDerivedMetrics($vehicleId, (int)$duplicate['id']);
                     if ($ownsTransaction) {
                         $this->pdo->commit();
                     }
@@ -341,6 +394,8 @@ final class TripRepository
                 $tripId,
                 $vehicleId,
             ]);
+
+            $this->refreshDerivedMetrics($vehicleId, $tripId);
 
             if ($ownsTransaction) {
                 $this->pdo->commit();
@@ -387,6 +442,12 @@ final class TripRepository
             'telemetry_start_snapshot_id',
             'telemetry_last_snapshot_id',
             'telemetry_last_movement_at',
+            'telemetry_point_count',
+            'telemetry_bad_point_count',
+            'telemetry_gap_minutes',
+            'max_speed_kmh',
+            'avg_outside_temperature_c',
+            'avg_battery_temperature_c',
         ];
 
         $set = [];
@@ -408,6 +469,86 @@ final class TripRepository
             'UPDATE trips SET ' . implode(',', $set) . ' WHERE id=? AND vehicle_id=?'
         );
         $statement->execute($values);
+    }
+
+    /**
+     * Doplní Data Quality a Trip Intelligence i ke starším/importovaným jízdám.
+     *
+     * @return int Počet přepočítaných jízd.
+     */
+    public function backfillDerivedMetrics(int $limit = 5000): int
+    {
+        $limit = max(1, min(20000, $limit));
+        $query = $this->pdo->query(
+            "SELECT id,vehicle_id FROM trips
+             WHERE quality_checked_at IS NULL OR quality_status='unknown'
+             ORDER BY started_at DESC,id DESC LIMIT " . $limit
+        );
+
+        $count = 0;
+        foreach ($query->fetchAll() as $row) {
+            $this->refreshDerivedMetrics((int)$row['vehicle_id'], (int)$row['id']);
+            $count++;
+        }
+
+        return $count;
+    }
+
+    private function refreshDerivedMetrics(int $vehicleId, int $tripId): void
+    {
+        $trip = $this->findByIdForVehicle($vehicleId, $tripId);
+        if ($trip === null) {
+            return;
+        }
+
+        $overlapCount = 0;
+        $startedAt = trim((string)($trip['started_at'] ?? ''));
+        $endedAt = trim((string)($trip['ended_at'] ?? ''));
+        if ($startedAt !== '' && $endedAt !== '') {
+            $overlap = $this->pdo->prepare(
+                'SELECT COUNT(*) FROM trips '
+                . 'WHERE vehicle_id=? AND id<>? AND started_at<? AND ended_at>?'
+            );
+            $overlap->execute([$vehicleId, $tripId, $endedAt, $startedAt]);
+            $overlapCount = (int)$overlap->fetchColumn();
+        }
+
+        $assessment = $this->dataQuality->assessTrip($trip, [
+            'overlap_count' => $overlapCount,
+            'telemetry_point_count' => $trip['telemetry_point_count'] ?? null,
+            'telemetry_bad_point_count' => $trip['telemetry_bad_point_count'] ?? null,
+            'telemetry_gap_minutes' => $trip['telemetry_gap_minutes'] ?? null,
+            'max_speed_kmh' => $trip['max_speed_kmh'] ?? null,
+        ]);
+
+        $quality = $this->pdo->prepare(
+            'UPDATE trips SET quality_score=?,quality_status=?,quality_issues_json=?,quality_checked_at=NOW() '
+            . 'WHERE id=? AND vehicle_id=?'
+        );
+        $quality->execute([
+            (int)$assessment['score'],
+            (string)$assessment['status'],
+            $this->dataQuality->issuesJson($assessment),
+            $tripId,
+            $vehicleId,
+        ]);
+
+        $trip['quality_score'] = (int)$assessment['score'];
+        $trip['quality_status'] = (string)$assessment['status'];
+        $intelligence = $this->tripIntelligence->analyze($vehicleId, $trip);
+        $update = $this->pdo->prepare(
+            'UPDATE trips SET expected_consumption_kwh_100=?,consumption_delta_pct=?,efficiency_score=?, '
+            . 'prediction_confidence_pct=?,trip_intelligence_json=? WHERE id=? AND vehicle_id=?'
+        );
+        $update->execute([
+            $intelligence['expected_consumption_kwh_100'],
+            $intelligence['consumption_delta_pct'],
+            $intelligence['efficiency_score'],
+            $intelligence['prediction_confidence_pct'],
+            $intelligence['trip_intelligence_json'],
+            $tripId,
+            $vehicleId,
+        ]);
     }
 
     private function deleteById(int $vehicleId, int $tripId): void
@@ -628,6 +769,10 @@ final class TripRepository
         foreach ($this->columns as $column) {
             if ($column === 'trip_state') {
                 $values[] = $trip[$column] ?? 'completed';
+                continue;
+            }
+            if ($column === 'quality_status') {
+                $values[] = $trip[$column] ?? 'unknown';
                 continue;
             }
             $values[] = $trip[$column] ?? null;

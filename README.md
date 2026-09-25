@@ -1701,3 +1701,11 @@ Migrace vytvoří frontu `vehicle_trip_rebuild_queue` pro konektory s odometrovo
 - `migrate_v27.sql` znovu zařadí všechny OEM konektory s odometrovou telemetrií do rebuild fronty, aby odstranil chybné jízdy vytvořené v26;
 - `/cron/sync-vehicles.php` před synchronizací automaticky aplikuje čekající databázové migrace. Hosting bez CLI tedy po nasazení opraví schéma i rebuild frontu při nejbližším chráněném CRON volání;
 - administrátorská stránka Aktualizace po ručním spuštění migrací nebo GitHub update rovnou zpracuje i frontu oprav telemetry jízd.
+
+## Data Quality Engine, Live Drive a EV Intelligence (v5.8)
+
+Migrace `migrate_v28.sql` přidává metadata kvality telemetrie a jízd. Nové OEM snapshoty se při synchronizaci hodnotí ještě před projekcí do jízd; fyzikálně nevěrohodné intervaly (skok tachometru/GPS, nereálná rychlost, neplatné SoC apod.) zůstávají uložené pro audit, ale nevytvářejí ani neprodlužují jízdu. Každá jízda dostává `quality_score`, stav a vysvětlení nalezených problémů. Jízdy se stavem `bad` se nezapočítávají do hlavních statistik dashboardu, v historii ale zůstávají viditelné.
+
+Součástí v5.8 je také první verze Trip Intelligence, Battery Health a EV Stats Prediction. Trip Intelligence porovnává spotřebu s historicky podobnými jízdami stejného vozu, Battery Health robustně odhaduje využitelnou kapacitu z jízd s dostatečným poklesem SoC a Prediction vytváří vlastní odhad reálného dojezdu z historie, teploty, rychlosti, kvality dat a aktuální jízdy. `live-drive.php` poskytuje lehký JSON endpoint nad již uloženou telemetrií; dashboard jej polluje po 30 sekundách bez dalších OEM API requestů.
+
+Na hostingu bez CLI stačí po nahrání souborů otevřít administraci **Aktualizace** a spustit databázové migrace. Webová migrace aplikuje v28, znovu sestaví telemetry jízdy z uložených snapshotů a přepočítá Data Quality / Trip Intelligence pro historické jízdy. CLI varianta `php bin/migrate.php` provede stejný postup.

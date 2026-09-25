@@ -89,6 +89,11 @@ function repairTelemetryTripQueue(PDO $pdo): array
     return ['repaired' => $repaired, 'failed' => $failed];
 }
 
+function backfillTripIntelligence(PDO $pdo): int
+{
+    return (new TripRepository($pdo))->backfillDerivedMetrics(5000);
+}
+
 function printHelp(): void
 {
     out('EV Stats - databázové migrace');
@@ -214,6 +219,7 @@ try {
 
     if ($pending === []) {
         $repair = repairTelemetryTripQueue($pdo);
+        $qualityBackfill = backfillTripIntelligence($pdo);
         out();
         out('Databáze je aktuální. Není co migrovat.');
         if ($repair['repaired'] > 0 || $repair['failed'] > 0) {
@@ -221,6 +227,9 @@ try {
             if ($repair['failed'] > 0) {
                 out('Neopravené konektory: ' . $repair['failed'] . ' (další CRON je zkusí znovu)');
             }
+        }
+        if ($qualityBackfill > 0) {
+            out('Data Quality / Trip Intelligence: přepočítáno ' . $qualityBackfill . ' jízd.');
         }
         exit(0);
     }
@@ -247,6 +256,11 @@ try {
         if ($repair['failed'] > 0) {
             out('  Neopravené konektory: ' . $repair['failed'] . ' (další CRON je zkusí znovu)');
         }
+    }
+
+    $qualityBackfill = backfillTripIntelligence($pdo);
+    if ($qualityBackfill > 0) {
+        out('  Data Quality / Trip Intelligence: přepočítáno ' . $qualityBackfill . ' jízd.');
     }
 
     out();

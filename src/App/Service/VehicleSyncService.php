@@ -42,6 +42,9 @@ final class VehicleSyncService
     /** @var VehicleTelemetryDerivedDataService */
     private $derivedData;
 
+    /** @var VehicleDataQualityService */
+    private $dataQuality;
+
     public function __construct(
         PDO $pdo,
         VehicleDataRepository $repository,
@@ -53,6 +56,7 @@ final class VehicleSyncService
         $this->connectors = $connectors;
         $this->cipher = $cipher;
         $this->projector = new VehicleTelemetryEventProjector();
+        $this->dataQuality = new VehicleDataQualityService();
         $this->derivedData = new VehicleTelemetryDerivedDataService(
             $pdo,
             $repository,
@@ -148,6 +152,7 @@ final class VehicleSyncService
             }
 
             $previous = $this->repository->latestTelemetry($connectionId);
+            $normalized['quality'] = $this->dataQuality->assessTelemetry($previous, $normalized);
             $this->repository->updateConnectionMetadata($connectionId, $metadata);
             $inserted = $this->repository->insertTelemetry($vehicleId, $connectionId, $provider, $normalized);
             if ($inserted) {

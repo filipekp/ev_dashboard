@@ -45,6 +45,7 @@ final class UpdateController
                 if ($action === 'migrate') {
                     $applied = $migrations->migrate();
                     $repair = $this->app->vehicleSync()->repairQueuedTelemetryTrips(500);
+                    $qualityBackfill = $this->app->trips()->backfillDerivedMetrics(5000);
                     $message = $applied
                         ? 'Migrace dokončeny: ' . implode(', ', $applied) . '.'
                         : 'Databáze je aktuální.';
@@ -52,10 +53,14 @@ final class UpdateController
                         $message .= ' Oprava telemetry jízd: ' . (int)$repair['repaired']
                             . ' konektorů, chyby: ' . (int)$repair['failed'] . '.';
                     }
+                    if ($qualityBackfill > 0) {
+                        $message .= ' Data Quality / Trip Intelligence: přepočítáno ' . $qualityBackfill . ' jízd.';
+                    }
                 } elseif ($action === 'update') {
                     $result = $updater->update();
                     $applied = $result['migrations'] ?? [];
                     $repair = $this->app->vehicleSync()->repairQueuedTelemetryTrips(500);
+                    $qualityBackfill = $this->app->trips()->backfillDerivedMetrics(5000);
                     $message = 'Aktualizace z GitHubu na verzi '
                         . (string)($result['version'] ?? '')
                         . ' byla dokončena.'
@@ -65,6 +70,9 @@ final class UpdateController
                     if ((int)$repair['repaired'] > 0 || (int)$repair['failed'] > 0) {
                         $message .= ' Oprava telemetry jízd: ' . (int)$repair['repaired']
                             . ' konektorů, chyby: ' . (int)$repair['failed'] . '.';
+                    }
+                    if ($qualityBackfill > 0) {
+                        $message .= ' Data Quality / Trip Intelligence: přepočítáno ' . $qualityBackfill . ' jízd.';
                     }
 
                     // Po úspěšném update čteme metadata znovu, aby stránka ihned ukázala nový stav.

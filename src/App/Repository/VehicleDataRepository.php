@@ -383,8 +383,8 @@ final class VehicleDataRepository
                 air_conditioning_without_external_power,air_conditioning_at_unlock,window_heating_front,window_heating_rear,
                 windshield_defrost_state,steering_wheel_heat_state,outside_temperature_c,auxiliary_heating_state,
                 auxiliary_heating_start_mode,auxiliary_heating_duration_seconds,auxiliary_heating_target_c,
-                active_ventilation_state,active_ventilation_duration_seconds,raw_json
-             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+                active_ventilation_state,active_ventilation_duration_seconds,quality_score,quality_status,quality_flags_json,raw_json
+             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
         );
         $q->execute([
             $vehicleId,
@@ -441,6 +441,15 @@ final class VehicleDataRepository
             isset($telemetry['active_ventilation_duration_seconds']) && is_numeric($telemetry['active_ventilation_duration_seconds'])
                 ? max(0, (int)$telemetry['active_ventilation_duration_seconds'])
                 : null,
+            isset($normalized['quality']['score']) && is_numeric($normalized['quality']['score'])
+                ? max(0, min(100, (int)$normalized['quality']['score']))
+                : null,
+            isset($normalized['quality']['status']) && in_array((string)$normalized['quality']['status'], ['unknown', 'good', 'warning', 'bad'], true)
+                ? (string)$normalized['quality']['status']
+                : 'unknown',
+            isset($normalized['quality']['issues'])
+                ? (json_encode($normalized['quality']['issues'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]')
+                : null,
             $raw !== false ? $raw : null,
         ]);
 
@@ -448,16 +457,56 @@ final class VehicleDataRepository
         if (!$inserted) {
             // Identický OEM stav se kvůli fingerprintu znovu neukládá. Posouváme
             // ale last_seen_at, abychom věděli, do kdy byl stejný odometr skutečně
-            // potvrzen. To je zásadní pro korektní oddělení jízd po delším stání.
+            // potvrzen. Současně doplníme nové quality metadata i historickému
+            // snapshotu, který vznikl ještě před zavedením Data Quality Enginu.
             $seen = $this->pdo->prepare(
                 'UPDATE vehicle_telemetry_snapshots
-                 SET last_seen_at=NOW()
+                 SET last_seen_at=NOW(),quality_score=?,quality_status=?,quality_flags_json=?
                  WHERE connection_id=? AND fingerprint=?'
             );
-            $seen->execute([$connectionId, $fingerprint]);
+            $qualityJson = isset($normalized['quality']['issues'])
+                ? (json_encode($normalized['quality']['issues'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]')
+                : null;
+            $seen->execute([
+                isset($normalized['quality']['score']) && is_numeric($normalized['quality']['score'])
+                    ? max(0, min(100, (int)$normalized['quality']['score']))
+                    : null,
+                isset($normalized['quality']['status']) && in_array((string)$normalized['quality']['status'], ['unknown', 'good', 'warning', 'bad'], true)
+                    ? (string)$normalized['quality']['status']
+                    : 'unknown',
+                $qualityJson,
+                $connectionId,
+                $fingerprint,
+            ]);
         }
 
         return $inserted;
+    }
+
+    /** @param array<string,mixed> $assessment */
+    public function updateTelemetryQuality(int $snapshotId, array $assessment): void
+    {
+        if ($snapshotId <= 0) {
+            return;
+        }
+        $issues = json_encode(
+            $assessment['issues'] ?? [],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        );
+        $query = $this->pdo->prepare(
+            'UPDATE vehicle_telemetry_snapshots '
+            . 'SET quality_score=?,quality_status=?,quality_flags_json=? WHERE id=?'
+        );
+        $query->execute([
+            isset($assessment['score']) && is_numeric($assessment['score'])
+                ? max(0, min(100, (int)$assessment['score']))
+                : null,
+            isset($assessment['status']) && in_array((string)$assessment['status'], ['unknown', 'good', 'warning', 'bad'], true)
+                ? (string)$assessment['status']
+                : 'unknown',
+            $issues !== false ? $issues : '[]',
+            $snapshotId,
+        ]);
     }
 
     /** @param array<string,mixed> $data */

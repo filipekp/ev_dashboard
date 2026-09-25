@@ -35,6 +35,9 @@ final class VehicleTelemetryDerivedDataService
     /** @var VehicleOperationRepository */
     private $operations;
 
+    /** @var VehicleDataQualityService */
+    private $dataQuality;
+
     public function __construct(
         PDO $pdo,
         VehicleDataRepository $telemetry,
@@ -45,6 +48,7 @@ final class VehicleTelemetryDerivedDataService
         $this->telemetry = $telemetry;
         $this->trips = $trips;
         $this->operations = $operations;
+        $this->dataQuality = new VehicleDataQualityService();
     }
 
     /** @return array{trips:int,charges:int,events:int} */
@@ -270,15 +274,38 @@ final class VehicleTelemetryDerivedDataService
      * @param array<int,array<string,mixed>> $snapshots
      * @return array<int,array<string,mixed>>
      */
-    private function movementSegments(array $snapshots): array
+    private function movementSegments(array &$snapshots): array
     {
         $movements = [];
+        if ($snapshots !== [] && (string)($snapshots[0]['quality_status'] ?? 'unknown') === 'unknown') {
+            $firstQuality = $this->dataQuality->assessTelemetry(null, $snapshots[0]);
+            $this->telemetry->updateTelemetryQuality((int)($snapshots[0]['id'] ?? 0), $firstQuality);
+            $snapshots[0]['quality_score'] = (int)$firstQuality['score'];
+            $snapshots[0]['quality_status'] = (string)$firstQuality['status'];
+        }
         for ($i = 1, $count = count($snapshots); $i < $count; $i++) {
+            // Quality hodnotíme pro každý navazující snapshot, nejen při
+            // pohybu. Tím při v28 backfillu označíme i odometrové regrese,
+            // GPS skoky nebo chybné SoC ve stojícím vozidle.
+            $quality = $this->dataQuality->assessTelemetry($snapshots[$i - 1], $snapshots[$i]);
+            if ((string)($snapshots[$i]['quality_status'] ?? 'unknown') === 'unknown') {
+                $this->telemetry->updateTelemetryQuality((int)($snapshots[$i]['id'] ?? 0), $quality);
+                $snapshots[$i]['quality_score'] = (int)$quality['score'];
+                $snapshots[$i]['quality_status'] = (string)$quality['status'];
+            }
+
             $olderOdo = $this->number($snapshots[$i - 1]['odometer_km'] ?? null);
             $newerOdo = $this->number($snapshots[$i]['odometer_km'] ?? null);
             if ($olderOdo === null || $newerOdo === null || $newerOdo - $olderOdo <= self::MOVEMENT_THRESHOLD_KM) {
                 continue;
             }
+
+            // Raw bod ponecháváme v databázi, ale pohyb přes snapshot označený
+            // Data Quality Enginem jako bad nesmí založit ani prodloužit jízdu.
+            if ((string)$quality['status'] === 'bad') {
+                continue;
+            }
+
             $movements[] = [
                 'older_index' => $i - 1,
                 'newer_index' => $i,
@@ -400,6 +427,49 @@ final class VehicleTelemetryDerivedDataService
             }
         }
 
+        $telemetryPointCount = max(1, $lastMovementSnapshotIndex - $originIndex + 1);
+        $telemetryBadPointCount = 0;
+        $telemetryGapMinutes = 0.0;
+        $maxSpeed = null;
+        $outsideTemperatureSum = 0.0;
+        $outsideTemperatureCount = 0;
+        $batteryTemperatureSum = 0.0;
+        $batteryTemperatureCount = 0;
+        for ($i = $originIndex; $i <= $lastMovementSnapshotIndex; $i++) {
+            $snapshot = $snapshots[$i];
+            $persistedStatus = (string)($snapshot['quality_status'] ?? 'unknown');
+            if ($persistedStatus === 'bad') {
+                $telemetryBadPointCount++;
+            } elseif ($i > $originIndex && $persistedStatus === 'unknown') {
+                $pairQuality = $this->dataQuality->assessTelemetry($snapshots[$i - 1], $snapshot);
+                if ((string)$pairQuality['status'] === 'bad') {
+                    $telemetryBadPointCount++;
+                }
+            }
+
+            if ($i > $originIndex) {
+                $gapSeconds = $this->receivedTimestamp($snapshot) - $this->receivedTimestamp($snapshots[$i - 1]);
+                if ($gapSeconds > 0) {
+                    $telemetryGapMinutes = max($telemetryGapMinutes, $gapSeconds / 60);
+                }
+            }
+
+            $snapshotSpeed = $this->number($snapshot['vehicle_speed_kmh'] ?? null);
+            if ($snapshotSpeed !== null && $snapshotSpeed >= 0) {
+                $maxSpeed = $maxSpeed === null ? $snapshotSpeed : max($maxSpeed, $snapshotSpeed);
+            }
+            $outsideTemperature = $this->number($snapshot['outside_temperature_c'] ?? null);
+            if ($outsideTemperature !== null && $outsideTemperature >= -70 && $outsideTemperature <= 70) {
+                $outsideTemperatureSum += $outsideTemperature;
+                $outsideTemperatureCount++;
+            }
+            $batteryTemperature = $this->number($snapshot['battery_temperature_c'] ?? null);
+            if ($batteryTemperature !== null && $batteryTemperature >= -60 && $batteryTemperature <= 100) {
+                $batteryTemperatureSum += $batteryTemperature;
+                $batteryTemperatureCount++;
+            }
+        }
+
         return [
             // Hash živé jízdy je stabilní od prvního přírůstku a nemění se s
             // každým dalším snapshotem. canonical_key se doplní až při uzavření.
@@ -415,6 +485,16 @@ final class VehicleTelemetryDerivedDataService
             'telemetry_start_snapshot_id' => (int)($snapshots[$firstMovementSnapshotIndex]['id'] ?? 0),
             'telemetry_last_snapshot_id' => (int)($lastMovementSnapshot['id'] ?? 0),
             'telemetry_last_movement_at' => date('Y-m-d H:i:s', (int)$lastMovement['received_at']),
+            'telemetry_point_count' => $telemetryPointCount,
+            'telemetry_bad_point_count' => $telemetryBadPointCount,
+            'telemetry_gap_minutes' => round($telemetryGapMinutes, 1),
+            'max_speed_kmh' => $maxSpeed !== null ? round($maxSpeed, 2) : null,
+            'avg_outside_temperature_c' => $outsideTemperatureCount > 0
+                ? round($outsideTemperatureSum / $outsideTemperatureCount, 2)
+                : null,
+            'avg_battery_temperature_c' => $batteryTemperatureCount > 0
+                ? round($batteryTemperatureSum / $batteryTemperatureCount, 2)
+                : null,
             'started_at' => $startAt,
             'ended_at' => $endAt,
             'classification' => null,
@@ -474,6 +554,32 @@ final class VehicleTelemetryDerivedDataService
                 $trip[$column] = $active[$column];
             }
         }
+        $activePoints = max(0, (int)($active['telemetry_point_count'] ?? 0));
+        $newPoints = max(0, (int)($trip['telemetry_point_count'] ?? 0));
+        if ($activePoints > 0 || $newPoints > 0) {
+            $trip['telemetry_point_count'] = max(1, $activePoints + $newPoints - ($activePoints > 0 && $newPoints > 0 ? 1 : 0));
+        }
+        $trip['telemetry_bad_point_count'] = max(0, (int)($active['telemetry_bad_point_count'] ?? 0))
+            + max(0, (int)($trip['telemetry_bad_point_count'] ?? 0));
+        $trip['telemetry_gap_minutes'] = max(
+            (float)($active['telemetry_gap_minutes'] ?? 0),
+            (float)($trip['telemetry_gap_minutes'] ?? 0)
+        );
+        $activeMaxSpeed = $this->number($active['max_speed_kmh'] ?? null);
+        $newMaxSpeed = $this->number($trip['max_speed_kmh'] ?? null);
+        if ($activeMaxSpeed !== null || $newMaxSpeed !== null) {
+            $trip['max_speed_kmh'] = max($activeMaxSpeed ?? 0.0, $newMaxSpeed ?? 0.0);
+        }
+        foreach (['avg_outside_temperature_c', 'avg_battery_temperature_c'] as $temperatureColumn) {
+            $activeTemperature = $this->number($active[$temperatureColumn] ?? null);
+            $newTemperature = $this->number($trip[$temperatureColumn] ?? null);
+            if ($activeTemperature !== null && $newTemperature !== null) {
+                $trip[$temperatureColumn] = round(($activeTemperature + $newTemperature) / 2, 2);
+            } elseif ($activeTemperature !== null) {
+                $trip[$temperatureColumn] = $activeTemperature;
+            }
+        }
+
         $trip['canonical_key'] = null;
         $trip['trip_state'] = 'active';
 
@@ -862,6 +968,15 @@ final class VehicleTelemetryDerivedDataService
         if ($activeEndOdo !== null
             && $movementStartOdo !== null
             && $movementStartOdo + self::MOVEMENT_THRESHOLD_KM < $activeEndOdo) {
+            return true;
+        }
+        if ($activeEndOdo !== null
+            && $movementStartOdo !== null
+            && $movementStartOdo - $activeEndOdo > 0.75) {
+            // Mezi posledním validním bodem a novým segmentem chybí část
+            // odometru (typicky jsme předchozí skok zahodili jako bad). Nikdy
+            // ji nepřilepujeme ke staré jízdě, jinak by se znovu nafoukla její
+            // vzdálenost přes nekvalitní mezilehlý snapshot.
             return true;
         }
 

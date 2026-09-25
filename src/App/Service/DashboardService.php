@@ -23,6 +23,9 @@
         /** @var VehicleOperationRepository|null */
         private $vehicleOperations;
 
+        /** @var bool|null */
+        private $tripQualityAvailableCache;
+
         public function __construct(PDO $pdo, ?VehicleOperationRepository $vehicleOperations = null) {
             $this->pdo = $pdo;
             $this->vehicleOperations = $vehicleOperations;
@@ -81,7 +84,15 @@
                 $period = 'all';
             }
 
-            $summaryQ = $this->pdo->prepare("SELECT COUNT(*) trip_count,COALESCE(SUM(distance_km),0) total_km,COALESCE(SUM(consumed_kwh),0) total_kwh,COALESCE(SUM(fuel_consumed_l),0) total_fuel,COALESCE(SUM(CASE WHEN avg_recuperation_kwh_100 IS NOT NULL THEN avg_recuperation_kwh_100 * distance_km / 100 ELSE 0 END),0) total_recuperated_kwh,COALESCE(SUM(driving_minutes),0) drive_min,COALESCE(SUM(travel_minutes),0) travel_min,COALESCE(SUM(short_trip),0) short_trips,COALESCE(SUM(public_charging_stops),0) public_stops,COALESCE(SUM(public_charge_soc_gained),0) public_soc,MIN(start_odometer_km) odo_min,MAX(end_odometer_km) odo_max,MIN(end_soc) min_soc,SUM(CASE WHEN start_soc IS NOT NULL OR end_soc IS NOT NULL OR public_charging_stops>0 OR public_charge_soc_gained>0 THEN 1 ELSE 0 END) charge_rows,SUM(CASE WHEN start_address<>'' OR end_address<>'' THEN 1 ELSE 0 END) location_rows,SUM(CASE WHEN electricity_cost IS NOT NULL OR total_cost IS NOT NULL THEN 1 ELSE 0 END) cost_rows,COALESCE(SUM(electricity_cost),0) electricity_cost_total FROM trips WHERE $where");
+            // Podezřelé jízdy z Data Quality Enginu zůstávají viditelné v
+            // historii, ale nesmějí zkreslovat souhrny, grafy ani predikční
+            // profily dashboardu. Před v28 se filtr jednoduše nepřidá.
+            $analyticsWhere = $where;
+            if ($this->tripQualityAvailable()) {
+                $analyticsWhere .= " AND (quality_status IS NULL OR quality_status<>'bad')";
+            }
+
+            $summaryQ = $this->pdo->prepare("SELECT COUNT(*) trip_count,COALESCE(SUM(distance_km),0) total_km,COALESCE(SUM(consumed_kwh),0) total_kwh,COALESCE(SUM(fuel_consumed_l),0) total_fuel,COALESCE(SUM(CASE WHEN avg_recuperation_kwh_100 IS NOT NULL THEN avg_recuperation_kwh_100 * distance_km / 100 ELSE 0 END),0) total_recuperated_kwh,COALESCE(SUM(driving_minutes),0) drive_min,COALESCE(SUM(travel_minutes),0) travel_min,COALESCE(SUM(short_trip),0) short_trips,COALESCE(SUM(public_charging_stops),0) public_stops,COALESCE(SUM(public_charge_soc_gained),0) public_soc,MIN(start_odometer_km) odo_min,MAX(end_odometer_km) odo_max,MIN(end_soc) min_soc,SUM(CASE WHEN start_soc IS NOT NULL OR end_soc IS NOT NULL OR public_charging_stops>0 OR public_charge_soc_gained>0 THEN 1 ELSE 0 END) charge_rows,SUM(CASE WHEN start_address<>'' OR end_address<>'' THEN 1 ELSE 0 END) location_rows,SUM(CASE WHEN electricity_cost IS NOT NULL OR total_cost IS NOT NULL THEN 1 ELSE 0 END) cost_rows,COALESCE(SUM(electricity_cost),0) electricity_cost_total FROM trips WHERE $analyticsWhere");
             $summaryQ->execute($params);
             $summary               = $summaryQ->fetch() ?: [];
             $tripCount             = (int)($summary['trip_count'] ?? 0);
@@ -200,7 +211,7 @@
             $monthLabels           = [];
             $monthKm               = [];
             $monthCons             = [];
-            $q                     = $this->pdo->prepare("SELECT DATE_FORMAT(started_at,'%Y-%m') m,SUM(distance_km) km,SUM(consumed_kwh) kwh FROM trips WHERE $where GROUP BY m ORDER BY m");
+            $q                     = $this->pdo->prepare("SELECT DATE_FORMAT(started_at,'%Y-%m') m,SUM(distance_km) km,SUM(consumed_kwh) kwh FROM trips WHERE $analyticsWhere GROUP BY m ORDER BY m");
             $q->execute($params);
             foreach ($q->fetchAll() as $r) {
                 $monthLabels[] = substr($r['m'], 5, 2) . '/' . substr($r['m'], 0, 4);
@@ -208,7 +219,7 @@
                 $monthCons[]   = round((float)$r['km'] > 0 ? (float)$r['kwh'] / (float)$r['km'] * 100 : 0, 1);
             }
             $hourData = array_fill(0, 24, 0);
-            $q        = $this->pdo->prepare("SELECT HOUR(started_at) h,COUNT(*) c FROM trips WHERE $where GROUP BY h");
+            $q        = $this->pdo->prepare("SELECT HOUR(started_at) h,COUNT(*) c FROM trips WHERE $analyticsWhere GROUP BY h");
             $q->execute($params);
             foreach ($q->fetchAll() as $r) {
                 $hourData[(int)$r['h']] = (int)$r['c'];
@@ -223,7 +234,7 @@
             $bandKm     = array_fill(0, 4, 0.0);
             $q          = $this->pdo->prepare(
                 "SELECT CASE WHEN avg_speed_kmh<40 THEN 0 WHEN avg_speed_kmh<65 THEN 1 WHEN avg_speed_kmh<=85 THEN 2 ELSE 3 END band,"
-                . "SUM(distance_km) km,SUM(consumed_kwh) kwh FROM trips WHERE $where AND avg_speed_kmh IS NOT NULL GROUP BY band"
+                . "SUM(distance_km) km,SUM(consumed_kwh) kwh FROM trips WHERE $analyticsWhere AND avg_speed_kmh IS NOT NULL GROUP BY band"
             );
             $q->execute($params);
             foreach ($q->fetchAll() as $r) {
@@ -237,7 +248,7 @@
                 }
             }
             $routes = [];
-            $q      = $this->pdo->prepare("SELECT start_address,end_address,COUNT(*) c,SUM(distance_km) km,SUM(consumed_kwh) kwh FROM trips WHERE $where AND (start_address<>'' OR end_address<>'') GROUP BY start_address,end_address ORDER BY c DESC,km DESC LIMIT 10");
+            $q      = $this->pdo->prepare("SELECT start_address,end_address,COUNT(*) c,SUM(distance_km) km,SUM(consumed_kwh) kwh FROM trips WHERE $analyticsWhere AND (start_address<>'' OR end_address<>'') GROUP BY start_address,end_address ORDER BY c DESC,km DESC LIMIT 10");
             $q->execute($params);
             foreach ($q->fetchAll() as $r) {
                 $key          = \App\View::displayRoute($r['start_address'], $r['end_address']);
@@ -247,7 +258,7 @@
                     'kwh'   => (float)$r['kwh']
                 ];
             }
-            $q = $this->pdo->prepare("SELECT COUNT(*) FROM trips WHERE $where AND distance_km>=80");
+            $q = $this->pdo->prepare("SELECT COUNT(*) FROM trips WHERE $analyticsWhere AND distance_km>=80");
             $q->execute($params);
             $longTripCount = (int)$q->fetchColumn();
             $longTripPerPage = 20;
@@ -256,7 +267,7 @@
             $longTripPage = min($longTripPage, $longTripPages);
             $longTripOffset = ($longTripPage - 1) * $longTripPerPage;
             $q = $this->pdo->prepare(
-                "SELECT * FROM trips WHERE $where AND distance_km>=80 ORDER BY started_at DESC LIMIT "
+                "SELECT * FROM trips WHERE $analyticsWhere AND distance_km>=80 ORDER BY started_at DESC LIMIT "
                 . $longTripPerPage . " OFFSET " . $longTripOffset
             );
             $q->execute($params);
@@ -552,4 +563,17 @@
             return (float)$sortedValues[$lower] * (1 - $weight)
                 + (float)$sortedValues[$upper] * $weight;
         }
+        private function tripQualityAvailable(): bool {
+            if ($this->tripQualityAvailableCache !== null) {
+                return $this->tripQualityAvailableCache;
+            }
+            $query = $this->pdo->prepare(
+                'SELECT COUNT(*) FROM information_schema.columns '
+                . 'WHERE table_schema=DATABASE() AND table_name=\'trips\' AND column_name=\'quality_status\''
+            );
+            $query->execute();
+            $this->tripQualityAvailableCache = (int)$query->fetchColumn() > 0;
+            return $this->tripQualityAvailableCache;
+        }
+
     }

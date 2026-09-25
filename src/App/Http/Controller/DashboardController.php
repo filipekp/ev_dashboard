@@ -80,6 +80,18 @@ final class DashboardController
         if ($vehiclePhoto && !$this->app->userAccess()->canReadDetailAt($user, (int)$vehicle['id'], (string)($vehiclePhoto['created_at'] ?? ''))) {
             $vehiclePhoto = null;
         }
+        $liveConnectedCar = $this->liveConnectedCar($vehicle);
+        $intelligence = [
+            'live_drive' => null,
+            'battery_health' => [],
+            'range_prediction' => [],
+            'quality_summary' => [],
+        ];
+        try {
+            $intelligence = $this->app->vehicleIntelligence()->dashboard($vehicle, $liveConnectedCar);
+        } catch (Throwable $e) {
+            // Dashboard zůstane dostupný i v okamžiku před aplikací nové migrace.
+        }
         $this->app->template()->render('dashboard', array_merge($data, [
             'app' => $this->app,
             'user' => $user,
@@ -91,7 +103,8 @@ final class DashboardController
             'vehiclePhoto' => $vehiclePhoto,
             'timelineEvents' => $this->app->timeline()->build((int)$vehicle['id'], 6, $detailScope),
             'insights' => $this->app->insights()->build($vehicle, $detailScope),
-            'liveConnectedCar' => $this->liveConnectedCar($vehicle),
+            'liveConnectedCar' => $liveConnectedCar,
+            'intelligence' => $intelligence,
         ]));
     }
 

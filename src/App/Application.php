@@ -38,6 +38,7 @@ use App\Service\VehicleTimelineService;
 use App\Service\VehicleSyncService;
 use App\Service\UserAccessService;
 use App\Service\VehicleInsightService;
+use App\Service\VehicleIntelligenceService;
 use App\Service\VehicleConnectorService;
 use App\Integration\Vehicle\VehicleConnectorRegistry;
 use App\Integration\Vehicle\Audi\AudiDataHubConnector;
@@ -373,6 +374,11 @@ final class Application
     public function insights(): VehicleInsightService
     {
         return new VehicleInsightService($this->pdo());
+    }
+
+    public function vehicleIntelligence(): VehicleIntelligenceService
+    {
+        return new VehicleIntelligenceService($this->pdo());
     }
 
     public function vehicleData(): VehicleDataRepository

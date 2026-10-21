@@ -177,7 +177,7 @@ final class VehicleTelemetryDerivedDataService
             }
 
             if ($active !== null) {
-                $singleTrip = $this->preserveActiveTripStart($active, $singleTrip, $vehicle);
+                $singleTrip = $this->preserveActiveTripStart($active, $singleTrip);
                 $this->trips->updateActiveTelemetryTrip($vehicleId, (int)$active['id'], $singleTrip);
                 $active = array_merge($active, $singleTrip);
                 $tripsChanged++;
@@ -432,21 +432,25 @@ final class VehicleTelemetryDerivedDataService
         // zpětně nezkreslí.
         $endSoc = $this->number($lastMovementSnapshot['soc_pct'] ?? null);
         $batteryKwh = $this->number($vehicle['battery_kwh'] ?? null);
-        $containsCharging = false;
-        for ($i = $originIndex; $i <= $lastMovementSnapshotIndex; $i++) {
-            if ((int)($snapshots[$i]['is_charging'] ?? 0) === 1) {
-                $containsCharging = true;
-                break;
-            }
-        }
-
         $consumed = null;
         $avgConsumption = null;
-        if (!$containsCharging && $batteryKwh !== null && $batteryKwh > 0 && $startSoc !== null && $endSoc !== null) {
-            $socDrop = $startSoc - $endSoc;
-            if ($socDrop > 0 && $socDrop <= 60) {
-                $consumed = round($batteryKwh * $socDrop / 100, 3);
-                $avgConsumption = $distance > 0 ? round($consumed * 100 / $distance, 2) : null;
+        if ($batteryKwh !== null && $batteryKwh > 0) {
+            // Započítáme jen úbytky SoC v jednotlivých odometrových úsecích.
+            // Nárůsty při nabíjení nejsou záporná spotřeba jízdy.
+            for ($movementIndex = $firstMovementIndex; $movementIndex <= $lastMovementIndex; $movementIndex++) {
+                $movement = $movements[$movementIndex];
+                $part = $this->consumedKwhForMovement(
+                    $snapshots[(int)$movement['older_index']],
+                    $snapshots[(int)$movement['newer_index']],
+                    $batteryKwh
+                );
+                if ($part !== null) {
+                    $consumed = ($consumed ?? 0.0) + $part;
+                }
+            }
+            if ($consumed !== null) {
+                $consumed = round($consumed, 3);
+                $avgConsumption = round($consumed * 100 / $distance, 2);
             }
         }
 
@@ -555,12 +559,36 @@ final class VehicleTelemetryDerivedDataService
     }
 
     /**
+     * Spotřeba jednoho úseku se změnou odometru. I když mezi body proběhlo
+     * nabíjení, kladný pokles SoC smíme započítat; nárůst naopak ignorujeme.
+     * Bez dvou použitelných hodnot SoC spotřebu neodhadujeme.
+     *
+     * @param array<string,mixed> $older
+     * @param array<string,mixed> $newer
+     */
+    private function consumedKwhForMovement(array $older, array $newer, float $batteryKwh): ?float
+    {
+        if ($batteryKwh <= 0) {
+            return null;
+        }
+        $before = $this->number($older['soc_pct'] ?? null);
+        $after = $this->number($newer['soc_pct'] ?? null);
+        if ($before === null || $after === null || $before < 0 || $before > 100 || $after < 0 || $after > 100) {
+            return null;
+        }
+        $drop = $before - $after;
+        if ($drop <= 0 || $drop > 60) {
+            return null;
+        }
+        return round($batteryKwh * $drop / 100, 3);
+    }
+
+    /**
      * @param array<string,mixed> $active
      * @param array<string,mixed> $trip
-     * @param array<string,mixed> $vehicle
      * @return array<string,mixed>
      */
-    private function preserveActiveTripStart(array $active, array $trip, array $vehicle): array
+    private function preserveActiveTripStart(array $active, array $trip): array
     {
         foreach ([
             'trip_hash',
@@ -622,19 +650,17 @@ final class VehicleTelemetryDerivedDataService
             $trip['avg_speed_kmh'] = $this->averageSpeedOrNull($distance, $minutes);
         }
 
-        $startSoc = $this->number($trip['start_soc'] ?? null);
-        $endSoc = $this->number($trip['end_soc'] ?? null);
-        $batteryKwh = $this->number($vehicle['battery_kwh'] ?? null);
-        if ($batteryKwh !== null && $batteryKwh > 0 && $startSoc !== null && $endSoc !== null) {
-            $socDrop = $startSoc - $endSoc;
-            if ($socDrop > 0 && $socDrop <= 60) {
-                $trip['consumed_kwh'] = round($batteryKwh * $socDrop / 100, 3);
-                $distance = max(0.0, (float)($trip['distance_km'] ?? 0));
-                $trip['avg_consumption_kwh_100'] = $distance > 0
-                    ? round((float)$trip['consumed_kwh'] * 100 / $distance, 2)
-                    : null;
-            }
-        }
+        // Každý snapshot s novým odometrem se zpracuje právě jednou. Přičítáme
+        // proto pouze spotřebu nového úseku, nikoliv netto SoC celé jízdy.
+        $previousKwh = $this->number($active['consumed_kwh'] ?? null);
+        $segmentKwh = $this->number($trip['consumed_kwh'] ?? null);
+        $trip['consumed_kwh'] = $previousKwh !== null || $segmentKwh !== null
+            ? round(($previousKwh ?? 0.0) + ($segmentKwh ?? 0.0), 3)
+            : null;
+        $distance = max(0.0, (float)($trip['distance_km'] ?? 0));
+        $trip['avg_consumption_kwh_100'] = $distance > 0 && $trip['consumed_kwh'] !== null
+            ? round((float)$trip['consumed_kwh'] * 100 / $distance, 2)
+            : null;
         $trip['short_trip'] = (float)($trip['distance_km'] ?? 0) <= 5 ? 1 : 0;
 
         return $trip;
